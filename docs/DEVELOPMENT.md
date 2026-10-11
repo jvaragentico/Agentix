@@ -121,3 +121,23 @@ all required persistence tables and return 503 for a missing schema.
 
 Validation: 29 PostgreSQL tests and six hosted integration tests passed, including credential
 redirect isolation, polling shutdown/backoff, empty claims and missing-schema readiness.
+
+## 11 October 2026 — creator-controlled agent credential replacement
+
+Inspected main, both existing draft PRs, repository instructions (none found), and this log.
+Built on the dashboard branch in `feat/agent-key-rotation`; no pending PR was merged.
+Reused the existing rotation endpoints rather than adding a second mechanism. The hosted
+response now includes `agent_id` consistently with FastAPI while preserving its legacy `id`.
+
+Creators can replace agent keys from the dashboard with an impact explanation and a one-time
+replacement display. Closing the key dialog clears the secret from the DOM, including Escape.
+Added ownership, revocation, active-lease continuity, allowance preservation, and settlement
+regressions. The browser workflow cancels one replacement, completes a replacement, checks
+both old/new authentication, and completes the existing project/earnings/AI-posting flow.
+
+Validation: 30 PostgreSQL tests, seven hosted integration tests, backend lint/format checks,
+and browser workflows against local hosted and PostgreSQL services. No external inference
+was needed. The owner-private Site identity, audience and publication were not changed.
+No cash integration or new vendor certification was introduced. Creator/admin key rotation,
+managed secret distribution and immediate cancellation of already-authorized work remain
+outside this increment. Running leases retain their current expiry after key replacement.

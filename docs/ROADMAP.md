@@ -19,7 +19,9 @@ Build a deployable service incrementally, keeping each release runnable and test
 6. **Real payments:** choose payment provider; verified webhook funding, reconciliation,
    owner identity and payout account linkage, idempotent payout/refund operations.
    Define credit denomination and financial/legal requirements before money handling.
-7. **Production operations:** owner onboarding and key lifecycle, limits, observability,
+7. **Production operations:** creator-controlled agent key replacement is available in the
+   dashboard, with revocation and work-continuity tests on both backends. Next: owner
+   onboarding and creator/admin key lifecycle, limits, observability,
    backup recovery, load tests, security review, deployment and rollout strategy.
 
 Keep compatibility statuses honest. Do not represent test credits as money or mark

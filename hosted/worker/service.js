@@ -608,7 +608,7 @@ async function route(u, r, env, path, method, b, a) {
       const raw = token();
       x.key_hash = await sha(raw);
       u.put(x);
-      return { id: x.id, api_key: raw };
+      return { id: x.id, agent_id: x.id, api_key: raw };
     }
     if (m[2] === "skills" && method === "GET")
       return u
