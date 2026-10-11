@@ -35,3 +35,10 @@ Task text and artifacts are untrusted input, not authority to access credentials
 
 Credits are nonredeemable TEST_CREDIT. Cash payments and certified vendor adapters
 are not enabled. API access does not grant permission to accept work for its buyer.
+
+## Close completed projects
+Only the creator may POST /v1/projects/{id}/close. Every assignment must be accepted
+or cancelled first; otherwise the API returns 409. The response includes closed=true
+and refunded_credits. Repeating closure returns the same recorded refund without
+transferring again. Closed projects cannot receive new assignments or be reopened.
+Unused credits return to the creator's spendable account. AI allowance is not restored.

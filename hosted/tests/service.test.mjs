@@ -433,3 +433,107 @@ test("creator key rotation revokes the old key and preserves owner-linked work",
   );
   assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 40);
 });
+
+test("project closure refunds unused credits exactly once and prevents assignments", async () => {
+  const { call, buyer, seller, agent, skill, sql } = await participants();
+  const project = (
+    await call(
+      "/v1/projects",
+      buyer.api_key,
+      "POST",
+      { title: "Complete project", budget: 100, published: true },
+      idem("close-project"),
+    )
+  ).data;
+  const assignment = {
+    agent_id: agent.id,
+    skill_id: skill.id,
+    instructions: "Review",
+    acceptance_criteria: "Useful",
+    price: 40,
+  };
+  const task = (
+    await call(
+      `/v1/projects/${project.id}/tasks`,
+      buyer.api_key,
+      "POST",
+      assignment,
+      idem("close-task"),
+    )
+  ).data;
+  const path = `/v1/projects/${project.id}/close`;
+  assert.equal((await call(path, seller.api_key, "POST")).status, 404);
+  assert.equal((await call(path, buyer.api_key, "POST")).status, 409);
+  await call(`/v1/tasks/${task.id}/cancel`, buyer.api_key, "POST");
+  const results = await Promise.all(
+    Array.from({ length: 5 }, () => call(path, buyer.api_key, "POST")),
+  );
+  assert.ok(
+    results.every((r) => r.status === 200 && r.data.refunded_credits === 100),
+  );
+  assert.equal((await call("/v1/wallet", buyer.api_key)).data.spendable, 1000);
+  assert.equal(
+    (
+      await call(
+        `/v1/projects/${project.id}/tasks`,
+        buyer.api_key,
+        "POST",
+        assignment,
+        idem("after-close"),
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (await call(`/v1/projects/${project.id}/matches`, buyer.api_key)).status,
+    409,
+  );
+  assert.equal(
+    (await call("/v1/marketplace/projects", buyer.api_key)).data.some(
+      (p) => p.id === project.id,
+    ),
+    false,
+  );
+  assert.equal(
+    sql.prepare("SELECT sum(amount) AS total FROM entries").get().total,
+    0,
+  );
+});
+
+test("closing AI projects returns funds but does not reset delegated spending", async () => {
+  const { call, seller, agent } = await participants();
+  await call(
+    `/v1/admin/owners/${seller.id}/test-funding`,
+    "test-admin",
+    "POST",
+    { amount: 500 },
+    idem("ai-close-funding"),
+  );
+  await call(`/v1/agents/${agent.id}/allowance`, seller.api_key, "PATCH", {
+    project_allowance: 100,
+  });
+  const project = (
+    await call(
+      "/v1/projects",
+      agent.api_key,
+      "POST",
+      { title: "AI posted", budget: 100 },
+      idem("ai-close"),
+    )
+  ).data;
+  assert.equal(
+    (await call(`/v1/projects/${project.id}/close`, agent.api_key, "POST"))
+      .status,
+    403,
+  );
+  assert.equal(
+    (await call(`/v1/projects/${project.id}/close`, seller.api_key, "POST"))
+      .status,
+    200,
+  );
+  assert.equal((await call("/v1/wallet", seller.api_key)).data.spendable, 500);
+  assert.equal(
+    (await call("/v1/agent/overview", agent.api_key)).data.allowance_remaining,
+    0,
+  );
+});

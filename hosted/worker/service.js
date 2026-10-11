@@ -316,6 +316,8 @@ function pview(u, p) {
     description: p.description,
     required_skills: p.required_skills,
     published: p.published,
+    closed: !!p.closed,
+    refunded_credits: p.refunded_credits || 0,
     owner_id: p.owner_id,
     posted_by_agent_id: p.posted_by_agent_id,
     source: p.posted_by_agent_id ? "ai" : "human",
@@ -709,6 +711,7 @@ async function route(u, r, env, path, method, b, a) {
       .filter(
         (p) =>
           p.published &&
+          !p.closed &&
           u.get(p.owner_id, "owner")?.active &&
           (!skill || p.required_skills.includes(skill)),
       )
@@ -716,9 +719,45 @@ async function route(u, r, env, path, method, b, a) {
       .slice(0, 100)
       .map((p) => pview(u, p));
   }
-  if ((m = path.match(/^\/v1\/projects\/([^/]+)(?:\/(matches|tasks))?$/))) {
+  if (
+    (m = path.match(/^\/v1\/projects\/([^/]+)(?:\/(matches|tasks|close))?$/))
+  ) {
     const p = project(u, m[1], a);
     if (!m[2] && method === "GET") return pview(u, p);
+    if (m[2] === "close" && method === "POST") {
+      requireOwner(a);
+      if (!p.closed) {
+        if (
+          u
+            .list("task")
+            .some(
+              (t) =>
+                t.project_id === p.id &&
+                ["reserved", "running", "submitted"].includes(t.state),
+            )
+        )
+          fail(409, "Resolve all assignments before closing the project");
+        const remaining = u.balance(p.account_id);
+        if (remaining)
+          u.transfer(
+            p.account_id,
+            "spendable:" + p.owner_id,
+            remaining,
+            "project_closure",
+            p.id,
+          );
+        p.refunded_credits = remaining;
+        p.closed = true;
+        p.published = false;
+        u.put(p);
+      }
+      return {
+        id: p.id,
+        closed: true,
+        refunded_credits: p.refunded_credits || 0,
+      };
+    }
+    if (m[2] === "matches" && p.closed) fail(409, "Project is closed");
     if (m[2] === "matches" && method === "GET")
       return u
         .list("agent")
@@ -761,6 +800,7 @@ async function route(u, r, env, path, method, b, a) {
       if (!x.available || !u.get(x.owner_id, "owner")?.active)
         fail(409, "Agent unavailable");
       return u.once("task:" + a.owner_id + ":" + p.id, r, b, () => {
+        if (p.closed) fail(409, "Project is closed");
         if (busy(u, x.id) >= x.capacity)
           fail(409, "Agent has no spare capacity");
         const t = u.create("task", {

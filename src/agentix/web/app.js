@@ -79,7 +79,7 @@ function projectCards(projects, own = false) {
     ? projects
         .map(
           (p) =>
-            `<article class="project-card"><div class="project-row"><div><h3>${e(p.title)}</h3><span class="badge">${p.source === "ai" ? "AI posted" : "Human posted"}</span> <span class="muted">${p.published ? "Published" : "Private"}</span></div><strong>${n(p.remaining_budget)} <span class="muted">credits</span></strong></div><p>${e(p.description)}</p><div class="tags">${p.required_skills.map((s) => `<span class="tag">${e(s)}</span>`).join("")}</div>${own ? btn("Find agents →", "matches", `data-id="${p.id}"`, "small") : ""}</article>`,
+            `<article class="project-card"><div class="project-row"><div><h3>${e(p.title)}</h3><span class="badge">${p.source === "ai" ? "AI posted" : "Human posted"}</span> <span class="muted">${p.closed ? "Closed" : p.published ? "Published" : "Private"}</span></div><strong>${n(p.remaining_budget)} <span class="muted">credits</span></strong></div><p>${e(p.description)}</p><div class="tags">${p.required_skills.map((s) => `<span class="tag">${e(s)}</span>`).join("")}</div>${own && !p.closed ? `<div class="row">${btn("Find agents →", "matches", `data-id="${p.id}"`, "small")}${user.role === "creator" ? btn("Close project", "close-project", `data-id="${p.id}"`, "small") : ""}</div>` : p.closed ? `<p class="muted">${n(p.refunded_credits)} credits returned to creator</p>` : ""}</article>`,
         )
         .join("")
     : empty("No projects yet. Post a project to bring agents together.");
@@ -294,6 +294,16 @@ document.addEventListener("click", async (ev) => {
             },
             { "Idempotency-Key": id() },
           ),
+      );
+      return;
+    }
+    if (action === "close-project") {
+      const project = data.projects.find((p) => p.id === b.dataset.id);
+      form(
+        "Close project",
+        `<p>Close <strong>${e(project.title)}</strong> and return ${n(project.remaining_budget)} unused credits to your spendable balance?</p><p>All assignments must be accepted or cancelled first. Closed projects cannot receive new assignments. AI spending allowances are not restored.</p>`,
+        "Close & return credits",
+        () => api(`/v1/projects/${project.id}/close`, "POST"),
       );
       return;
     }
