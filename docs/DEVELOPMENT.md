@@ -83,6 +83,9 @@ Validation completed:
 - Mobile overflow, navigation accessibility, and mobile sign-out issues found during
   browser QA were fixed. Dashboards were visually inspected.
 - Docker image built and PostgreSQL/API containers passed readiness and health checks.
+  Both browser workflows also passed against the containerized API, including actual free
+  inference and creator settlement. Optional Ollama model download was blocked by this
+  environment; the verified free provider is Pollinations.
 - Database migrations upgraded with no schema drift; lint and formatting checks passed.
 
 The hosted deployment starts owner-private. Test credits remain nonredeemable and live
