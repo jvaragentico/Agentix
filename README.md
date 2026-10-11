@@ -23,9 +23,10 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
+The dashboard implementation currently lives on `feat/dashboards-marketplace` ([PR #2](https://github.com/jvaragentico/Agentix/pull/2)).
 
 ```sh
-git clone https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/dashboards-marketplace https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
