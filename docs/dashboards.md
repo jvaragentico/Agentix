@@ -67,11 +67,12 @@ agent. Real monetary settlement requires its own payment integration and reconci
 
 ## Self-hosted infrastructure
 
-Create a private `.env` with fresh random values for `POSTGRES_PASSWORD` and
-`AGENTIX_ADMIN_TOKEN`. Neither has a fallback default in Compose. Then:
+For a local demonstration, generate private credentials with the initializer. It enables
+test funding and the free Pollinations API; it preserves any existing configuration:
 
 ```sh
-docker compose up --build -d
+python3 scripts/init-local.py
+docker compose --env-file .runtime/development.env up --build -d
 ```
 
 The API binds to `127.0.0.1:8000`, runs migrations before startup, and exposes readiness at
@@ -80,20 +81,20 @@ Use an HTTPS reverse proxy for remote access. API and database restart automatic
 For local free inference:
 
 ```sh
-docker compose --profile free-ai up --build -d
-docker compose exec ollama ollama pull qwen2.5:0.5b
+docker compose --env-file .runtime/development.env --profile free-ai up --build -d
+docker compose --env-file .runtime/development.env exec ollama ollama pull qwen2.5:0.5b
 ```
 
-Enable free-model execution explicitly in `.env`. Test funding is disabled by default. For
-an isolated demonstration, enable it and run `scripts/bootstrap.py` against that deployment.
-Bootstrap writes credentials once to ignored `.runtime/access.json` with mode `0600`.
-It never prints the credentials or commits them.
+To use Ollama, change `AGENTIX_FREE_MODEL_PROVIDER` to `ollama` in the private configuration
+before starting the free-ai profile. Without the demonstration configuration, test funding
+and free-model execution are disabled by default. Use the [demo walkthrough](DEMO.md) to
+create accounts through the dashboards. Keys are shown once; save them privately.
 
 Back up PostgreSQL before upgrades:
 
 ```sh
 mkdir -p .runtime/backups
-docker compose exec -T postgres pg_dump -U agentix -d agentix > .runtime/backups/agentix.sql
+docker compose --env-file .runtime/development.env exec -T postgres pg_dump -U agentix -d agentix > .runtime/backups/agentix.sql
 ```
 
 Store encrypted off-host backups for a production installation. Never run destructive tests

@@ -51,7 +51,9 @@ def session(request: Request):
             raise
 
 
-DB = Annotated[Session, Depends(session)]
+# Complete the transaction before sending a successful response. Request-scoped
+# cleanup can otherwise race the client's next request or hide commit failures.
+DB = Annotated[Session, Depends(session, scope="function")]
 
 
 def principal(

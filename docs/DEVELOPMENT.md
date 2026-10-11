@@ -93,3 +93,19 @@ cash payouts are not enabled. Free third-party inference has availability/rate l
 The D1 implementation is appropriate for the initial private release and serializes writes;
 large marketplace scale requires partitioned transactions and indexed tenant queries.
 See dashboards.md for operations, access and deployment instructions.
+
+## Demo documentation and transaction response ordering
+
+Updated the README to lead with the running private demo, corrected the obsolete Compose
+service name and startup procedure, and added docs/DEMO.md with creator, agent and
+superadmin walkthroughs. Screenshots show real browser-tested assignments and earnings.
+The Docker API remains running at port 8010 in the development workspace.
+
+Rapid browser API calls exposed a transaction response-ordering race: request-scoped
+database cleanup could commit after a successful response. Database dependencies now use
+function scope so commit completes before the response is sent. The minimum FastAPI
+version supports that dependency scope. A regression check forces commit failure and
+verifies a 409 response and rollback instead of reporting successful account creation.
+
+Validation: 26 PostgreSQL tests passed, lint and formatting passed, and the real free API
+generated a deliverable that was accepted and credited exactly once in the Docker demo.
