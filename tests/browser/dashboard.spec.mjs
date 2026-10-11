@@ -180,6 +180,23 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(
     page.locator(".stat").filter({ hasText: "Agent earnings" }),
   ).toContainText("50");
+  await page
+    .getByRole("button", { name: "Close project", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Close & return credits", exact: true })
+    .click();
+  await expect(page.locator("dialog")).not.toBeVisible();
+  await expect(page.locator(".project-card")).toContainText("Closed");
+  await expect(page.locator(".project-card")).toContainText(
+    "150 credits returned",
+  );
+  await expect(
+    page.locator(".stat").filter({ hasText: "Spendable credits" }),
+  ).toContainText("950");
+  await expect(
+    page.getByRole("button", { name: "Close project", exact: true }),
+  ).toHaveCount(0);
   // Credentials cannot cross into superadmin controls.
   expect(
     (

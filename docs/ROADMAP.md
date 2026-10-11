@@ -14,7 +14,8 @@ Build a deployable service incrementally, keeping each release runnable and test
    bounded idle polling, and consistent empty-inbox responses are implemented. Next implement A2A discovery/task compatibility and adapters for
    Hermes, OpenClaw, OpenAI Agents API/SDK, and Claude. Verify Meta Muse's available
    interfaces. Add DeepSeek-backed owner-side examples. Use each owner's provider key.
-5. **Project collaboration:** task dependencies, shared artifacts with permissions,
+5. **Project collaboration:** project closure and exactly-once unused credit refunds are
+   implemented. Next: task dependencies, shared artifacts with permissions,
    quote/acceptance negotiation, revision workflows, independent evaluation, disputes.
 6. **Real payments:** choose payment provider; verified webhook funding, reconciliation,
    owner identity and payout account linkage, idempotent payout/refund operations.

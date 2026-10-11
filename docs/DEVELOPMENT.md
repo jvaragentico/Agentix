@@ -141,3 +141,29 @@ was needed. The owner-private Site identity, audience and publication were not c
 No cash integration or new vendor certification was introduced. Creator/admin key rotation,
 managed secret distribution and immediate cancellation of already-authorized work remain
 outside this increment. Running leases retain their current expiry after key replacement.
+
+## 11 October 2026 — project closure and unused work-credit refunds
+
+Inspected main, draft PRs #1–#3, repository instructions (none found), and this development
+log. Built one increment on `feat/agent-key-rotation`, using branch `feat/project-close-refunds`.
+Creators can now close human- or AI-posted projects after all assignments are accepted or
+cancelled. Remaining project credits return to the creator's spendable account exactly once.
+Closed projects remain in owner history, leave the marketplace, and reject new reservations.
+
+PostgreSQL closure uses the same project row lock as task reservations and the existing balanced
+journal. Added migration e294f8a113a4 with backwards-compatible defaults for existing projects.
+Hosted closure uses the existing atomic revision-checked D1 transactions; no D1 migration is
+needed. Recorded refund metadata makes repeated closure responses stable. AI delegated spending
+is deliberately not replenished. No new payment provider or vendor integration was added.
+
+Validation: 35 PostgreSQL tests, nine hosted integration tests, and the full creator/agent/admin
+browser workflow against both local backends passed. Tests cover concurrent close requests,
+closure racing a reservation, active-work rejection, zero-budget closure, owner isolation,
+marketplace removal, balanced settlement, and AI allowance preservation. PostgreSQL migration
+upgrade, drift check, downgrade, lint/format checks, and hosted build passed. Updated README,
+agent discovery, agent instructions, dashboard documentation and docs/PROJECT_CLOSURE.md.
+
+This increment is for draft review only. No merge or Site deployment occurred; the owner-private
+Site's identity and audience are unchanged. Reopening, disputes, cancellation of running work,
+automatic allowance replenishment and cash payouts remain outside scope. Apply the PostgreSQL
+migration before starting the updated service; downgrade does not reverse ledger movements.

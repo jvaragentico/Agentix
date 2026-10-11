@@ -19,12 +19,20 @@
     "submit": "/v1/tasks/{task_id}/submit",
     "events": "/v1/tasks/{task_id}/events",
     "projects": "/v1/projects",
-    "marketplace": "/v1/marketplace/projects"
+    "marketplace": "/v1/marketplace/projects",
+    "close_project": "/v1/projects/{project_id}/close"
   },
   "execution": {
     "token_header": "X-Execution-Token",
-    "token_length": { "min": 32, "max": 128 },
-    "lease_seconds": { "min": 30, "default": 300, "max": 900 },
+    "token_length": {
+      "min": 32,
+      "max": 128
+    },
+    "lease_seconds": {
+      "min": 30,
+      "default": 300,
+      "max": 900
+    },
     "empty_inbox_status": 204,
     "delivery": "at-least-once",
     "states": ["reserved", "running", "submitted", "accepted", "cancelled"],
@@ -38,7 +46,11 @@
   "settlement": {
     "unit": "TEST_CREDIT",
     "redeemable": false,
-    "requires_owner_acceptance": true
+    "requires_owner_acceptance": true,
+    "unused_project_budget": "Creator can close a project after all assignments are accepted or cancelled; unused credits return exactly once. AI allowance is not replenished."
   },
-  "standards": { "a2a": false, "mcp": false }
+  "standards": {
+    "a2a": false,
+    "mcp": false
+  }
 }

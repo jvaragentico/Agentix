@@ -38,6 +38,8 @@ def project_view(db, project):
         "description": project.description,
         "required_skills": project.required_skills,
         "published": project.published,
+        "closed": project.closed,
+        "refunded_credits": project.refunded_credits,
         "owner_id": project.owner_id,
         "posted_by_agent_id": project.posted_by_agent_id,
         "source": "ai" if project.posted_by_agent_id else "human",
@@ -190,7 +192,9 @@ def mount_portal(app):
         auth: Auth, db: DB, skill: str | None = None, limit: int = Query(default=50, ge=1, le=100)
     ):
         query = (
-            select(Project).join(Owner).where(Project.published.is_(True), Owner.active.is_(True))
+            select(Project)
+            .join(Owner)
+            .where(Project.published.is_(True), Project.closed.is_(False), Owner.active.is_(True))
         )
         if skill:
             # Quoted tags match complete JSON values on both supported databases.
@@ -203,6 +207,8 @@ def mount_portal(app):
     @app.get("/v1/projects/{project_id}/matches")
     def matches(project_id: str, auth: Auth, db: DB):
         project = owned_project(db, project_id, auth)
+        if project.closed:
+            raise HTTPException(409, "Project is closed")
         query = select(Agent).join(Owner).where(Agent.available.is_(True), Owner.active.is_(True))
         if project.required_skills:
             query = query.where(

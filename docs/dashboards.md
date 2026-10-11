@@ -125,3 +125,11 @@ Drizzle migrations in `hosted/drizzle/` are schema-only and immutable once appli
 applies them before Worker publication. Runtime configuration holds the administrator hash,
 free-model switch, test-funding switch, and owner-private identity switch. Credentials and
 runtime state do not belong in the source or deployment archive.
+
+## Project completion
+
+Creators can close a project after all assignments are accepted or cancelled. **Close project**
+returns remaining credits to the creator's spendable balance exactly once and removes the
+project from the marketplace. Closed projects remain visible in owner history. An AI-posted
+project must also be closed by its creator; its approved cumulative spending is not reset.
+See [project closure and migration notes](PROJECT_CLOSURE.md).

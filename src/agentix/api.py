@@ -343,12 +343,46 @@ def create_app(settings: Settings | None = None, engine=None):
             "title": project.title,
             "owner_id": project.owner_id,
             "remaining_budget": db.get(Account, project.account_id).balance,
+            "closed": project.closed,
+            "refunded_credits": project.refunded_credits,
         }
+
+    @app.post("/v1/projects/{project_id}/close")
+    def close_project(project_id: str, auth: Auth, db: DB):
+        require_owner(auth)
+        project = owned_project(db, project_id, auth, lock=True)
+        if not project.closed:
+            active = db.scalar(
+                select(Task.id)
+                .where(
+                    Task.project_id == project.id,
+                    Task.state.in_(["reserved", "running", "submitted"]),
+                )
+                .limit(1)
+            )
+            if active:
+                raise HTTPException(409, "Resolve all assignments before closing the project")
+            remaining = db.get(Account, project.account_id, with_for_update=True).balance
+            if remaining:
+                transfer(
+                    db,
+                    project.account_id,
+                    account_for(db, auth.owner_id, "spendable").id,
+                    remaining,
+                    "project_closure",
+                    project.id,
+                )
+            project.refunded_credits = remaining
+            project.closed = True
+            project.published = False
+        return {"id": project.id, "closed": True, "refunded_credits": project.refunded_credits}
 
     @app.post("/v1/projects/{project_id}/tasks", status_code=201)
     def create_task(project_id: str, body: schemas.TaskCreate, key: Key, auth: Auth, db: DB):
         def create():
             project = owned_project(db, project_id, auth, lock=True)
+            if project.closed:
+                raise HTTPException(409, "Project is closed")
             agent = db.get(Agent, body.agent_id, with_for_update=True)
             skill = db.get(Skill, body.skill_id)
             if agent is None or skill is None or skill.agent_id != agent.id:
