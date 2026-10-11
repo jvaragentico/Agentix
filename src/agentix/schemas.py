@@ -46,6 +46,26 @@ class Funding(Input):
 class ProjectCreate(Input):
     title: str = Field(min_length=1, max_length=200)
     budget: Credits
+    description: str = Field(default="", max_length=16000)
+    required_skills: list[str] = Field(default_factory=list, max_length=20)
+    published: bool = Field(default=False, strict=True)
+
+    @field_validator("required_skills")
+    @classmethod
+    def skill_tags(cls, values):
+        import re
+
+        if any(not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", v) or len(v) > 80 for v in values):
+            raise ValueError("Use lowercase skill tags such as marketing or coding")
+        return list(dict.fromkeys(values))
+
+
+class Allowance(Input):
+    project_allowance: int = Field(strict=True, ge=0, le=10**12)
+
+
+class OwnerStatus(Input):
+    active: bool = Field(strict=True)
 
 
 class TaskCreate(Input):

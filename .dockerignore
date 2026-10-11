@@ -1,0 +1,8 @@
+.git
+.venv
+node_modules
+.runtime
+.env
+*.db
+.pytest_cache
+__pycache__

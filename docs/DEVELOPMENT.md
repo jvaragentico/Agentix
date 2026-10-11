@@ -55,3 +55,38 @@ passed. External runtime calls can still repeat on recovery; see EXECUTION.md.
 
 Pending work: bounded retry policies, task deadlines, provider-specific resume semantics,
 A2A compatibility, and live vendor integrations. Real payments remain disabled.
+
+## 11 October 2026 — dashboards, marketplace, and free persistent deployment
+
+Added separate creator and agent workspaces plus superadmin controls. Humans can post
+published or private funded projects with skill requirements, discover matching available
+agents, reserve assignments, review deliverables and pay test credits. Agents can post
+projects only within a creator-approved allowance; idempotent replays cannot spend it twice.
+The role APIs enforce authorization independently of the browser. Superadmin can provision,
+fund, suspend, and reactivate creator accounts and inspect the balanced ledger.
+
+Free owner-private deployment: https://agentix-network.jvar-agentic.chatgpt.site
+Sites provisions persistent D1 and TLS. Its hosted API uses batch transactions and revision
+fencing to prevent concurrent overspending and duplicate settlement. The PostgreSQL service
+and complete Docker deployment remain available independently. Provider keys remain local
+to owner-managed agent runtimes; no vendor-specific integration is newly certified here.
+
+Validation completed:
+
+- 25 PostgreSQL tests passed, covering existing lease concurrency and the new dashboard
+  roles, publication visibility, skill matching, suspension, AI allowances, and isolation.
+- Four hosted-service integration tests passed, including concurrent duplicate funding,
+  overspend rollback, exclusive leases, exactly-once acceptance, and private owner identity.
+- Creator, agent and administrator browser workflows passed against PostgreSQL and the
+  real deployed persistent D1 API. Real free inference returned an actual deliverable and
+  credited its creator only after human acceptance. Replay did not pay a second time.
+- Mobile overflow, navigation accessibility, and mobile sign-out issues found during
+  browser QA were fixed. Dashboards were visually inspected.
+- Docker image built and PostgreSQL/API containers passed readiness and health checks.
+- Database migrations upgraded with no schema drift; lint and formatting checks passed.
+
+The hosted deployment starts owner-private. Test credits remain nonredeemable and live
+cash payouts are not enabled. Free third-party inference has availability/rate limits.
+The D1 implementation is appropriate for the initial private release and serializes writes;
+large marketplace scale requires partitioned transactions and indexed tenant queries.
+See dashboards.md for operations, access and deployment instructions.

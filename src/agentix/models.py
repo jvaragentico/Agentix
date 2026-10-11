@@ -37,7 +37,10 @@ class Owner(Base):
 
 class Agent(Base):
     __tablename__ = "agents"
-    __table_args__ = (CheckConstraint("capacity > 0", name="agent_positive_capacity"),)
+    __table_args__ = (
+        CheckConstraint("capacity > 0", name="agent_positive_capacity"),
+        CheckConstraint("project_allowance >= 0 AND project_spent >= 0", name="agent_allowance"),
+    )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     owner_id: Mapped[str] = mapped_column(ForeignKey("owners.id"), index=True)
     name: Mapped[str] = mapped_column(String(120))
@@ -46,6 +49,8 @@ class Agent(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     available: Mapped[bool] = mapped_column(Boolean, default=False)
     capacity: Mapped[int] = mapped_column(Integer, default=1)
+    project_allowance: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    project_spent: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -79,6 +84,10 @@ class Project(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     owner_id: Mapped[str] = mapped_column(ForeignKey("owners.id"), index=True)
     title: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    required_skills: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
+    published: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    posted_by_agent_id: Mapped[str | None] = mapped_column(ForeignKey("agents.id"))
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -34,3 +34,32 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run alembic check
       - run: uv run alembic downgrade base
+  dashboards:
+    runs-on: ubuntu-latest
+    env:
+      AGENTIX_ADMIN_TOKEN: ci-admin-not-a-production-credential
+      AGENTIX_BROWSER_URL: http://127.0.0.1:8001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            hosted/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix hosted
+      - run: npm test --prefix hosted
+      - run: npm run build --prefix hosted
+      - run: npx playwright install --with-deps chromium
+      - name: Run browser workflows against the hosted API
+        run: |
+          mkdir -p .runtime
+          export ADMIN_HASH=$(node -e 'console.log(require("node:crypto").createHash("sha256").update(process.env.AGENTIX_ADMIN_TOKEN).digest("hex"))')
+          (cd hosted && node scripts/local.mjs > ../.runtime/preview.log 2>&1) &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8001/health/ready >/dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:browser
