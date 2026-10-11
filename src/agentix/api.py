@@ -1,20 +1,29 @@
 import hashlib
 import secrets
 from dataclasses import dataclass
+from datetime import UTC, timedelta
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from agentix import schemas
 from agentix.config import Settings
 from agentix.db import make_engine, make_sessions
+from agentix.execution import (
+    acquire,
+    database_now,
+    digest,
+    record_event,
+    require_live_lease,
+    require_token,
+)
 from agentix.idempotency import execute_once
 from agentix.ledger import transfer
-from agentix.models import Account, Agent, Entry, Owner, Project, Skill, Task, new_id
+from agentix.models import Account, Agent, Entry, Owner, Project, Skill, Task, TaskEvent, new_id
 
 security = HTTPBearer(auto_error=False)
 
@@ -62,6 +71,7 @@ def principal(
 
 Auth = Annotated[Principal, Depends(principal)]
 Key = Annotated[str, Header(alias="Idempotency-Key", min_length=1, max_length=64)]
+ExecutionToken = Annotated[str, Header(alias="X-Execution-Token", min_length=32, max_length=128)]
 
 
 def require_owner(auth: Principal):
@@ -106,7 +116,7 @@ def agent_view(agent: Agent):
 
 
 def task_view(task: Task):
-    return {
+    result = {
         key: getattr(task, key)
         for key in (
             "id",
@@ -119,8 +129,14 @@ def task_view(task: Task):
             "price",
             "state",
             "artifact",
+            "attempts",
         )
     }
+    expiry = task.lease_expires_at
+    if expiry is not None and expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=UTC)
+    result["lease_expires_at"] = expiry.isoformat() if expiry is not None else None
+    return result
 
 
 def visible_task(db: Session, task_id: str, auth: Principal, lock: bool = False):
@@ -138,7 +154,7 @@ def visible_task(db: Session, task_id: str, auth: Principal, lock: bool = False)
 def create_app(settings: Settings | None = None, engine=None):
     app = FastAPI(
         title="Agentix",
-        version="0.1.0",
+        version="0.2.0",
         description="Framework-independent agent work coordination and test-credit accounting.",
     )
     app.state.settings = settings or Settings()
@@ -348,6 +364,7 @@ def create_app(settings: Settings | None = None, engine=None):
             db.add(task)
             transfer(db, project.account_id, escrow.id, body.price, "task_reservation", task_id)
             db.flush()
+            record_event(db, task, auth, "reserved")
             return task_view(task)
 
         return execute_once(
@@ -376,30 +393,102 @@ def create_app(settings: Settings | None = None, engine=None):
     def get_task(task_id: str, auth: Auth, db: DB):
         return task_view(visible_task(db, task_id, auth))
 
+    @app.post("/v1/tasks/claim")
+    def claim(body: schemas.Lease, token: ExecutionToken, auth: Auth, db: DB):
+        if auth.agent_id is None:
+            raise HTTPException(403, "An agent credential is required to claim its inbox")
+        # Serialize replay of the same claim token, including before the task is selected.
+        if db.bind.dialect.name == "postgresql":
+            lock_id = int.from_bytes(bytes.fromhex(digest(token))[:8], signed=True)
+            db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_id})
+        previous = db.scalar(
+            select(Task).where(Task.lease_token_hash == digest(token)).with_for_update()
+        )
+        if previous:
+            if previous.agent_id != auth.agent_id:
+                raise HTTPException(409, "Execution token was already used")
+            acquire(db, previous, auth, token, body.lease_seconds)
+            return task_view(previous)
+        now = database_now(db)
+        query = (
+            select(Task)
+            .where(
+                Task.agent_id == auth.agent_id,
+                or_(
+                    Task.state == "reserved",
+                    (Task.state == "running") & (Task.lease_expires_at <= now),
+                ),
+            )
+            .order_by(Task.created_at, Task.id)
+            .limit(1)
+            .with_for_update(skip_locked=True)
+        )
+        task = db.scalar(query)
+        if task is None:
+            return Response(status_code=204)
+        acquire(db, task, auth, token, body.lease_seconds)
+        return task_view(task)
+
     @app.post("/v1/tasks/{task_id}/start")
-    def start(task_id: str, auth: Auth, db: DB):
+    def start(task_id: str, body: schemas.Lease, token: ExecutionToken, auth: Auth, db: DB):
         task = visible_task(db, task_id, auth, lock=True)
         if task.provider_owner_id != auth.owner_id:
             raise HTTPException(403, "Only the provider can start work")
-        if task.state == "running":
-            return task_view(task)
-        if task.state != "reserved":
-            raise HTTPException(409, "Task must be reserved")
-        task.state = "running"
+        acquire(db, task, auth, token, body.lease_seconds)
+        return task_view(task)
+
+    @app.post("/v1/tasks/{task_id}/heartbeat")
+    def heartbeat(task_id: str, body: schemas.Lease, token: ExecutionToken, auth: Auth, db: DB):
+        task = visible_task(db, task_id, auth, lock=True)
+        if task.provider_owner_id != auth.owner_id:
+            raise HTTPException(403, "Only the provider can renew execution")
+        require_live_lease(db, task, token)
+        task.lease_expires_at = database_now(db) + timedelta(seconds=body.lease_seconds)
+        record_event(db, task, auth, "heartbeat")
         return task_view(task)
 
     @app.post("/v1/tasks/{task_id}/submit")
-    def submit(task_id: str, body: schemas.Submission, auth: Auth, db: DB):
+    def submit(task_id: str, body: schemas.Submission, token: ExecutionToken, auth: Auth, db: DB):
         task = visible_task(db, task_id, auth, lock=True)
         if task.provider_owner_id != auth.owner_id:
             raise HTTPException(403, "Only the provider can submit work")
-        if task.state == "submitted" and task.artifact == body.artifact:
+        require_token(task, token)
+        if task.state in ("submitted", "accepted") and task.artifact == body.artifact:
             return task_view(task)
-        if task.state != "running":
-            raise HTTPException(409, "Task must be running")
+        require_live_lease(db, task, token)
         task.artifact = body.artifact
         task.state = "submitted"
+        task.lease_expires_at = None
+        record_event(db, task, auth, "submitted")
         return task_view(task)
+
+    @app.get("/v1/tasks/{task_id}/events")
+    def task_events(
+        task_id: str,
+        auth: Auth,
+        db: DB,
+        limit: int = Query(default=50, ge=1, le=100),
+        offset: int = Query(default=0, ge=0),
+    ):
+        visible_task(db, task_id, auth)
+        query = (
+            select(TaskEvent)
+            .where(TaskEvent.task_id == task_id)
+            .order_by(TaskEvent.created_at, TaskEvent.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        return [
+            {
+                "id": e.id,
+                "kind": e.kind,
+                "attempt": e.attempt,
+                "actor_owner_id": e.actor_owner_id,
+                "actor_agent_id": e.actor_agent_id,
+                "created_at": e.created_at.isoformat(),
+            }
+            for e in db.scalars(query)
+        ]
 
     @app.post("/v1/tasks/{task_id}/accept")
     def accept(task_id: str, auth: Auth, db: DB):
@@ -421,6 +510,7 @@ def create_app(settings: Settings | None = None, engine=None):
             task.id,
         )
         task.state = "accepted"
+        record_event(db, task, auth, "accepted")
         return task_view(task)
 
     @app.post("/v1/tasks/{task_id}/cancel")
@@ -436,6 +526,7 @@ def create_app(settings: Settings | None = None, engine=None):
             raise HTTPException(409, "Only unstarted work can be cancelled")
         transfer(db, task.account_id, project.account_id, task.price, "task_cancellation", task.id)
         task.state = "cancelled"
+        record_event(db, task, auth, "cancelled")
         return task_view(task)
 
     @app.get("/v1/wallet")

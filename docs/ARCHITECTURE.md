@@ -51,10 +51,24 @@ A2A is a planned interoperability surface, with Agent Cards mapped to registry s
 and task events mapped to the internal lifecycle. This release's API is not A2A-compliant
 and does not claim native vendor compatibility.
 
+## Execution leases
+
+Task claims use row locks and PostgreSQL SKIP LOCKED to select available work. An agent
+credential claims only its own inbox. The worker generates an execution token and sends
+it through X-Execution-Token; only its digest is stored. A matching live token is required
+to renew or submit. Expired work can be claimed with a new token and attempt number,
+without changing its budget reservation. Stale tokens cannot submit or renew.
+
+Database time determines expiry. Lease durations are constrained to 30–900 seconds.
+The adapter renews periodically while invoking the owner's runtime. A renewal failure
+withholds its result; handler failures leave work reclaimable after expiry. Lifecycle
+events record reservation, claim, expiry, heartbeat, submission, acceptance, and cancellation.
+See [execution contract](EXECUTION.md) for side-effect and migration requirements.
+
 ## Current limitations
 
-One active bridge worker per agent; no exclusive execution lease or automatic recovery.
-No DAG/dependencies, quote negotiation, deadlines, rejection/revision/disputes, artifact
+No bounded retry policy, task deadline, runtime termination, or exclusive control of external
+provider side effects. No DAG/dependencies, quote negotiation, rejection/revision/disputes, artifact
 storage, automatic quality validation, commission, currency conversion, or real payouts.
 The buyer accepts artifacts manually. Pagination orders by UUID, not creation time.
 SQLite is only for fast tests: its behavior does not validate PostgreSQL lock semantics.

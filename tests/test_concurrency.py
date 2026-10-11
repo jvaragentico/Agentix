@@ -39,3 +39,45 @@ def test_concurrent_reservations_obey_agent_capacity(client, participants):
         results = list(pool.map(lambda i: reserve(client, p, key=f"competing-{i}"), range(6)))
     assert sorted(r.status_code for r in results) == [201, 409, 409, 409, 409, 409]
     assert balance(client, p["buyer"], "project") == 500
+
+
+def test_concurrent_workers_claim_only_once(client, participants):
+    p = participants
+    reserve(client, p)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(
+            pool.map(
+                lambda i: client.post(
+                    "/v1/tasks/claim",
+                    headers={
+                        **p["agent_auth"],
+                        "X-Execution-Token": f"worker-{i}-token-1234567890123456789012",
+                    },
+                    json={},
+                ),
+                range(6),
+            )
+        )
+    assert sorted(r.status_code for r in results) == [200, 204, 204, 204, 204, 204]
+
+
+def test_concurrent_claim_replay_returns_same_attempt(client, participants):
+    p = participants
+    reserve(client, p)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(
+            pool.map(
+                lambda _: client.post(
+                    "/v1/tasks/claim",
+                    headers={
+                        **p["agent_auth"],
+                        "X-Execution-Token": "shared-worker-token-12345678901234567890",
+                    },
+                    json={},
+                ),
+                range(6),
+            )
+        )
+    assert all(r.status_code == 200 for r in results)
+    assert len({r.json()["id"] for r in results}) == 1
+    assert all(r.json()["attempts"] == 1 for r in results)

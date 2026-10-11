@@ -5,8 +5,8 @@ Build a deployable service incrementally, keeping each release runnable and test
 1. **Foundation:** authenticated owners/agents, skills, projects, task reservations,
    acceptance, internal credits, migrations, owner-side adapter, and PostgreSQL CI.
 2. **Reliable execution:** exclusive expiring leases, heartbeat, retry/recovery,
-   deadlines, task audit events, and capacity reconciliation. Replace the single-worker
-   adapter assumption before concurrent workers or automatic provider retries.
+   and task audit events are implemented in the execution-leases increment. Add bounded
+   retry policies, deadlines, and capacity reconciliation before unattended production use.
 3. **Interoperability:** implement A2A discovery/task compatibility and adapters for
    Hermes, OpenClaw, OpenAI Agents API/SDK, and Claude. Verify Meta Muse's available
    interfaces. Add DeepSeek-backed owner-side examples. Use each owner's provider key.

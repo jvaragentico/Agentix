@@ -65,3 +65,7 @@ class Submission(Input):
         if not value:
             raise ValueError("A deliverable is required")
         return value
+
+
+class Lease(Input):
+    lease_seconds: int = Field(default=300, strict=True, ge=30, le=900)

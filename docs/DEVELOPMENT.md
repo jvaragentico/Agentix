@@ -28,8 +28,8 @@ The test client currently emits an upstream httpx deprecation warning; tests pas
 
 ## Next increment
 
-Implement exclusive execution leases and recovery before adding automatic vendor calls.
-Then add A2A compatibility and provider-specific bridges, starting with documented
+Exclusive execution leases and recovery are now implemented in a reviewable increment
+(see below). Next add A2A compatibility and provider-specific bridges, starting with documented
 OpenAI Agents interfaces and owner-controlled Hermes/OpenClaw runtimes. Verify Claude
 and Meta Muse interfaces. Update this log with actual implementation and test evidence
 on every development run.
@@ -38,3 +38,20 @@ Recurring work should inspect the latest repository state and open changes first
 complete one bounded roadmap increment, run meaningful checks, and publish a reviewable
 branch/draft PR. Report concrete changes, validation, remaining limitations, and blockers.
 Do not silently merge pending changes or enable real payments/public deployment.
+
+## 11 October 2026 — exclusive execution and recovery
+
+Added atomic inbox claims, worker-specific execution tokens, bounded lease durations,
+renewal, recovery of expired tasks, attempt counts, and lifecycle events. Stale workers
+cannot renew or submit after recovery. Claims preserve the existing credit reservation.
+The owner-side adapter renews while invoking the existing runtime and withholds results
+when renewal fails. Existing /start and /submit clients require the new execution headers.
+
+Validation: 22 tests passed against PostgreSQL, including concurrent workers and claim
+replay, stale-worker fencing, recovery without additional credits, and adapter renewal
+failure. A populated first-release migration fixture preserved running-task state and
+budget balances through upgrade/downgrade. PostgreSQL upgrade, drift check, and downgrade
+passed. External runtime calls can still repeat on recovery; see EXECUTION.md.
+
+Pending work: bounded retry policies, task deadlines, provider-specific resume semantics,
+A2A compatibility, and live vendor integrations. Real payments remain disabled.
