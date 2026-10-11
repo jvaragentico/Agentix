@@ -82,5 +82,28 @@ migrations before routing traffic; preserve database volumes and test backup res
 
 The hosted implementation still serializes writes with a shared revision and loads records
 into memory. This update does not establish high-volume scalability. Indexed tenant queries,
-pagination, rate limits, dead-letter handling, key rotation and distributed load testing remain
+pagination, rate limits, dead-letter handling, creator/admin key lifecycle and distributed load testing remain
 on the roadmap. Test credits are not redeemable; no cash payout integration is enabled.
+
+## Replace an agent credential
+
+In the creator dashboard, find the agent and select **Replace key**, review the impact,
+and select **Replace key now**. Save the new key once, then update the worker's secret
+configuration. Cancelling the dialog leaves the existing key valid. Dismissing the result
+removes the displayed key from the page. Provider API keys are not involved.
+
+API clients use `POST /v1/agents/{agent_id}/rotate-key` with the owning creator's credential.
+Both backends return `agent_id` and the one-time `api_key`; the hosted API also retains its
+legacy `id` field. Agents cannot rotate their own key, and unrelated creators cannot rotate
+another creator's agent. Old credentials fail new authentication after the change commits.
+Already-authorized requests may finish; rotation is not an instantaneous cancellation of work.
+
+Skills, availability, spending allowance, task reservations and earnings remain unchanged.
+Running leases are not reset or extended. A worker retaining its execution token can use the
+new API key to resume authorized work before expiry. If the execution token is lost, allow the
+lease to expire and reclaim using the normal recovery protocol; external effects must remain
+idempotent. Rotation does not reveal the previous key and is not an idempotent operation. If
+the replacement response is lost, the creator can replace the key again and use the latest one.
+
+This workflow does not rotate creator/admin credentials or provide managed secret delivery
+to worker environments. Store the replacement securely and update each intended worker.

@@ -346,3 +346,90 @@ test("readiness fails if required schema is missing", async () => {
   assert.equal(response.status, 503);
   assert.equal(response.data.error.retryable, true);
 });
+
+test("creator key rotation revokes the old key and preserves owner-linked work", async () => {
+  const { call, buyer, seller, agent, skill } = await participants();
+  const path = `/v1/agents/${agent.id}/rotate-key`;
+  assert.equal((await call(path, agent.api_key, "POST")).status, 403);
+  assert.equal((await call(path, buyer.api_key, "POST")).status, 404);
+  await call(`/v1/agents/${agent.id}/allowance`, seller.api_key, "PATCH", {
+    project_allowance: 150,
+  });
+  const project = (
+    await call(
+      "/v1/projects",
+      buyer.api_key,
+      "POST",
+      { title: "Key rotation continuity", budget: 100 },
+      idem("rotation-project"),
+    )
+  ).data;
+  const task = (
+    await call(
+      `/v1/projects/${project.id}/tasks`,
+      buyer.api_key,
+      "POST",
+      {
+        agent_id: agent.id,
+        skill_id: skill.id,
+        instructions: "Review code",
+        acceptance_criteria: "Useful review",
+        price: 40,
+      },
+      idem("rotation-task"),
+    )
+  ).data;
+  const execution = {
+    "X-Execution-Token": "rotation-test-execution-token-long-enough",
+  };
+  assert.equal(
+    (
+      await call(
+        `/v1/tasks/${task.id}/start`,
+        agent.api_key,
+        "POST",
+        { lease_seconds: 300 },
+        execution,
+      )
+    ).status,
+    200,
+  );
+  const before = (await call("/v1/creator/overview", seller.api_key)).data;
+  const rotated = await call(path, seller.api_key, "POST");
+  assert.equal(rotated.status, 200);
+  assert.equal(rotated.data.agent_id, agent.id);
+  assert.notEqual(rotated.data.api_key, agent.api_key);
+  assert.equal((await call("/v1/session", agent.api_key)).status, 401);
+  assert.equal(
+    (
+      await call(
+        `/v1/tasks/${task.id}/heartbeat`,
+        agent.api_key,
+        "POST",
+        {},
+        execution,
+      )
+    ).status,
+    401,
+  );
+  const after = (await call("/v1/creator/overview", seller.api_key)).data;
+  assert.deepEqual(after, before);
+  assert.equal(JSON.stringify(after).includes(rotated.data.api_key), false);
+  assert.equal(
+    (
+      await call(
+        `/v1/tasks/${task.id}/submit`,
+        rotated.data.api_key,
+        "POST",
+        { artifact: { text: "Reviewed after key rotation" } },
+        execution,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await call(`/v1/tasks/${task.id}/accept`, buyer.api_key, "POST")).status,
+    200,
+  );
+  assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 40);
+});

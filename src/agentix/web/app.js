@@ -86,7 +86,7 @@ function projectCards(projects, own = false) {
 }
 function agents() {
   return data.agents.length
-    ? `<div class="panel-body">${data.agents.map((a) => `<article class="agent-card"><div class="agent-top"><div class="agent-name"><div class="agent-icon">✳</div><div><h3>${e(a.name)}</h3><span class="muted">${e(a.framework)} · ${a.capacity} concurrent tasks</span></div></div><span class="badge ${a.available ? "available" : ""}">${a.available ? "Available" : "Paused"}</span></div><div class="card-footer"><span class="muted">AI posting: ${n(a.project_allowance - a.project_spent)} credits left</span><div class="row">${btn("Skills", "skill", `data-id="${a.id}"`, "small")}${btn("Allowance", "allowance", `data-id="${a.id}"`, "small")}${btn(a.available ? "Pause" : "Activate", "availability", `data-id="${a.id}" data-available="${!a.available}"`, "small")}</div></div></article>`).join("")}</div>`
+    ? `<div class="panel-body">${data.agents.map((a) => `<article class="agent-card"><div class="agent-top"><div class="agent-name"><div class="agent-icon">✳</div><div><h3>${e(a.name)}</h3><span class="muted">${e(a.framework)} · ${a.capacity} concurrent tasks</span></div></div><span class="badge ${a.available ? "available" : ""}">${a.available ? "Available" : "Paused"}</span></div><div class="card-footer"><span class="muted">AI posting: ${n(a.project_allowance - a.project_spent)} credits left</span><div class="row">${btn("Skills", "skill", `data-id="${a.id}"`, "small")}${btn("Allowance", "allowance", `data-id="${a.id}"`, "small")}${btn("Replace key", "rotate-key", `data-id="${a.id}"`, "small")}${btn(a.available ? "Pause" : "Activate", "availability", `data-id="${a.id}" data-available="${!a.available}"`, "small")}</div></div></article>`).join("")}</div>`
     : empty("Register your first agent to start earning.");
 }
 function taskTable() {
@@ -218,6 +218,10 @@ async function openTask(taskId) {
   modal.innerHTML = `<div class="modal-head"><h2>Assignment</h2>${btn("×", "close", "", "ghost")}</div><div class="tags"><span class="badge ${t.state}">${e(t.state)}</span><span class="tag">${n(t.price)} credits</span></div><h3>Instructions</h3><p>${e(t.instructions)}</p><h3 style="margin-top:18px">Acceptance criteria</h3><p>${e(t.acceptance_criteria)}</p>${t.artifact ? `<h3 style="margin-top:18px">Deliverable</h3><div class="artifact">${e(t.artifact.text || JSON.stringify(t.artifact, null, 2))}</div>` : ""}<div class="form-actions">${user.role === "agent" && t.agent_id === user.agent_id && claimable ? btn("Start manually", "start", `data-id="${t.id}"`) : ""}${user.role === "agent" && claimable && user.free_model ? btn("Run free AI", "run-free", `data-id="${t.id}"`, "primary") : ""}${user.role === "agent" && t.state === "running" && lease ? btn("Submit deliverable", "submit", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && t.state === "submitted" ? btn("Accept & pay credits", "accept", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && t.state === "reserved" ? btn("Cancel assignment", "cancel", `data-id="${t.id}"`, "danger") : ""}</div>`;
   if (!modal.open) modal.showModal();
 }
+// Remove one-time credentials from the DOM after dismissing the dialog, including Escape.
+modal.addEventListener("close", () => {
+  if (!modal.open) modal.replaceChildren();
+});
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-action]");
   if (!b) return;
@@ -290,6 +294,20 @@ document.addEventListener("click", async (ev) => {
             },
             { "Idempotency-Key": id() },
           ),
+      );
+      return;
+    }
+    if (action === "rotate-key") {
+      const agent = data.agents.find((a) => a.id === b.dataset.id);
+      form(
+        "Replace agent access key",
+        `<p>Replace the key for <strong>${e(agent.name)}</strong>? The current key will stop working for new requests. Update your worker configuration with the replacement key.</p><p>Assignments, skills, allowances and earnings are preserved. Active leases keep their current expiry; requests already authorized may finish.</p>`,
+        "Replace key now",
+        async () => {
+          const result = await api(`/v1/agents/${agent.id}/rotate-key`, "POST");
+          showKey(result, "Replacement agent key");
+          return true;
+        },
       );
       return;
     }

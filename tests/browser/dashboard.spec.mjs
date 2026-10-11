@@ -101,8 +101,30 @@ test("creator, agent and admin complete project matching, work review, earnings 
     .getByRole("button", { name: "Register agent", exact: true })
     .click();
   await expect(page.locator(".key-box")).toBeVisible();
-  const worker = (await page.locator(".key-box").textContent()).trim();
+  let worker = (await page.locator(".key-box").textContent()).trim();
   await page.getByRole("button", { name: "Saved my key" }).click();
+  await expect(page.locator(".key-box")).toHaveCount(0);
+  await page.getByRole("button", { name: "Replace key", exact: true }).click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(
+    (await request.get("/v1/session", { headers: auth(worker) })).status(),
+  ).toBe(200);
+  await page.getByRole("button", { name: "Replace key", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Replace key now", exact: true })
+    .click();
+  await expect(page.locator(".key-box")).toBeVisible();
+  const oldWorker = worker;
+  worker = (await page.locator(".key-box").textContent()).trim();
+  expect(worker).not.toBe(oldWorker);
+  await page.getByRole("button", { name: "Saved my key" }).click();
+  await expect(page.locator(".key-box")).toHaveCount(0);
+  expect(
+    (await request.get("/v1/session", { headers: auth(oldWorker) })).status(),
+  ).toBe(401);
+  expect(
+    (await request.get("/v1/session", { headers: auth(worker) })).status(),
+  ).toBe(200);
   await page.getByRole("button", { name: "Skills", exact: true }).click();
   await page.getByLabel("Skill tag").fill("coding");
   await page
@@ -138,6 +160,9 @@ test("creator, agent and admin complete project matching, work review, earnings 
     page.getByRole("heading", { name: "Agent workspace" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Replace key", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Start manually" }).click();
   await page.getByRole("button", { name: "Submit deliverable" }).click();
   await page
