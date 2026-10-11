@@ -51,7 +51,9 @@ def session(request: Request):
             raise
 
 
-DB = Annotated[Session, Depends(session)]
+# Complete the transaction before sending a successful response. Request-scoped
+# cleanup can otherwise race the client's next request or hide commit failures.
+DB = Annotated[Session, Depends(session, scope="function")]
 
 
 def principal(
@@ -97,9 +99,10 @@ def owned_agent(db: Session, agent_id: str, auth: Principal, lock: bool = False)
 
 
 def owned_project(db: Session, project_id: str, auth: Principal, lock: bool = False):
-    require_owner(auth)
     project = db.get(Project, project_id, with_for_update=lock)
     if project is None or project.owner_id != auth.owner_id:
+        raise HTTPException(404, "Project not found")
+    if auth.agent_id is not None and project.posted_by_agent_id != auth.agent_id:
         raise HTTPException(404, "Project not found")
     return project
 
@@ -260,7 +263,7 @@ def create_app(settings: Settings | None = None, engine=None):
         limit: int = Query(default=50, ge=1, le=100),
         offset: int = Query(default=0, ge=0),
     ):
-        query = select(Agent).where(Agent.available.is_(True))
+        query = select(Agent).join(Owner).where(Agent.available.is_(True), Owner.active.is_(True))
         if skill:
             query = query.where(Agent.id.in_(select(Skill.agent_id).where(Skill.slug == skill)))
         return [
@@ -290,15 +293,27 @@ def create_app(settings: Settings | None = None, engine=None):
 
     @app.post("/v1/projects", status_code=201)
     def create_project(body: schemas.ProjectCreate, key: Key, auth: Auth, db: DB):
-        require_owner(auth)
-
         def create():
+            if auth.agent_id is not None:
+                agent = owned_agent(db, auth.agent_id, auth, lock=True)
+                if body.budget > agent.project_allowance - agent.project_spent:
+                    raise HTTPException(
+                        403, "Project budget exceeds the owner's delegated allowance"
+                    )
+                agent.project_spent += body.budget
             project_id = new_id()
             account = Account(owner_id=auth.owner_id, kind="project", reference=project_id)
             db.add(account)
             db.flush()
             project = Project(
-                id=project_id, owner_id=auth.owner_id, title=body.title, account_id=account.id
+                id=project_id,
+                owner_id=auth.owner_id,
+                title=body.title,
+                account_id=account.id,
+                description=body.description,
+                required_skills=body.required_skills,
+                published=body.published,
+                posted_by_agent_id=auth.agent_id,
             )
             db.add(project)
             transfer(
@@ -314,9 +329,11 @@ def create_app(settings: Settings | None = None, engine=None):
                 "title": project.title,
                 "owner_id": project.owner_id,
                 "budget": body.budget,
+                "source": "ai" if auth.agent_id else "human",
             }
 
-        return execute_once(db, f"project:{auth.owner_id}:{key}", body.model_dump(), create)
+        actor = auth.agent_id or auth.owner_id
+        return execute_once(db, f"project:{actor}:{key}", body.model_dump(), create)
 
     @app.get("/v1/projects/{project_id}")
     def get_project(project_id: str, auth: Auth, db: DB):
@@ -330,8 +347,6 @@ def create_app(settings: Settings | None = None, engine=None):
 
     @app.post("/v1/projects/{project_id}/tasks", status_code=201)
     def create_task(project_id: str, body: schemas.TaskCreate, key: Key, auth: Auth, db: DB):
-        require_owner(auth)
-
         def create():
             project = owned_project(db, project_id, auth, lock=True)
             agent = db.get(Agent, body.agent_id, with_for_update=True)
@@ -536,6 +551,8 @@ def create_app(settings: Settings | None = None, engine=None):
         return {
             "unit": "TEST_CREDIT",
             "redeemable": False,
+            "spendable": account_for(db, auth.owner_id, "spendable").balance,
+            "earnings": account_for(db, auth.owner_id, "earnings").balance,
             "accounts": [
                 {"id": a.id, "kind": a.kind, "reference": a.reference, "balance": a.balance}
                 for a in accounts
@@ -556,4 +573,9 @@ def create_app(settings: Settings | None = None, engine=None):
             for e in db.scalars(query.order_by(Entry.id).limit(limit).offset(offset))
         ]
 
+    from agentix.operations import mount_operations
+    from agentix.portal import mount_portal
+
+    mount_operations(app)
+    mount_portal(app)
     return app

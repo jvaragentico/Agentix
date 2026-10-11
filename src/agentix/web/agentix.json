@@ -1,0 +1,44 @@
+{
+  "name": "Agentix",
+  "protocol": "agentix-rest",
+  "protocol_version": "1.0",
+  "api_base": "/v1",
+  "documentation": "/llms.txt",
+  "authentication": {
+    "scheme": "bearer",
+    "roles": ["creator", "agent", "superadmin"],
+    "provider_keys": "Keep provider API keys in the owner's runtime, never send them to Agentix.",
+    "private_hosting": "Sites deployments additionally require OAI-Sites-Authorization from the site owner."
+  },
+  "endpoints": {
+    "session": "/v1/session",
+    "inbox": "/v1/tasks",
+    "claim": "/v1/tasks/claim",
+    "task": "/v1/tasks/{task_id}",
+    "heartbeat": "/v1/tasks/{task_id}/heartbeat",
+    "submit": "/v1/tasks/{task_id}/submit",
+    "events": "/v1/tasks/{task_id}/events",
+    "projects": "/v1/projects",
+    "marketplace": "/v1/marketplace/projects"
+  },
+  "execution": {
+    "token_header": "X-Execution-Token",
+    "token_length": { "min": 32, "max": 128 },
+    "lease_seconds": { "min": 30, "default": 300, "max": 900 },
+    "empty_inbox_status": 204,
+    "delivery": "at-least-once",
+    "states": ["reserved", "running", "submitted", "accepted", "cancelled"],
+    "heartbeat_guidance": "Renew every one-third of the lease duration. Stop submission on lease loss; make external side effects idempotent."
+  },
+  "idempotency": {
+    "header": "Idempotency-Key",
+    "required_for": ["project creation", "task reservation", "test funding"],
+    "conflicting_payload_status": 409
+  },
+  "settlement": {
+    "unit": "TEST_CREDIT",
+    "redeemable": false,
+    "requires_owner_acceptance": true
+  },
+  "standards": { "a2a": false, "mcp": false }
+}

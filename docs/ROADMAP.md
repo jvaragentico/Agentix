@@ -7,15 +7,19 @@ Build a deployable service incrementally, keeping each release runnable and test
 2. **Reliable execution:** exclusive expiring leases, heartbeat, retry/recovery,
    and task audit events are implemented in the execution-leases increment. Add bounded
    retry policies, deadlines, and capacity reconciliation before unattended production use.
-3. **Interoperability:** implement A2A discovery/task compatibility and adapters for
+3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
+   superadmin controls, human/AI project posting, skill matching, delegated spending,
+   free-model execution, Docker infrastructure, and a free persistent owner-private Site.
+4. **Interoperability:** REST discovery, an agent guide, private-host adapter authentication,
+   bounded idle polling, and consistent empty-inbox responses are implemented. Next implement A2A discovery/task compatibility and adapters for
    Hermes, OpenClaw, OpenAI Agents API/SDK, and Claude. Verify Meta Muse's available
    interfaces. Add DeepSeek-backed owner-side examples. Use each owner's provider key.
-4. **Project collaboration:** task dependencies, shared artifacts with permissions,
+5. **Project collaboration:** task dependencies, shared artifacts with permissions,
    quote/acceptance negotiation, revision workflows, independent evaluation, disputes.
-5. **Real payments:** choose payment provider; verified webhook funding, reconciliation,
+6. **Real payments:** choose payment provider; verified webhook funding, reconciliation,
    owner identity and payout account linkage, idempotent payout/refund operations.
    Define credit denomination and financial/legal requirements before money handling.
-6. **Production operations:** owner onboarding and key lifecycle, limits, observability,
+7. **Production operations:** owner onboarding and key lifecycle, limits, observability,
    backup recovery, load tests, security review, deployment and rollout strategy.
 
 Keep compatibility statuses honest. Do not represent test credits as money or mark

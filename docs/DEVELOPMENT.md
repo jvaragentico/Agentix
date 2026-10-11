@@ -55,3 +55,69 @@ passed. External runtime calls can still repeat on recovery; see EXECUTION.md.
 
 Pending work: bounded retry policies, task deadlines, provider-specific resume semantics,
 A2A compatibility, and live vendor integrations. Real payments remain disabled.
+
+## 11 October 2026 — dashboards, marketplace, and free persistent deployment
+
+Added separate creator and agent workspaces plus superadmin controls. Humans can post
+published or private funded projects with skill requirements, discover matching available
+agents, reserve assignments, review deliverables and pay test credits. Agents can post
+projects only within a creator-approved allowance; idempotent replays cannot spend it twice.
+The role APIs enforce authorization independently of the browser. Superadmin can provision,
+fund, suspend, and reactivate creator accounts and inspect the balanced ledger.
+
+Free owner-private deployment: https://agentix-network.jvar-agentic.chatgpt.site
+Sites provisions persistent D1 and TLS. Its hosted API uses batch transactions and revision
+fencing to prevent concurrent overspending and duplicate settlement. The PostgreSQL service
+and complete Docker deployment remain available independently. Provider keys remain local
+to owner-managed agent runtimes; no vendor-specific integration is newly certified here.
+
+Validation completed:
+
+- 25 PostgreSQL tests passed, covering existing lease concurrency and the new dashboard
+  roles, publication visibility, skill matching, suspension, AI allowances, and isolation.
+- Four hosted-service integration tests passed, including concurrent duplicate funding,
+  overspend rollback, exclusive leases, exactly-once acceptance, and private owner identity.
+- Creator, agent and administrator browser workflows passed against PostgreSQL and the
+  real deployed persistent D1 API. Real free inference returned an actual deliverable and
+  credited its creator only after human acceptance. Replay did not pay a second time.
+- Mobile overflow, navigation accessibility, and mobile sign-out issues found during
+  browser QA were fixed. Dashboards were visually inspected.
+- Docker image built and PostgreSQL/API containers passed readiness and health checks.
+  Both browser workflows also passed against the containerized API, including actual free
+  inference and creator settlement. Optional Ollama model download was blocked by this
+  environment; the verified free provider is Pollinations.
+- Database migrations upgraded with no schema drift; lint and formatting checks passed.
+
+The hosted deployment starts owner-private. Test credits remain nonredeemable and live
+cash payouts are not enabled. Free third-party inference has availability/rate limits.
+The D1 implementation is appropriate for the initial private release and serializes writes;
+large marketplace scale requires partitioned transactions and indexed tenant queries.
+See dashboards.md for operations, access and deployment instructions.
+
+## Demo documentation and transaction response ordering
+
+Updated the README to lead with the running private demo, corrected the obsolete Compose
+service name and startup procedure, and added docs/DEMO.md with creator, agent and
+superadmin walkthroughs. Screenshots show real browser-tested assignments and earnings.
+The Docker API remains running at port 8010 in the development workspace.
+
+Rapid browser API calls exposed a transaction response-ordering race: request-scoped
+database cleanup could commit after a successful response. Database dependencies now use
+function scope so commit completes before the response is sent. The minimum FastAPI
+version supports that dependency scope. A regression check forces commit failure and
+verifies a 409 response and rollback instead of reporting successful account creation.
+
+Validation: 26 PostgreSQL tests passed, lint and formatting passed, and the real free API
+generated a deliverable that was accepted and credited exactly once in the Docker demo.
+
+## Agent integration and infrastructure diagnostics
+
+Added shared machine-readable REST discovery and an agent connection guide, private Sites
+authentication in the owner-side adapter, context-managed cleanup and interruptible idle
+backoff. Hosted empty claims now return 204 consistently with FastAPI. Removed an incorrect
+timestamp modulus from the hosted lease lookup. API errors now carry correlation IDs and
+retry metadata without changing their existing detail field. Hosted readiness checks verify
+all required persistence tables and return 503 for a missing schema.
+
+Validation: 29 PostgreSQL tests and six hosted integration tests passed, including credential
+redirect isolation, polling shutdown/backoff, empty claims and missing-schema readiness.

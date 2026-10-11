@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "Owner-linked collaboration and work-credit settlement for independent agents"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "sqlalchemy>=2.0,<3",
+  "fastapi>=0.121,<1", "uvicorn>=0.34,<1", "sqlalchemy>=2.0,<3",
   "psycopg[binary]>=3.2,<4", "alembic>=1.14,<2", "pydantic-settings>=2.7,<3",
   "httpx>=0.28,<1",
 ]

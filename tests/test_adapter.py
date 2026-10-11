@@ -86,3 +86,48 @@ def test_adapter_renews_during_work_and_withholds_result_on_failure(
         bridge.close()
     task = client.get(f"/v1/tasks/{task_id}", headers=p["buyer"]).json()
     assert task["state"] == ("running" if renewal_fails else "submitted")
+
+
+def test_private_host_discovery_and_redirects_keep_credentials_on_origin():
+    requests = []
+
+    def transport(request):
+        requests.append(request)
+        if request.url.path == "/.well-known/agentix.json":
+            return httpx.Response(200, json={"protocol": "agentix-rest"})
+        return httpx.Response(307, headers={"Location": "https://other.example/claim"})
+
+    with AgentixAdapter(
+        "https://agentix.example",
+        "agent-key",
+        sites_service_token="site-key",
+        transport=httpx.MockTransport(transport),
+    ) as adapter:
+        assert adapter.discover()["protocol"] == "agentix-rest"
+        with pytest.raises(httpx.HTTPStatusError):
+            adapter.run_once(lambda _: {"text": "must not run"})
+    assert len(requests) == 2
+    assert all(r.url.host == "agentix.example" for r in requests)
+    assert all(r.headers["OAI-Sites-Authorization"] == "Bearer site-key" for r in requests)
+
+
+def test_idle_polling_backs_off_and_can_be_stopped():
+    class Stop:
+        def __init__(self):
+            self.delays = []
+
+        def is_set(self):
+            return False
+
+        def wait(self, delay):
+            self.delays.append(delay)
+            return len(self.delays) == 4
+
+    stop = Stop()
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(lambda _: httpx.Response(204)),
+    ) as adapter:
+        adapter.run_forever(lambda _: {}, stop=stop, poll_seconds=2, max_poll_seconds=5)
+    assert stop.delays == [2, 4, 5, 5]

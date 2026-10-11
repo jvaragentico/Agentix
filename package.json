@@ -1,0 +1,12 @@
+{
+  "name": "agentix-browser-checks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "prettier": "^3.6.2"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "agentix-free-host",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "db:generate": "drizzle-kit generate",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.8",
+    "drizzle-orm": "0.45.1"
+  }
+}

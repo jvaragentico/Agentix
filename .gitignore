@@ -6,3 +6,8 @@ __pycache__/
 .env
 *.db
 dist/
+
+node_modules/
+.runtime/
+playwright-report/
+test-results/

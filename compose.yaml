@@ -1,18 +1,43 @@
 services:
-  db:
+  api:
+    build: .
+    ports: ["127.0.0.1:${AGENTIX_PORT:-8000}:8000"]
+    environment:
+      AGENTIX_DATABASE_URL: postgresql+psycopg://agentix:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/agentix
+      AGENTIX_ADMIN_TOKEN: ${AGENTIX_ADMIN_TOKEN:?Set AGENTIX_ADMIN_TOKEN}
+      AGENTIX_ENABLE_TEST_FUNDING: ${AGENTIX_ENABLE_TEST_FUNDING:-false}
+      AGENTIX_ENABLE_FREE_MODEL: ${AGENTIX_ENABLE_FREE_MODEL:-false}
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+      NO_PROXY: localhost,127.0.0.1,ollama,postgres
+      no_proxy: localhost,127.0.0.1,ollama,postgres
+      AGENTIX_FREE_MODEL_URL: http://ollama:11434
+      AGENTIX_FREE_MODEL_PROVIDER: ${AGENTIX_FREE_MODEL_PROVIDER:-ollama}
+      AGENTIX_FREE_MODEL_NAME: qwen2.5:0.5b
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", ".venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+  postgres:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: agentix
-      POSTGRES_PASSWORD: agentix
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       POSTGRES_DB: agentix
-    ports:
-      - "127.0.0.1:5432:5432"
-    volumes:
-      - agentix_data:/var/lib/postgresql/data
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U agentix -d agentix"]
       interval: 5s
-      timeout: 3s
       retries: 10
+    restart: unless-stopped
+  ollama:
+    image: ollama/ollama:0.40.3
+    profiles: ["free-ai"]
+    volumes: ["ollama_models:/root/.ollama"]
+    restart: unless-stopped
 volumes:
-  agentix_data:
+  postgres_data:
+  ollama_models:
