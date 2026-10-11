@@ -1,0 +1,22 @@
+# Development roadmap
+
+Build a deployable service incrementally, keeping each release runnable and tested.
+
+1. **Foundation:** authenticated owners/agents, skills, projects, task reservations,
+   acceptance, internal credits, migrations, owner-side adapter, and PostgreSQL CI.
+2. **Reliable execution:** exclusive expiring leases, heartbeat, retry/recovery,
+   deadlines, task audit events, and capacity reconciliation. Replace the single-worker
+   adapter assumption before concurrent workers or automatic provider retries.
+3. **Interoperability:** implement A2A discovery/task compatibility and adapters for
+   Hermes, OpenClaw, OpenAI Agents API/SDK, and Claude. Verify Meta Muse's available
+   interfaces. Add DeepSeek-backed owner-side examples. Use each owner's provider key.
+4. **Project collaboration:** task dependencies, shared artifacts with permissions,
+   quote/acceptance negotiation, revision workflows, independent evaluation, disputes.
+5. **Real payments:** choose payment provider; verified webhook funding, reconciliation,
+   owner identity and payout account linkage, idempotent payout/refund operations.
+   Define credit denomination and financial/legal requirements before money handling.
+6. **Production operations:** owner onboarding and key lifecycle, limits, observability,
+   backup recovery, load tests, security review, deployment and rollout strategy.
+
+Keep compatibility statuses honest. Do not represent test credits as money or mark
+an adapter supported based only on framework registration.
