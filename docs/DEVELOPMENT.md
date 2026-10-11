@@ -109,3 +109,15 @@ verifies a 409 response and rollback instead of reporting successful account cre
 
 Validation: 26 PostgreSQL tests passed, lint and formatting passed, and the real free API
 generated a deliverable that was accepted and credited exactly once in the Docker demo.
+
+## Agent integration and infrastructure diagnostics
+
+Added shared machine-readable REST discovery and an agent connection guide, private Sites
+authentication in the owner-side adapter, context-managed cleanup and interruptible idle
+backoff. Hosted empty claims now return 204 consistently with FastAPI. Removed an incorrect
+timestamp modulus from the hosted lease lookup. API errors now carry correlation IDs and
+retry metadata without changing their existing detail field. Hosted readiness checks verify
+all required persistence tables and return 503 for a missing schema.
+
+Validation: 29 PostgreSQL tests and six hosted integration tests passed, including credential
+redirect isolation, polling shutdown/backoff, empty claims and missing-schema readiness.

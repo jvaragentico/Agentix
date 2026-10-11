@@ -573,7 +573,9 @@ def create_app(settings: Settings | None = None, engine=None):
             for e in db.scalars(query.order_by(Entry.id).limit(limit).offset(offset))
         ]
 
+    from agentix.operations import mount_operations
     from agentix.portal import mount_portal
 
+    mount_operations(app)
     mount_portal(app)
     return app

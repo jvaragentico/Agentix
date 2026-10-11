@@ -17,6 +17,6 @@ def test_commit_failure_returns_conflict_instead_of_success(app, client):
         json={"name": "Must not appear successful"},
     )
     assert response.status_code == 409
-    assert response.json() == {"detail": "Conflicting record"}
+    assert response.json()["detail"] == "Conflicting record"
     with Session(app.state.engine) as db:
         assert db.scalar(select(func.count()).select_from(Owner)) == 0

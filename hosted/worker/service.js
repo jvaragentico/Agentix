@@ -813,7 +813,7 @@ async function route(u, r, env, path, method, b, a) {
           t.agent_id === a.agent_id &&
           t.execution_hash === hash &&
           t.state === "running" &&
-          Date.parse(t.lease_expires_at) > Date.now() % 2147483647,
+          Date.parse(t.lease_expires_at) > Date.now(),
       );
     t =
       t ||
@@ -826,7 +826,7 @@ async function route(u, r, env, path, method, b, a) {
               (t.state === "running" &&
                 Date.parse(t.lease_expires_at) <= Date.now())),
         );
-    if (!t) fail(404, "No claimable tasks");
+    if (!t) return null;
     return safeTask(acquire(u, t, a, hash, leaseSeconds(b)));
   }
   if (
@@ -985,12 +985,18 @@ async function freeRun(env, request, id) {
     artifact: { text, provider: "pollinations-free", external_api_charge: 0 },
   });
 }
-export async function service(request, env) {
+async function handleRequest(request, env) {
   try {
     const url = new URL(request.url);
     if (url.pathname === "/health/live") return Response.json({ status: "ok" });
     if (url.pathname === "/health/ready") {
-      await env.DB.prepare("SELECT 1").first();
+      try {
+        await env.DB.prepare(
+          "SELECT (SELECT 1 FROM revision LIMIT 1) AS revision, (SELECT 1 FROM records LIMIT 1) AS records, (SELECT 1 FROM balances LIMIT 1) AS balances, (SELECT 1 FROM entries LIMIT 1) AS entries, (SELECT 1 FROM operations LIMIT 1) AS operations",
+        ).first();
+      } catch {
+        fail(503, "Database unavailable or migrations required");
+      }
       return Response.json({ status: "ok" });
     }
     if (!["GET", "POST", "PATCH"].includes(request.method))
@@ -1019,6 +1025,15 @@ export async function service(request, env) {
       free && request.method === "POST"
         ? await freeRun(env, request, free[1])
         : await transaction(env, request, url.pathname, request.method, body);
+    if (
+      request.method === "POST" &&
+      url.pathname === "/v1/tasks/claim" &&
+      value === null
+    )
+      return new Response(null, {
+        status: 204,
+        headers: { "Cache-Control": "no-store" },
+      });
     return Response.json(value, {
       status:
         request.method === "POST" &&
@@ -1039,4 +1054,24 @@ export async function service(request, env) {
       { status: error.status || 500, headers: { "Cache-Control": "no-store" } },
     );
   }
+}
+
+export async function service(request, env) {
+  const requestId = crypto.randomUUID();
+  const response = await handleRequest(request, env);
+  response.headers.set("X-Request-ID", requestId);
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  if (response.status >= 400) {
+    const body = await response.json();
+    body.error = {
+      status: response.status,
+      request_id: requestId,
+      retryable: [429, 502, 503, 504].includes(response.status),
+    };
+    return Response.json(body, {
+      status: response.status,
+      headers: response.headers,
+    });
+  }
+  return response;
 }

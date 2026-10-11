@@ -79,7 +79,10 @@ async function harness() {
       }),
       env,
     );
-    return { status: response.status, data: await response.json() };
+    return {
+      status: response.status,
+      data: response.status === 204 ? null : await response.json(),
+    };
   }
   return { sql, call };
 }
@@ -316,4 +319,30 @@ test("private Site owner identity binds once and credentials are never returned 
   assert.equal(overview.status, 200);
   assert.ok(!JSON.stringify(overview.data).includes("key_hash"));
   assert.ok(!JSON.stringify(overview.data).includes("api_key"));
+});
+
+test("empty agent inbox is 204 and failures have request correlation", async () => {
+  const h = await participants();
+  const empty = await h.call(
+    "/v1/tasks/claim",
+    h.agent.api_key,
+    "POST",
+    { lease_seconds: 300 },
+    { "X-Execution-Token": "empty-inbox-token-with-enough-characters" },
+  );
+  assert.equal(empty.status, 204);
+  assert.equal(empty.data, null);
+  const bad = await h.call("/v1/session", "invalid");
+  assert.equal(bad.status, 401);
+  assert.equal(bad.data.error.retryable, false);
+  assert.match(bad.data.error.request_id, /^[a-f0-9-]{36}$/);
+});
+
+test("readiness fails if required schema is missing", async () => {
+  const h = await harness();
+  assert.equal((await h.call("/health/ready")).status, 200);
+  h.sql.exec("DROP TABLE operations");
+  const response = await h.call("/health/ready");
+  assert.equal(response.status, 503);
+  assert.equal(response.data.error.retryable, true);
 });

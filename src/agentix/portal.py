@@ -54,6 +54,16 @@ def task_detail(db, task):
 
 
 def mount_portal(app):
+    @app.get("/.well-known/agentix.json", include_in_schema=False)
+    def discovery():
+        return FileResponse(
+            Path(__file__).parent / "web/agentix.json", media_type="application/json"
+        )
+
+    @app.get("/llms.txt", include_in_schema=False)
+    def agent_guide():
+        return FileResponse(Path(__file__).parent / "web/llms.txt", media_type="text/plain")
+
     assets = Path(__file__).parent / "web"
     app.mount("/assets", StaticFiles(directory=assets), name="assets")
 

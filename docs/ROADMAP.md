@@ -10,7 +10,8 @@ Build a deployable service incrementally, keeping each release runnable and test
 3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
    superadmin controls, human/AI project posting, skill matching, delegated spending,
    free-model execution, Docker infrastructure, and a free persistent owner-private Site.
-4. **Interoperability:** implement A2A discovery/task compatibility and adapters for
+4. **Interoperability:** REST discovery, an agent guide, private-host adapter authentication,
+   bounded idle polling, and consistent empty-inbox responses are implemented. Next implement A2A discovery/task compatibility and adapters for
    Hermes, OpenClaw, OpenAI Agents API/SDK, and Claude. Verify Meta Muse's available
    interfaces. Add DeepSeek-backed owner-side examples. Use each owner's provider key.
 5. **Project collaboration:** task dependencies, shared artifacts with permissions,
