@@ -2,6 +2,12 @@ from sqlalchemy import func, select
 
 from agentix.models import Account, Entry, Journal
 
+EXECUTION_TOKEN = "initial-execution-token-1234567890"
+
+
+def execution_headers(auth):
+    return {**auth, "X-Execution-Token": EXECUTION_TOKEN}
+
 
 def reserve(client, p, key="task", price=200):
     return client.post(
@@ -26,11 +32,16 @@ def balance(client, auth, kind):
 
 
 def complete(client, p, task_id):
-    assert client.post(f"/v1/tasks/{task_id}/start", headers=p["agent_auth"]).status_code == 200
+    assert (
+        client.post(
+            f"/v1/tasks/{task_id}/start", headers=execution_headers(p["agent_auth"]), json={}
+        ).status_code
+        == 200
+    )
     assert (
         client.post(
             f"/v1/tasks/{task_id}/submit",
-            headers=p["agent_auth"],
+            headers=execution_headers(p["agent_auth"]),
             json={"artifact": {"review": "Reviewed; see test evidence"}},
         ).status_code
         == 200
@@ -77,7 +88,12 @@ def test_unauthorized_owners_and_agent_keys_are_isolated(client, participants):
     task = reserve(client, p).json()
     assert client.get(f"/v1/tasks/{task['id']}", headers=p["outsider"]).status_code == 404
     assert client.get(f"/v1/projects/{p['project']['id']}", headers=p["seller"]).status_code == 404
-    assert client.post(f"/v1/tasks/{task['id']}/start", headers=p["buyer"]).status_code == 403
+    assert (
+        client.post(
+            f"/v1/tasks/{task['id']}/start", headers=execution_headers(p["buyer"]), json={}
+        ).status_code
+        == 403
+    )
     assert client.post(f"/v1/tasks/{task['id']}/accept", headers=p["seller"]).status_code == 403
     assert client.get("/v1/wallet", headers=p["agent_auth"]).status_code == 403
     assert (
@@ -109,7 +125,12 @@ def test_reserved_cancellation_refunds_once_and_frees_capacity(client, participa
         assert client.post(f"/v1/tasks/{task['id']}/cancel", headers=p["buyer"]).status_code == 200
     assert balance(client, p["buyer"], "project") == 700
     assert reserve(client, p, key="new").status_code == 201
-    assert client.post(f"/v1/tasks/{task['id']}/start", headers=p["agent_auth"]).status_code == 409
+    assert (
+        client.post(
+            f"/v1/tasks/{task['id']}/start", headers=execution_headers(p["agent_auth"]), json={}
+        ).status_code
+        == 409
+    )
 
 
 def test_insufficient_budget_rolls_back_reservation(client, app, participants):
@@ -143,7 +164,7 @@ def test_started_work_cannot_be_unilaterally_cancelled(client, participants):
     assert (
         client.post(
             f"/v1/tasks/{task['id']}/submit",
-            headers=p["agent_auth"],
+            headers=execution_headers(p["agent_auth"]),
             json={"artifact": {"changed": True}},
         ).status_code
         == 409
@@ -249,10 +270,14 @@ def test_different_runtimes_collaborate_on_same_project(client, participants):
     )
     assert response.status_code == 201
     task_id = response.json()["id"]
-    client.post(f"/v1/tasks/{task_id}/start", headers=second_auth)
+    client.post(
+        f"/v1/tasks/{task_id}/start",
+        headers={**second_auth, "X-Execution-Token": "second-execution-token-1234567890"},
+        json={},
+    )
     client.post(
         f"/v1/tasks/{task_id}/submit",
-        headers=second_auth,
+        headers={**second_auth, "X-Execution-Token": "second-execution-token-1234567890"},
         json={"artifact": {"verification": "Checked the prior agent's review"}},
     )
     assert client.post(f"/v1/tasks/{task_id}/accept", headers=p["buyer"]).status_code == 200

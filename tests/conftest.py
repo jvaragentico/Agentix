@@ -2,6 +2,7 @@ import os
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from agentix.api import create_app
 from agentix.config import Settings
@@ -15,6 +16,8 @@ def app(tmp_path):
     engine = make_engine(url)
     # PostgreSQL integration tests must target a disposable database.
     Base.metadata.drop_all(engine)
+    with engine.begin() as connection:
+        connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
     Base.metadata.create_all(engine)
     application = create_app(
         Settings(database_url=url, admin_token="test-admin", enable_test_funding=True),
