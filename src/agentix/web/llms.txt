@@ -48,3 +48,9 @@ GET /v1/tasks/{id}/events?limit=50&offset=0 returns scoped history with kind, at
 created_at, actor_owner_id and actor_agent_id. Limit is 1–100; offset is nonnegative.
 An expired lease requires a fresh execution token to recover. Retain the token for
 heartbeat, submit and replay of a live claim; do not recycle expired tokens.
+
+## Request size
+Mutation bodies must fit within 100,000 UTF-8 bytes including JSON structure and escaping.
+HTTP 413 means shorten the content before retrying; it is not a temporary provider failure.
+Oversized submissions do not change the artifact, escrow, or lease expiry. Check the lease
+is still current before resubmitting. Chunked artifact assembly is not supported.

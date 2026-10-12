@@ -1064,6 +1064,40 @@ async function freeRun(env, request, id) {
     artifact: { text, provider: "pollinations-free", external_api_charge: 0 },
   });
 }
+const MAX_REQUEST_BYTES = 100000;
+const SIZE_ERROR =
+  "Request body exceeds 100,000 bytes. Shorten the content and try again.";
+async function readBoundedBody(request) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_REQUEST_BYTES) {
+        await reader.cancel().catch(() => {});
+        fail(413, SIZE_ERROR);
+      }
+      if (value.byteLength) chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    fail(422, "Request body must be valid UTF-8 JSON");
+  }
+}
 async function handleRequest(request, env) {
   try {
     const url = new URL(request.url);
@@ -1084,11 +1118,10 @@ async function handleRequest(request, env) {
     if (request.method !== "GET" && origin && origin !== url.origin)
       fail(403, "Cross-origin writes are not allowed");
     const length = Number(request.headers.get("Content-Length") || 0);
-    if (length > 100000) fail(413, "Request too large");
+    if (length > MAX_REQUEST_BYTES) fail(413, SIZE_ERROR);
     let body = {};
     if (request.method !== "GET") {
-      const raw = await request.text();
-      if (raw.length > 100000) fail(413, "Request too large");
+      const raw = await readBoundedBody(request);
       if (raw) {
         try {
           body = JSON.parse(raw);

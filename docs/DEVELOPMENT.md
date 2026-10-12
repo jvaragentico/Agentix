@@ -192,3 +192,27 @@ No database migration is introduced by this increment. No deployment, audience c
 provider-key centralization, cash settlement or vendor certification occurred. Retry caps,
 dead-letter handling, event retention, streaming and indexed hosted event queries remain pending.
 History pagination limits response size; the hosted implementation still reads records in memory.
+
+## Bounded request bodies and recoverable oversized submissions
+
+Inspected main, draft PRs #1–#5, repository instructions (none found), and the development log.
+PR #5 CI was passing. Built one operations increment on `feat/execution-history`, using
+`feat/request-size-limits`, without merging or deploying any branch.
+
+FastAPI now bounds mutation bodies in ASGI middleware before validation/database work. Hosted
+mutations count streamed bytes instead of reading an unbounded body and checking character
+length. Both accept at most 100,000 body bytes, check actual input when Content-Length is missing
+or under-reported, and return 413 with request correlation and a nonretryable hint. Oversized
+submissions preserve task state, artifacts, escrow and lease expiry. The dashboard checks the
+serialized UTF-8 size and retains rejected text for editing before a corrected submission.
+
+Validation: 41 PostgreSQL tests, 12 hosted integration tests, and full browser workflows against
+local FastAPI/PostgreSQL and Worker/D1 simulation passed. Checks cover streamed cancellation,
+misleading Content-Length, inclusive boundary acceptance, multibyte Unicode, no mutation on
+rejection, correction/resubmission, and all existing collaboration/credit flows. Discovery
+advertises the limit; its focused contract check passed. Lint/format and hosted build passed.
+README, integration guidance, agent instructions and docs/REQUEST_LIMITS.md document behavior.
+
+No migration, Site publication, audience change, provider credential handling or cash settlement
+was introduced. The fixed body cap is not a rate limit, JSON-depth limit, artifact storage quota,
+event retention policy or ingress timeout; those remain separate operations work.

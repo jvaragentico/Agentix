@@ -84,7 +84,7 @@ async function harness() {
       data: response.status === 204 ? null : await response.json(),
     };
   }
-  return { sql, call };
+  return { sql, call, env };
 }
 const idem = (name) => ({ "Idempotency-Key": name });
 async function participants() {
@@ -659,4 +659,105 @@ test("expired execution tokens cannot recover a lease and history matches the RE
   assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 0);
   await call(`/v1/tasks/${task.id}/accept`, buyer.api_key, "POST");
   assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 40);
+});
+
+test("request limit counts streamed UTF-8 bytes and cancels oversized input", async () => {
+  let cancelled = false;
+  let reads = 0;
+  const stream = new ReadableStream(
+    {
+      pull(controller) {
+        reads++;
+        controller.enqueue(new Uint8Array(60000));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  const response = await service(
+    new Request("https://agentix.test/v1/admin/owners", {
+      method: "POST",
+      body: stream,
+      duplex: "half",
+    }),
+    {},
+  );
+  assert.equal(response.status, 413);
+  assert.equal(cancelled, true);
+  assert.equal(reads, 2);
+  assert.equal((await response.json()).error.retryable, false);
+});
+
+test("exact boundary request succeeds and oversized Unicode artifacts preserve work", async () => {
+  const { call, env, buyer, agent, skill } = await participants();
+  const prefix = JSON.stringify({ name: "Boundary account" });
+  const boundary = await service(
+    new Request("https://agentix.test/v1/admin/owners", {
+      method: "POST",
+      headers: { Authorization: "Bearer test-admin" },
+      body: prefix + " ".repeat(100000 - prefix.length),
+    }),
+    env,
+  );
+  assert.equal(boundary.status, 201);
+  const project = (
+    await call(
+      "/v1/projects",
+      buyer.api_key,
+      "POST",
+      { title: "Size limit", budget: 100 },
+      idem("size-project"),
+    )
+  ).data;
+  const task = (
+    await call(
+      `/v1/projects/${project.id}/tasks`,
+      buyer.api_key,
+      "POST",
+      {
+        agent_id: agent.id,
+        skill_id: skill.id,
+        instructions: "Review",
+        acceptance_criteria: "Useful",
+        price: 40,
+      },
+      idem("size-task"),
+    )
+  ).data;
+  const execution = {
+    "X-Execution-Token": "size-check-execution-token-long-enough",
+  };
+  await call(
+    `/v1/tasks/${task.id}/start`,
+    agent.api_key,
+    "POST",
+    {},
+    execution,
+  );
+  const tooLarge = await call(
+    `/v1/tasks/${task.id}/submit`,
+    agent.api_key,
+    "POST",
+    { artifact: { text: "界".repeat(40000) } },
+    execution,
+  );
+  assert.equal(tooLarge.status, 413);
+  assert.equal(tooLarge.data.error.retryable, false);
+  const unchanged = (await call(`/v1/tasks/${task.id}`, agent.api_key)).data;
+  assert.equal(unchanged.state, "running");
+  assert.equal(unchanged.artifact, null);
+  assert.equal(
+    (
+      await call(
+        `/v1/tasks/${task.id}/submit`,
+        agent.api_key,
+        "POST",
+        { artifact: { text: "Short result" } },
+        execution,
+      )
+    ).status,
+    200,
+  );
 });

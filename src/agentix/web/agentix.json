@@ -52,5 +52,11 @@
   "standards": {
     "a2a": false,
     "mcp": false
+  },
+  "request_limits": {
+    "max_body_bytes": 100000,
+    "encoding": "UTF-8 JSON",
+    "exceeded_status": 413,
+    "retryable_without_changes": false
   }
 }

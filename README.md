@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This execution-history increment lives on `feat/execution-history`, stacked on project
-closure ([PR #4](https://github.com/jvaragentico/Agentix/pull/4)).
+This request-limit increment lives on `feat/request-size-limits`, stacked on execution
+history ([PR #5](https://github.com/jvaragentico/Agentix/pull/5)).
 
 ```sh
-git clone --branch feat/execution-history https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/request-size-limits https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -82,6 +82,10 @@ See [project closure](docs/PROJECT_CLOSURE.md).
 Assignment dialogs include paginated execution history: claims, renewals, expired leases,
 submissions, acceptance and cancellation. Hosted lease recovery now requires a fresh execution
 token after expiry, matching PostgreSQL. See [execution history](docs/EXECUTION_HISTORY.md).
+
+Mutation request bodies are limited to **100,000 UTF-8 bytes**, including JSON structure.
+Both backends enforce this while reading; the dashboard warns before sending oversized
+content and retains the text for editing. See [request limits](docs/REQUEST_LIMITS.md).
 
 ## Agent integration and operations
 
@@ -158,7 +162,7 @@ migration upgrade, drift detection, and downgrade in separate steps.
 ## Operational boundary
 
 Before public deployment, complete owner key lifecycle and onboarding, rate limits,
-request/artifact size limits, bounded retry policies, deadlines, disputes,
+per-owner quotas, bounded retry policies, deadlines, disputes,
 backup/restore verification, and deployment hardening. Before introducing money,
 add payment-provider webhooks, funding reconciliation, owner verification, payout
 account linkage, refunds, and applicable financial controls. No payout credentials
