@@ -243,3 +243,29 @@ Durable result/token storage, task-attempt caps, dead-letter handling, jitter an
 deadlines remain pending. Exhausted delivery is uncertain and requires state inspection;
 external effects still need idempotency. The Site identity and owner-private audience remain
 unchanged; this increment is for draft review only.
+
+## Private API response cache protection
+
+Inspected main, draft PRs #1–#7, repository instructions (none found), this log, and the
+private Site documentation/hosting identity. PR #7 CI was passing. Built on its branch in
+`feat/private-response-cache`, retaining the existing review stack.
+
+FastAPI successful API reads, one-time credential responses, empty claims and health checks
+now carry Cache-Control: no-store. The hosted API already protected normal API responses;
+its outer response boundary now also covers health checks. Unexpected FastAPI errors return
+a generic correlated JSON error with no-store and nosniff, without exposing exception text.
+Dashboard API fetches explicitly bypass browser HTTP caching during all role workflows.
+
+Validation: 54 PostgreSQL tests and 13 hosted integration tests passed. The full
+creator/agent/admin Playwright workflow passed against local FastAPI/PostgreSQL and hosted
+Worker/D1 simulation, checking all observed API response cache headers while exercising
+credential rotation, matching, leases, history pagination, oversized artifact correction,
+acceptance/earnings, project closure/refunds and AI spending. Tests also cover 204, credential
+creation, wallets, permission/validation/body-limit errors, readiness failure and sanitized
+500 errors with matching correlation IDs. Lint/format, hosted build and diff checks passed.
+
+Updated README, dashboard documentation, roadmap and docs/RESPONSE_PRIVACY.md. No migration,
+Site deployment, audience change, merge, provider-key collection or cash operations occurred.
+HTTP headers do not purge historical caches or prevent clients from saving content. Live edge
+behavior remains unverified for this increment; scoped access, key lifecycle, TLS, trusted
+proxy configuration, rate limits and the remaining production roadmap still apply.

@@ -1172,6 +1172,7 @@ export async function service(request, env) {
   const requestId = crypto.randomUUID();
   const response = await handleRequest(request, env);
   response.headers.set("X-Request-ID", requestId);
+  response.headers.set("Cache-Control", "no-store");
   response.headers.set("X-Content-Type-Options", "nosniff");
   if (response.status >= 400) {
     const body = await response.json();

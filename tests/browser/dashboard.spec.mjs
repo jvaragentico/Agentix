@@ -66,6 +66,15 @@ test("creator, agent and admin complete project matching, work review, earnings 
   request,
 }) => {
   const errors = [];
+  const cacheViolations = [];
+  let privateResponses = 0;
+  page.on("response", (response) => {
+    if (new URL(response.url()).pathname.startsWith("/v1/")) {
+      privateResponses++;
+      if (response.headers()["cache-control"] !== "no-store")
+        cacheViolations.push(new URL(response.url()).pathname);
+    }
+  });
   page.on("pageerror", (err) => errors.push(err.message));
   await login(page, admin);
   await expect(
@@ -285,6 +294,8 @@ test("creator, agent and admin complete project matching, work review, earnings 
   });
   expect((await ledger.json()).ledger_balance).toBe(0);
   expect(errors).toEqual([]);
+  expect(privateResponses).toBeGreaterThan(10);
+  expect(cacheViolations).toEqual([]);
 });
 test("real free API completes a task and credits go to the creator", async ({
   page,

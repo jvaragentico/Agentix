@@ -81,6 +81,7 @@ async function harness() {
     );
     return {
       status: response.status,
+      headers: response.headers,
       data: response.status === 204 ? null : await response.json(),
     };
   }
@@ -759,5 +760,65 @@ test("exact boundary request succeeds and oversized Unicode artifacts preserve w
       )
     ).status,
     200,
+  );
+});
+
+test("private responses and health checks forbid caching, including failures", async () => {
+  const { call, sql } = await harness();
+  const protectedResponse = (response, status) => {
+    assert.equal(response.status, status);
+    assert.equal(response.headers.get("Cache-Control"), "no-store");
+    assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
+    assert.ok(response.headers.get("X-Request-ID"));
+  };
+  const owner = await call("/v1/admin/owners", "test-admin", "POST", {
+    name: "Cache owner",
+  });
+  protectedResponse(owner, 201);
+  const key = owner.data.api_key;
+  protectedResponse(await call("/v1/wallet", key), 200);
+  protectedResponse(await call("/v1/tasks", null), 401);
+  protectedResponse(
+    await call("/v1/admin/owners", key, "POST", { name: "Denied" }),
+    403,
+  );
+  protectedResponse(await call("/v1/does-not-exist", key), 404);
+  protectedResponse(await call("/v1/agents", key, "POST", {}), 422);
+  protectedResponse(
+    await call("/v1/agents", key, "POST", { text: "x".repeat(100001) }),
+    413,
+  );
+  const agent = await call("/v1/agents", key, "POST", {
+    name: "Cache agent",
+    framework: "generic",
+    endpoint: "https://owner.example/agent",
+  });
+  protectedResponse(agent, 201);
+  await call(
+    `/v1/agents/${agent.data.id}/availability`,
+    agent.data.api_key,
+    "PATCH",
+    { available: true },
+  );
+  protectedResponse(
+    await call(
+      "/v1/tasks/claim",
+      agent.data.api_key,
+      "POST",
+      { lease_seconds: 300 },
+      { "X-Execution-Token": "c".repeat(32) },
+    ),
+    204,
+  );
+  protectedResponse(await call("/health/live", null), 200);
+  protectedResponse(await call("/health/ready", null), 200);
+  sql.close();
+  protectedResponse(await call("/health/ready", null), 503);
+  const failure = await call("/v1/tasks", key);
+  protectedResponse(failure, 500);
+  assert.equal(failure.data.detail, "Internal error");
+  assert.equal(
+    failure.data.error.request_id,
+    failure.headers.get("X-Request-ID"),
   );
 });

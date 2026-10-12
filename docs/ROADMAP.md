@@ -23,7 +23,8 @@ Build a deployable service incrementally, keeping each release runnable and test
    owner identity and payout account linkage, idempotent payout/refund operations.
    Define credit denomination and financial/legal requirements before money handling.
 7. **Production operations:** streamed mutation-body byte limits and dashboard feedback are
-   implemented on both backends. Creator-controlled agent key replacement is available in the
+   implemented on both backends. Private API and health responses now prevent HTTP caching;
+   dashboard API calls bypass the browser cache. Creator-controlled agent key replacement is available in the
    dashboard, with revocation and work-continuity tests on both backends. Next: owner
    onboarding and creator/admin key lifecycle, rate limits, observability,
    backup recovery, load tests, security review, deployment and rollout strategy.
