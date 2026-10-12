@@ -28,8 +28,8 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run ruff check src tests migrations
-      - run: uv run ruff format --check src tests migrations
+      - run: uv run ruff check src tests migrations scripts
+      - run: uv run ruff format --check src tests migrations scripts
       - run: uv run pytest -q
       - run: uv run alembic upgrade head
       - run: uv run alembic check
@@ -48,6 +48,8 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             hosted/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
       - run: npm ci
       - run: npm ci --prefix hosted
       - run: npm test --prefix hosted
@@ -63,3 +65,4 @@ jobs:
             sleep 1
           done
           npm run test:browser
+          uv run python scripts/check-adapter-retries.py

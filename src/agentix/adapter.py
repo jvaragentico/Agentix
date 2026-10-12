@@ -1,7 +1,12 @@
 """Owner-side bridge: provider credentials and execution stay outside Agentix."""
 
+import math
+import re
 import secrets
+import time
 from collections.abc import Callable
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from threading import Event, Thread
 
 import httpx
@@ -26,9 +31,19 @@ class AgentixAdapter:
         transport=None,
         lease_seconds=300,
         sites_service_token: str | None = None,
+        max_retries: int = 2,
+        retry_base_seconds: float = 0.25,
+        max_retry_seconds: float = 5,
     ):
         if not isinstance(lease_seconds, int) or not 30 <= lease_seconds <= 900:
             raise ValueError("Lease duration must be between 30 and 900 seconds")
+        if type(max_retries) is not int or not 0 <= max_retries <= 3:
+            raise ValueError("max_retries must be an integer between 0 and 3")
+        if not 0 < retry_base_seconds <= max_retry_seconds <= 30:
+            raise ValueError("Retry delays must satisfy 0 < base <= maximum <= 30")
+        self.max_retries = max_retries
+        self.retry_base_seconds = retry_base_seconds
+        self.max_retry_seconds = max_retry_seconds
         self.lease_seconds = lease_seconds
         headers = {"Authorization": f"Bearer {agent_api_key}"}
         if sites_service_token:
@@ -59,7 +74,7 @@ class AgentixAdapter:
         poll_seconds: float = 2,
         max_poll_seconds: float = 30,
     ):
-        """Poll with bounded idle backoff. Errors propagate without replaying work.
+        """Poll with bounded idle backoff. Exhausted request errors propagate.
 
         Setting stop interrupts idle waiting; an active handler completes and submits
         under its renewable lease before shutdown. Handlers own their tool timeouts.
@@ -79,12 +94,57 @@ class AgentixAdapter:
     def close(self):
         self.client.close()
 
+    def _retry_delay(self, response, attempt):
+        delay = min(self.retry_base_seconds * (2**attempt), self.max_retry_seconds)
+        retry_after = response.headers.get("Retry-After") if response is not None else None
+        if retry_after:
+            try:
+                requested = float(retry_after)
+            except ValueError:
+                try:
+                    date = parsedate_to_datetime(retry_after)
+                    if date.tzinfo is None:
+                        date = date.replace(tzinfo=UTC)
+                    requested = (date - datetime.now(UTC)).total_seconds()
+                except (ValueError, TypeError, OverflowError):
+                    return delay
+            if math.isfinite(requested):
+                if requested > self.max_retry_seconds:
+                    return None  # Do not retry earlier than the server requested.
+                delay = max(delay, requested, 0)
+        return delay
+
     def _request(self, method: str, path: str, **kwargs):
-        response = self.client.request(method, path, **kwargs)
-        response.raise_for_status()
-        if response.status_code == 204:
-            return None
-        return response.json()
+        # Serialize once so a retry sends the exact same token and JSON bytes.
+        request = self.client.build_request(method, path, **kwargs)
+        safe = method.upper() == "GET" or (
+            method.upper() == "POST"
+            and request.headers.get("X-Execution-Token")
+            and (
+                path == "/v1/tasks/claim"
+                or re.fullmatch(r"/v1/tasks/[^/]+/(heartbeat|submit)", path)
+            )
+        )
+        retries = self.max_retries if safe else 0
+        for attempt in range(retries + 1):
+            try:
+                response = self.client.send(request)
+            except (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError):
+                if attempt == retries:
+                    raise
+                time.sleep(self._retry_delay(None, attempt))
+                continue
+            if response.status_code in {429, 502, 503, 504} and attempt < retries:
+                delay = self._retry_delay(response, attempt)
+                if delay is not None:
+                    response.close()
+                    time.sleep(delay)
+                    continue
+            response.raise_for_status()
+            if response.status_code == 204:
+                return None
+            return response.json()
+        raise AssertionError("Retry loop must return or raise")
 
     def run_once(self, handler: Callable[[dict], dict]) -> str | None:
         """Process one task. Handlers must make external side effects idempotent."""

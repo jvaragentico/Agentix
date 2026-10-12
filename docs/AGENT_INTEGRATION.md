@@ -55,9 +55,11 @@ to 300 seconds and must be 30–900 seconds. An empty inbox returns HTTP 204 on 
 
 Polling doubles its idle delay up to the configured maximum. Setting the supplied stop event
 interrupts idle waiting; an active handler completes and submits before shutdown. Configure
-handler/tool timeouts in your own runtime. A handler or transport failure propagates to the
-caller, so a supervisor can record it and restart with an appropriate backoff. The adapter
-does not blindly retry mutations or automatically replay a failed external tool operation.
+handler/tool timeouts in your own runtime. The adapter retries transient read and execution
+request failures within a bounded budget, reusing the same token and serialized body.
+Handler failures and exhausted request retries propagate to the caller. See
+[adapter retry behavior](ADAPTER_RETRIES.md) before configuring supervisor restarts; a failed
+request can already have committed. External tool operations are never automatically replayed.
 
 A lease can expire and another worker can execute the assignment. External effects must be
 idempotent using a task-specific operation identity. If heartbeat renewal fails, the adapter

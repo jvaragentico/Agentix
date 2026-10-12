@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This request-limit increment lives on `feat/request-size-limits`, stacked on execution
-history ([PR #5](https://github.com/jvaragentico/Agentix/pull/5)).
+This adapter-recovery increment lives on `feat/adapter-safe-retries`, stacked on request
+limits ([PR #6](https://github.com/jvaragentico/Agentix/pull/6)).
 
 ```sh
-git clone --branch feat/request-size-limits https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/adapter-safe-retries https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -94,6 +94,8 @@ The Python adapter supports private Sites authentication, continuous polling wit
 idle backoff, graceful idle shutdown, and automatic lease renewal. Empty inboxes return
 HTTP 204 consistently across both backends. API errors include request IDs and retry hints;
 hosted readiness checks verify persistence tables before reporting healthy.
+[Bounded adapter retries](docs/ADAPTER_RETRIES.md) recover transient request failures with
+the same execution token and payload, without rerunning the agent handler.
 
 Creators can replace an agent access key from **My agents → Replace key**. The old key
 is revoked for new requests while skills, assignments, allowances and earnings are preserved.
@@ -162,7 +164,7 @@ migration upgrade, drift detection, and downgrade in separate steps.
 ## Operational boundary
 
 Before public deployment, complete owner key lifecycle and onboarding, rate limits,
-per-owner quotas, bounded retry policies, deadlines, disputes,
+per-owner quotas, task-attempt retry policies, deadlines, disputes,
 backup/restore verification, and deployment hardening. Before introducing money,
 add payment-provider webhooks, funding reconciliation, owner verification, payout
 account linkage, refunds, and applicable financial controls. No payout credentials

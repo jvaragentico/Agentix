@@ -216,3 +216,30 @@ README, integration guidance, agent instructions and docs/REQUEST_LIMITS.md docu
 No migration, Site publication, audience change, provider credential handling or cash settlement
 was introduced. The fixed body cap is not a rate limit, JSON-depth limit, artifact storage quota,
 event retention policy or ingress timeout; those remain separate operations work.
+
+## Bounded owner-side transport recovery
+
+Inspected main, draft PRs #1–#6, repository instructions (none found), and this development log.
+PR #6 CI was passing. Built on its branch in `feat/adapter-safe-retries`, preserving the existing
+review stack without merges or Site deployment.
+
+The Python adapter now retries transient reads and execution-token-protected claims,
+heartbeats and submissions with bounded backoff. It reuses the original request bytes and
+token, respects Retry-After within the configured budget, and surfaces longer server waits.
+Permission, validation, oversized-request and lease-conflict errors stop immediately; other
+mutations and external handler operations are never automatically retried.
+
+Validation: 52 PostgreSQL tests, 12 hosted integration tests, lint/format checks and hosted build
+passed. Full creator/agent/admin browser workflows passed against local FastAPI/PostgreSQL and
+Worker/D1 simulation. A new loopback-only smoke script lost committed claim and submission
+responses on both running backends and verified one handler execution, one submission event,
+no earnings before acceptance and a single settlement after repeated acceptance. Unit tests
+also cover identical replay bytes/tokens, retry exhaustion, nonretryable errors and server
+backoff hints. CI now runs the smoke script against the hosted local API and lints scripts.
+
+README, roadmap and integration documentation describe the new behavior. No migration, vendor
+certification, provider-key collection, cash settlement or live Site change is included.
+Durable result/token storage, task-attempt caps, dead-letter handling, jitter and total request
+deadlines remain pending. Exhausted delivery is uncertain and requires state inspection;
+external effects still need idempotency. The Site identity and owner-private audience remain
+unchanged; this increment is for draft review only.

@@ -131,3 +131,121 @@ def test_idle_polling_backs_off_and_can_be_stopped():
     ) as adapter:
         adapter.run_forever(lambda _: {}, stop=stop, poll_seconds=2, max_poll_seconds=5)
     assert stop.delays == [2, 4, 5, 5]
+
+
+def test_lost_claim_and_submission_responses_do_not_rerun_handler(
+    client, participants, monkeypatch
+):
+    p = participants
+    task_id = reserve(client, p).json()["id"]
+    attempts, payloads, delays, calls = {}, {}, [], []
+    monkeypatch.setattr("agentix.adapter.time.sleep", delays.append)
+
+    def transport(request):
+        path = request.url.path
+        attempts[path] = attempts.get(path, 0) + 1
+        payloads.setdefault(path, []).append(
+            (request.content, request.headers.get("X-Execution-Token"))
+        )
+        response = client.request(
+            request.method, str(request.url), headers=dict(request.headers), content=request.content
+        )
+        if attempts[path] == 1 and (path.endswith("/claim") or path.endswith("/submit")):
+            assert response.status_code == 200  # Server committed; only the response is lost.
+            raise httpx.ReadTimeout("Simulated lost response", request=request)
+        return httpx.Response(response.status_code, content=response.content)
+
+    with AgentixAdapter(
+        "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
+    ) as adapter:
+
+        def handler(task):
+            calls.append(task["id"])
+            return {"text": "Generated once in the owner's runtime"}
+
+        assert adapter.run_once(handler) == task_id
+    assert calls == [task_id]
+    assert delays == [0.25, 0.25]
+    assert all(len(values) == 2 and values[0] == values[1] for values in payloads.values())
+    task = client.get(f"/v1/tasks/{task_id}", headers=p["buyer"]).json()
+    assert task["state"] == "submitted" and task["attempts"] == 1
+    events = client.get(f"/v1/tasks/{task_id}/events", headers=p["buyer"]).json()
+    assert [e["kind"] for e in events].count("claimed") == 1
+    assert [e["kind"] for e in events].count("submitted") == 1
+    assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 0
+    for _ in range(2):
+        client.post(f"/v1/tasks/{task_id}/accept", headers=p["buyer"]).raise_for_status()
+    assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 200
+
+
+@pytest.mark.parametrize("status", [401, 403, 409, 413, 422])
+def test_adapter_never_retries_permanent_errors(status, monkeypatch):
+    requests = []
+    monkeypatch.setattr("agentix.adapter.time.sleep", lambda _: pytest.fail("Unexpected retry"))
+
+    def transport(request):
+        requests.append(request)
+        return httpx.Response(status, json={"detail": "Permanent failure"})
+
+    with AgentixAdapter(
+        "https://agentix.example", "key", transport=httpx.MockTransport(transport)
+    ) as adapter:
+        with pytest.raises(httpx.HTTPStatusError):
+            adapter.run_once(lambda _: pytest.fail("Handler must not run"))
+    assert len(requests) == 1
+
+
+def test_adapter_retry_backoff_is_bounded_and_exhaustion_propagates(monkeypatch):
+    requests, delays = [], []
+    monkeypatch.setattr("agentix.adapter.time.sleep", delays.append)
+
+    def transport(request):
+        requests.append(request)
+        return httpx.Response(503, json={"detail": "Temporary outage"})
+
+    with AgentixAdapter(
+        "https://agentix.example", "key", transport=httpx.MockTransport(transport)
+    ) as adapter:
+        with pytest.raises(httpx.HTTPStatusError):
+            adapter.discover()
+    assert len(requests) == 3 and delays == [0.25, 0.5]
+
+
+@pytest.mark.parametrize(
+    "retry_after,expected_requests,expected_delays",
+    [("1", 2, [1]), ("60", 1, []), ("invalid", 2, [0.25])],
+)
+def test_adapter_respects_retry_after_without_exceeding_wait_budget(
+    monkeypatch, retry_after, expected_requests, expected_delays
+):
+    requests, delays = [], []
+    monkeypatch.setattr("agentix.adapter.time.sleep", delays.append)
+
+    def transport(request):
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(
+                429, headers={"Retry-After": retry_after}, json={"detail": "Busy"}
+            )
+        return httpx.Response(200, json={"protocol": "agentix-rest"})
+
+    with AgentixAdapter(
+        "https://agentix.example", "key", transport=httpx.MockTransport(transport)
+    ) as adapter:
+        if expected_requests == 1:
+            with pytest.raises(httpx.HTTPStatusError):
+                adapter.discover()
+        else:
+            assert adapter.discover()["protocol"] == "agentix-rest"
+    assert len(requests) == expected_requests and delays == expected_delays
+
+
+def test_adapter_does_not_retry_other_mutations(monkeypatch):
+    monkeypatch.setattr("agentix.adapter.time.sleep", lambda _: pytest.fail("Unsafe retry"))
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(lambda _: httpx.Response(503)),
+    ) as adapter:
+        with pytest.raises(httpx.HTTPStatusError):
+            adapter._request("POST", "/v1/projects", json={"title": "No automatic replay"})
