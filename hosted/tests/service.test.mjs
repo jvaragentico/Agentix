@@ -537,3 +537,126 @@ test("closing AI projects returns funds but does not reset delegated spending", 
     0,
   );
 });
+
+test("expired execution tokens cannot recover a lease and history matches the REST contract", async () => {
+  const { call, buyer, seller, agent, skill, sql } = await participants();
+  const project = (
+    await call(
+      "/v1/projects",
+      buyer.api_key,
+      "POST",
+      { title: "Recovery history", budget: 100 },
+      idem("history-project"),
+    )
+  ).data;
+  const task = (
+    await call(
+      `/v1/projects/${project.id}/tasks`,
+      buyer.api_key,
+      "POST",
+      {
+        agent_id: agent.id,
+        skill_id: skill.id,
+        instructions: "Review",
+        acceptance_criteria: "Useful",
+        price: 40,
+      },
+      idem("history-task"),
+    )
+  ).data;
+  const first = {
+    "X-Execution-Token": "history-first-execution-token-long-enough",
+  };
+  const second = {
+    "X-Execution-Token": "history-second-execution-token-long-enough",
+  };
+  assert.equal(
+    (await call("/v1/tasks/claim", agent.api_key, "POST", {}, first)).status,
+    200,
+  );
+  const saved = JSON.parse(
+    sql.prepare("SELECT payload FROM records WHERE id=?").get(task.id).payload,
+  );
+  saved.lease_expires_at = new Date(Date.now() - 10000).toISOString();
+  sql
+    .prepare("UPDATE records SET payload=? WHERE id=?")
+    .run(JSON.stringify(saved), task.id);
+  for (const path of [
+    "/v1/tasks/claim",
+    `/v1/tasks/${task.id}/start`,
+    `/v1/tasks/${task.id}/heartbeat`,
+  ])
+    assert.equal(
+      (await call(path, agent.api_key, "POST", {}, first)).status,
+      409,
+    );
+  const recovered = await call(
+    "/v1/tasks/claim",
+    agent.api_key,
+    "POST",
+    {},
+    second,
+  );
+  assert.equal(recovered.status, 200);
+  assert.equal(recovered.data.attempts, 2);
+  assert.equal(
+    (
+      await call(
+        `/v1/tasks/${task.id}/submit`,
+        agent.api_key,
+        "POST",
+        { artifact: { text: "stale" } },
+        first,
+      )
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await call(
+        `/v1/tasks/${task.id}/submit`,
+        agent.api_key,
+        "POST",
+        { artifact: { text: "recovered" } },
+        second,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await call("/v1/tasks/claim", agent.api_key, "POST", {}, second)).status,
+    409,
+  );
+  const history = (await call(`/v1/tasks/${task.id}/events`, buyer.api_key))
+    .data;
+  assert.deepEqual(
+    history.map((e) => e.kind),
+    ["reserved", "claimed", "lease_expired", "claimed", "submitted"],
+  );
+  assert.equal(history[3].attempt, 2);
+  assert.equal(history[3].actor_agent_id, agent.id);
+  assert.equal(history[3].actor_owner_id, seller.id);
+  assert.ok(history.every((e) => e.created_at && !("execution_hash" in e)));
+  const page = (
+    await call(`/v1/tasks/${task.id}/events?limit=2&offset=2`, agent.api_key)
+  ).data;
+  assert.deepEqual(page, history.slice(2, 4));
+  assert.equal(
+    (await call(`/v1/tasks/${task.id}/events?limit=101`, buyer.api_key)).status,
+    422,
+  );
+  assert.equal(
+    (await call(`/v1/tasks/${task.id}/events?offset=-1`, buyer.api_key)).status,
+    422,
+  );
+  const other = (
+    await call("/v1/admin/owners", "test-admin", "POST", { name: "Outsider" })
+  ).data;
+  assert.equal(
+    (await call(`/v1/tasks/${task.id}/events`, other.api_key)).status,
+    404,
+  );
+  assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 0);
+  await call(`/v1/tasks/${task.id}/accept`, buyer.api_key, "POST");
+  assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 40);
+});

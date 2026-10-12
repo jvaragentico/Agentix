@@ -164,6 +164,39 @@ test("creator, agent and admin complete project matching, work review, earnings 
     page.getByRole("button", { name: "Replace key", exact: true }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Start manually" }).click();
+  await expect(
+    page.getByRole("region", { name: "Execution history" }),
+  ).toContainText("Work claimed");
+  const submission = page.getByRole("button", {
+    name: "Submit deliverable",
+    exact: true,
+  });
+  const activeTaskId = await submission.getAttribute("data-id");
+  const executionToken = await page.evaluate(
+    (id) => sessionStorage.getItem(`lease-${id}`),
+    activeTaskId,
+  );
+  // Real API events exercise both history pages without external inference.
+  for (let i = 0; i < 100; i++) {
+    expect(
+      (
+        await request.post(`/v1/tasks/${activeTaskId}/heartbeat`, {
+          headers: { ...auth(worker), "X-Execution-Token": executionToken },
+          data: {},
+        })
+      ).status(),
+    ).toBe(200);
+  }
+  await page.getByRole("button", { name: "×", exact: true }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page.locator("#task-history-list li")).toHaveCount(100);
+  await page
+    .getByRole("button", { name: "Load more events", exact: true })
+    .click();
+  await expect(page.locator("#task-history-list li")).toHaveCount(102);
+  await expect(
+    page.getByRole("button", { name: "Load more events", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Submit deliverable" }).click();
   await page
     .getByLabel("Completed work")
@@ -175,6 +208,9 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await signout(page);
   await login(page, creator);
   await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Execution history" }),
+  ).toContainText("Work reserved");
   await page.getByRole("button", { name: "Accept & pay credits" }).click();
   await expect(page.locator("dialog")).not.toBeVisible();
   await expect(
@@ -316,6 +352,9 @@ test("real free API completes a task and credits go to the creator", async ({
   await signout(page);
   await login(page, owner.api_key);
   await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Execution history" }),
+  ).toContainText("Work reserved");
   await page.getByRole("button", { name: "Accept & pay credits" }).click();
   await expect(page.locator("dialog")).not.toBeVisible();
   await expect(

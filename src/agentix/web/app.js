@@ -208,14 +208,35 @@ async function matches(projectId) {
     },
   );
 }
+function eventRows(events) {
+  const labels = {
+    reserved: "Work reserved",
+    claimed: "Work claimed",
+    lease_expired: "Lease expired",
+    heartbeat: "Lease renewed",
+    submitted: "Deliverable submitted",
+    accepted: "Work accepted",
+    cancelled: "Assignment cancelled",
+  };
+  return events
+    .map(
+      (event) =>
+        `<li><strong>${e(labels[event.kind] || event.kind)}</strong><span>Attempt ${n(event.attempt)} · ${e(new Date(event.created_at).toLocaleString())}</span><span class="muted">${event.actor_agent_id ? "Agent" : "Creator"}</span></li>`,
+    )
+    .join("");
+}
 async function openTask(taskId) {
-  const t = await api(`/v1/tasks/${taskId}`);
+  const [t, events] = await Promise.all([
+    api(`/v1/tasks/${taskId}`),
+    api(`/v1/tasks/${taskId}/events?limit=100`).catch(() => null),
+  ]);
+  const history = `<section class="task-history" aria-label="Execution history"><h3>Execution history</h3>${events === null ? "<p>History is unavailable. Reopen the assignment to retry.</p>" : `<ol id="task-history-list">${eventRows(events)}</ol>${events.length === 100 ? btn("Load more events", "more-events", `data-id="${t.id}" data-offset="100"`, "small") : ""}`}</section>`;
   const ownProject = data.projects.some((p) => p.id === t.project_id);
   const lease = sessionStorage.getItem(`lease-${taskId}`);
   const claimable =
     t.state === "reserved" ||
     (t.state === "running" && Date.parse(t.lease_expires_at) <= Date.now());
-  modal.innerHTML = `<div class="modal-head"><h2>Assignment</h2>${btn("×", "close", "", "ghost")}</div><div class="tags"><span class="badge ${t.state}">${e(t.state)}</span><span class="tag">${n(t.price)} credits</span></div><h3>Instructions</h3><p>${e(t.instructions)}</p><h3 style="margin-top:18px">Acceptance criteria</h3><p>${e(t.acceptance_criteria)}</p>${t.artifact ? `<h3 style="margin-top:18px">Deliverable</h3><div class="artifact">${e(t.artifact.text || JSON.stringify(t.artifact, null, 2))}</div>` : ""}<div class="form-actions">${user.role === "agent" && t.agent_id === user.agent_id && claimable ? btn("Start manually", "start", `data-id="${t.id}"`) : ""}${user.role === "agent" && claimable && user.free_model ? btn("Run free AI", "run-free", `data-id="${t.id}"`, "primary") : ""}${user.role === "agent" && t.state === "running" && lease ? btn("Submit deliverable", "submit", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && t.state === "submitted" ? btn("Accept & pay credits", "accept", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && t.state === "reserved" ? btn("Cancel assignment", "cancel", `data-id="${t.id}"`, "danger") : ""}</div>`;
+  modal.innerHTML = `<div class="modal-head"><h2>Assignment</h2>${btn("×", "close", "", "ghost")}</div><div class="tags"><span class="badge ${t.state}">${e(t.state)}</span><span class="tag">${n(t.price)} credits</span></div><h3>Instructions</h3><p>${e(t.instructions)}</p><h3 style="margin-top:18px">Acceptance criteria</h3><p>${e(t.acceptance_criteria)}</p>${history}${t.artifact ? `<h3 style="margin-top:18px">Deliverable</h3><div class="artifact">${e(t.artifact.text || JSON.stringify(t.artifact, null, 2))}</div>` : ""}<div class="form-actions">${user.role === "agent" && t.agent_id === user.agent_id && claimable ? btn("Start manually", "start", `data-id="${t.id}"`) : ""}${user.role === "agent" && claimable && user.free_model ? btn("Run free AI", "run-free", `data-id="${t.id}"`, "primary") : ""}${user.role === "agent" && t.state === "running" && lease ? btn("Submit deliverable", "submit", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && t.state === "submitted" ? btn("Accept & pay credits", "accept", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && t.state === "reserved" ? btn("Cancel assignment", "cancel", `data-id="${t.id}"`, "danger") : ""}</div>`;
   if (!modal.open) modal.showModal();
 }
 // Remove one-time credentials from the DOM after dismissing the dialog, including Escape.
@@ -295,6 +316,19 @@ document.addEventListener("click", async (ev) => {
             { "Idempotency-Key": id() },
           ),
       );
+      return;
+    }
+    if (action === "more-events") {
+      b.disabled = true;
+      const offset = Number(b.dataset.offset);
+      const events = await api(
+        `/v1/tasks/${b.dataset.id}/events?limit=100&offset=${offset}`,
+      );
+      document
+        .querySelector("#task-history-list")
+        .insertAdjacentHTML("beforeend", eventRows(events));
+      if (events.length < 100) b.remove();
+      else b.dataset.offset = String(offset + events.length);
       return;
     }
     if (action === "close-project") {

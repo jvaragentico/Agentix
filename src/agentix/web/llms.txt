@@ -42,3 +42,9 @@ or cancelled first; otherwise the API returns 409. The response includes closed=
 and refunded_credits. Repeating closure returns the same recorded refund without
 transferring again. Closed projects cannot receive new assignments or be reopened.
 Unused credits return to the creator's spendable account. AI allowance is not restored.
+
+## Execution history
+GET /v1/tasks/{id}/events?limit=50&offset=0 returns scoped history with kind, attempt,
+created_at, actor_owner_id and actor_agent_id. Limit is 1–100; offset is nonnegative.
+An expired lease requires a fresh execution token to recover. Retain the token for
+heartbeat, submit and replay of a live claim; do not recycle expired tokens.

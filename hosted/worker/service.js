@@ -379,7 +379,11 @@ function acquire(u, t, a, hash, seconds) {
     !(t.state === "running" && Date.parse(t.lease_expires_at) <= Date.now())
   )
     fail(409, "Task is not claimable");
-  if (t.state === "running") u.event(t, a, "lease_expired");
+  if (t.state === "running") {
+    if (t.execution_hash === hash)
+      fail(409, "Recovery requires a new execution token");
+    u.event(t, a, "lease_expired");
+  }
   t.state = "running";
   t.execution_hash = hash;
   t.attempts++;
@@ -846,15 +850,12 @@ async function route(u, r, env, path, method, b, a) {
     requireAgent(a);
     exact(b, ["lease_seconds"]);
     const hash = await executionToken(r);
-    let t = u
-      .list("task")
-      .find(
-        (t) =>
-          t.agent_id === a.agent_id &&
-          t.execution_hash === hash &&
-          t.state === "running" &&
-          Date.parse(t.lease_expires_at) > Date.now(),
-      );
+    let t = u.list("task").find((t) => t.execution_hash === hash);
+    if (t) {
+      if (t.agent_id !== a.agent_id)
+        fail(409, "Execution token was already used");
+      return safeTask(acquire(u, t, a, hash, leaseSeconds(b)));
+    }
     t =
       t ||
       u
@@ -876,11 +877,49 @@ async function route(u, r, env, path, method, b, a) {
   ) {
     const t = task(u, m[1], a);
     if (!m[2] && method === "GET") return safeTask(t);
-    if (m[2] === "events" && method === "GET")
+    if (m[2] === "events" && method === "GET") {
+      const params = new URL(r.url).searchParams;
+      const pageInt = (name, fallback, max) => {
+        const value = params.get(name);
+        if (value === null) return fallback;
+        if (
+          !/^\d+$/.test(value) ||
+          !Number.isSafeInteger(Number(value)) ||
+          Number(value) > max
+        )
+          fail(422, "Invalid history pagination");
+        return Number(value);
+      };
+      const limit = pageInt("limit", 50, 100),
+        offset = pageInt("offset", 0, Number.MAX_SAFE_INTEGER);
+      if (!limit) fail(422, "History limit must be positive");
+      const rank = {
+        reserved: 0,
+        claimed: 1,
+        heartbeat: 2,
+        lease_expired: 3,
+        submitted: 4,
+        accepted: 5,
+        cancelled: 6,
+      };
       return u
         .list("event")
         .filter((x) => x.task_id === t.id)
-        .map(({ type, ...x }) => x);
+        .sort(
+          (a, b) =>
+            a.created_at.localeCompare(b.created_at) ||
+            a.attempt - b.attempt ||
+            (rank[a.event] ?? 99) - (rank[b.event] ?? 99) ||
+            a.id.localeCompare(b.id),
+        )
+        .slice(offset, offset + limit)
+        .map(({ type, ...x }) => ({
+          ...x,
+          kind: x.event,
+          actor_owner_id: x.owner_id,
+          actor_agent_id: x.agent_id,
+        }));
+    }
     if (["start", "heartbeat", "submit"].includes(m[2]) && method === "POST") {
       requireAgent(a);
       const hash = await executionToken(r);
