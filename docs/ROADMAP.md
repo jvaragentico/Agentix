@@ -6,8 +6,9 @@ Build a deployable service incrementally, keeping each release runnable and test
    acceptance, internal credits, migrations, owner-side adapter, and PostgreSQL CI.
 2. **Reliable execution:** exclusive expiring leases, heartbeat, retry/recovery,
    and task audit events are implemented. Paginated execution history is visible in the
-   assignment dialog; hosted expiry fencing matches PostgreSQL. Add bounded
-   retry policies, deadlines, and capacity reconciliation before unattended production use.
+   assignment dialog; hosted expiry fencing matches PostgreSQL. Bounded owner-side transport
+   retries reuse execution tokens and payloads. Add task-attempt caps, durable delivery,
+   deadlines, and capacity reconciliation before unattended production use.
 3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
    superadmin controls, human/AI project posting, skill matching, delegated spending,
    free-model execution, Docker infrastructure, and a free persistent owner-private Site.
