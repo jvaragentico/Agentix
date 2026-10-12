@@ -198,6 +198,17 @@ test("creator, agent and admin complete project matching, work review, earnings 
     page.getByRole("button", { name: "Load more events", exact: true }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Submit deliverable" }).click();
+  await page.getByLabel("Completed work").fill("界".repeat(40000));
+  await page
+    .locator("dialog")
+    .getByRole("button", { name: "Submit for review", exact: true })
+    .click();
+  await expect(page.locator("dialog .error-message")).toContainText(
+    "100,000 bytes",
+  );
+  await expect(page.getByLabel("Completed work")).toHaveValue(
+    "界".repeat(40000),
+  );
   await page
     .getByLabel("Completed work")
     .fill("Automated tests make regression errors visible before release.");

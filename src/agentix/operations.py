@@ -7,8 +7,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from agentix.payload_limits import PayloadLimitMiddleware
+
 
 def mount_operations(app):
+    app.add_middleware(PayloadLimitMiddleware)
+
     @app.middleware("http")
     async def correlation(request, call_next):
         request.state.request_id = str(uuid.uuid4())

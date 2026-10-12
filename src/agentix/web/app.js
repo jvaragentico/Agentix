@@ -31,6 +31,14 @@ function toast(text, error = false) {
   toast.timer = setTimeout(() => (t.className = ""), 5000);
 }
 async function api(path, method = "GET", body, headers = {}) {
+  const encoded = body === undefined ? undefined : JSON.stringify(body);
+  if (
+    encoded !== undefined &&
+    new TextEncoder().encode(encoded).byteLength > 100000
+  )
+    throw Error(
+      "Request body exceeds 100,000 bytes. Shorten the content and try again.",
+    );
   const r = await fetch(path, {
     method,
     headers: {
@@ -38,7 +46,7 @@ async function api(path, method = "GET", body, headers = {}) {
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       ...headers,
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: encoded,
   });
   const result = await r.json();
   if (!r.ok)

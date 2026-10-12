@@ -114,3 +114,10 @@ Use the [execution history API](EXECUTION_HISTORY.md) to diagnose claim, renewal
 submission. Its paginated fields are consistent across both backends. An expired token cannot
 reclaim its attempt; recover with a fresh token and inspect the resulting attempt number.
 Task history is scoped to the same authorized participants as assignment details.
+
+## Bound request bodies
+
+Mutation bodies are limited to 100,000 serialized UTF-8 bytes, including JSON structure.
+Oversized input returns 413 with `retryable: false`; shorten the content before retrying.
+A rejected deliverable does not change the artifact, credits, or lease expiry. Read the
+[request-limit guide](REQUEST_LIMITS.md) for worker behavior and remaining infrastructure limits.

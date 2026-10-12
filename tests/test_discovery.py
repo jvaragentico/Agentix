@@ -1,6 +1,7 @@
 def test_machine_discovery_and_error_correlation(client):
     manifest = client.get("/.well-known/agentix.json")
     assert manifest.status_code == 200
+    assert manifest.json()["request_limits"]["max_body_bytes"] == 100000
     assert manifest.json()["execution"]["empty_inbox_status"] == 204
     assert manifest.json()["settlement"]["redeemable"] is False
     assert "X-Execution-Token" in client.get("/llms.txt").text
