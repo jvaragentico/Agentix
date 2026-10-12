@@ -41,6 +41,7 @@ async function api(path, method = "GET", body, headers = {}) {
     );
   const r = await fetch(path, {
     method,
+    cache: "no-store",
     headers: {
       ...(key ? { Authorization: `Bearer ${key}` } : {}),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),

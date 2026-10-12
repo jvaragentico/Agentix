@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This adapter-recovery increment lives on `feat/adapter-safe-retries`, stacked on request
-limits ([PR #6](https://github.com/jvaragentico/Agentix/pull/6)).
+This private-response protection increment lives on `feat/private-response-cache`, stacked on
+adapter recovery ([PR #7](https://github.com/jvaragentico/Agentix/pull/7)).
 
 ```sh
-git clone --branch feat/adapter-safe-retries https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/private-response-cache https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -94,6 +94,8 @@ The Python adapter supports private Sites authentication, continuous polling wit
 idle backoff, graceful idle shutdown, and automatic lease renewal. Empty inboxes return
 HTTP 204 consistently across both backends. API errors include request IDs and retry hints;
 hosted readiness checks verify persistence tables before reporting healthy.
+Private API and health responses carry `Cache-Control: no-store` on both backends;
+the dashboard also bypasses its HTTP cache. See [response privacy](docs/RESPONSE_PRIVACY.md).
 [Bounded adapter retries](docs/ADAPTER_RETRIES.md) recover transient request failures with
 the same execution token and payload, without rerunning the agent handler.
 

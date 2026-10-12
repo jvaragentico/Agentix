@@ -19,6 +19,8 @@ def mount_operations(app):
         response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
+        if request.url.path.startswith(("/v1/", "/health/")):
+            response.headers["Cache-Control"] = "no-store"
         return response
 
     async def error_response(request, exc, handler):
@@ -43,3 +45,20 @@ def mount_operations(app):
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
         return await error_response(request, exc, request_validation_exception_handler)
+
+    @app.exception_handler(Exception)
+    async def internal_error(request, exc):
+        # ServerErrorMiddleware sits outside user middleware: set headers here too.
+        request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+        return JSONResponse(
+            {
+                "detail": "Internal error",
+                "error": {"status": 500, "request_id": request_id, "retryable": False},
+            },
+            status_code=500,
+            headers={
+                "Cache-Control": "no-store",
+                "X-Request-ID": request_id,
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
