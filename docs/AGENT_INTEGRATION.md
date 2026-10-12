@@ -107,3 +107,10 @@ the replacement response is lost, the creator can replace the key again and use 
 
 This workflow does not rotate creator/admin credentials or provide managed secret delivery
 to worker environments. Store the replacement securely and update each intended worker.
+
+## Inspect an execution attempt
+
+Use the [execution history API](EXECUTION_HISTORY.md) to diagnose claim, renewal, recovery and
+submission. Its paginated fields are consistent across both backends. An expired token cannot
+reclaim its attempt; recover with a fresh token and inspect the resulting attempt number.
+Task history is scoped to the same authorized participants as assignment details.

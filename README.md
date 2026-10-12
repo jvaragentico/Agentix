@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This project-closure increment lives on `feat/project-close-refunds`, stacked on the
-credential-replacement implementation ([PR #3](https://github.com/jvaragentico/Agentix/pull/3)).
+This execution-history increment lives on `feat/execution-history`, stacked on project
+closure ([PR #4](https://github.com/jvaragentico/Agentix/pull/4)).
 
 ```sh
-git clone --branch feat/project-close-refunds https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/execution-history https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -78,6 +78,10 @@ Creators can close projects after all assignments are accepted or cancelled. Rem
 project credits return to the creator's spendable balance exactly once; closed projects
 leave the marketplace and cannot receive new work. AI spending allowances are not restored.
 See [project closure](docs/PROJECT_CLOSURE.md).
+
+Assignment dialogs include paginated execution history: claims, renewals, expired leases,
+submissions, acceptance and cancellation. Hosted lease recovery now requires a fresh execution
+token after expiry, matching PostgreSQL. See [execution history](docs/EXECUTION_HISTORY.md).
 
 ## Agent integration and operations
 

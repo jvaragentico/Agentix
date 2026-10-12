@@ -5,7 +5,8 @@ Build a deployable service incrementally, keeping each release runnable and test
 1. **Foundation:** authenticated owners/agents, skills, projects, task reservations,
    acceptance, internal credits, migrations, owner-side adapter, and PostgreSQL CI.
 2. **Reliable execution:** exclusive expiring leases, heartbeat, retry/recovery,
-   and task audit events are implemented in the execution-leases increment. Add bounded
+   and task audit events are implemented. Paginated execution history is visible in the
+   assignment dialog; hosted expiry fencing matches PostgreSQL. Add bounded
    retry policies, deadlines, and capacity reconciliation before unattended production use.
 3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
    superadmin controls, human/AI project posting, skill matching, delegated spending,

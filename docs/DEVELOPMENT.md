@@ -167,3 +167,28 @@ This increment is for draft review only. No merge or Site deployment occurred; t
 Site's identity and audience are unchanged. Reopening, disputes, cancellation of running work,
 automatic allowance replenishment and cash payouts remain outside scope. Apply the PostgreSQL
 migration before starting the updated service; downgrade does not reverse ledger movements.
+
+## Execution history and consistent expired-lease recovery
+
+Inspected main, draft PRs #1–#4, repository instructions (none found), and the existing log.
+PR #4 CI was passing. Built on its branch in `feat/execution-history` without merging work.
+Closed a hosted/PostgreSQL interoperability gap: expired execution tokens now fail recovery
+on both backends, and replaying a completed claim is not treated as an empty inbox.
+
+Assignment dialogs now show paginated execution history with event labels, attempt numbers,
+actor roles and timestamps. History failure does not hide assignment actions. Hosted event
+responses provide common `kind` and actor field names while preserving their legacy aliases.
+Both APIs use bounded history pages and consistent ordering by timestamp, attempt, event
+lifecycle rank and ID. The dashboard loads additional pages on demand without displaying tokens.
+
+Validation: 36 PostgreSQL tests and 10 hosted integration tests passed. Full browser workflows
+passed on local FastAPI/PostgreSQL and Worker/D1 simulation, including 100 real heartbeat events
+and loading the second history page. Regression coverage verifies stale-token rejection,
+replacement-attempt submission, no settlement on recovery, scoped event visibility, stable
+pagination, invalid page limits and unchanged existing project/credit workflows. Hosted build
+and backend lint/format checks passed. README and docs/EXECUTION_HISTORY.md are updated.
+
+No database migration is introduced by this increment. No deployment, audience change, merge,
+provider-key centralization, cash settlement or vendor certification occurred. Retry caps,
+dead-letter handling, event retention, streaming and indexed hosted event queries remain pending.
+History pagination limits response size; the hosted implementation still reads records in memory.

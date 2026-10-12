@@ -115,3 +115,23 @@ def test_claim_rejects_owner_keys_and_invalid_duration(client, participants):
         client.post("/v1/tasks/claim", headers=worker(p), json={"lease_seconds": 10000}).status_code
         == 422
     )
+
+
+def test_history_pagination_is_scoped_and_recovers_in_attempt_order(client, app, participants):
+    p = participants
+    task_id = reserve(client, p).json()["id"]
+    client.post("/v1/tasks/claim", headers=worker(p), json={}).raise_for_status()
+    expire(app, task_id)
+    assert client.post(f"/v1/tasks/{task_id}/start", headers=worker(p), json={}).status_code == 409
+    client.post("/v1/tasks/claim", headers=worker(p, SECOND), json={}).raise_for_status()
+    history = client.get(f"/v1/tasks/{task_id}/events", headers=p["buyer"]).json()
+    assert [e["kind"] for e in history] == ["reserved", "claimed", "lease_expired", "claimed"]
+    assert history[-1]["attempt"] == 2
+    page = client.get(f"/v1/tasks/{task_id}/events?limit=2&offset=2", headers=p["agent_auth"])
+    assert page.json() == history[2:4]
+    for suffix in ("?limit=101", "?offset=-1"):
+        assert (
+            client.get(f"/v1/tasks/{task_id}/events{suffix}", headers=p["buyer"]).status_code == 422
+        )
+    assert client.get(f"/v1/tasks/{task_id}/events", headers=p["outsider"]).status_code == 404
+    assert FIRST not in str(history) and SECOND not in str(history)
