@@ -822,3 +822,44 @@ test("private responses and health checks forbid caching, including failures", a
     failure.headers.get("X-Request-ID"),
   );
 });
+
+test("ledger reconciliation finds offsetting balance drift without repairing it", async () => {
+  const { call, sql, buyer, seller, agent } = await participants();
+  const check = async () => (await call("/v1/admin/overview")).data;
+  assert.deepEqual((await check()).ledger_check, {
+    healthy: true,
+    mismatched_accounts: 0,
+    invalid_journals: 0,
+  });
+  sql
+    .prepare("UPDATE balances SET balance=balance-1 WHERE id=?")
+    .run("spendable:" + buyer.id);
+  sql
+    .prepare("UPDATE balances SET balance=balance+1 WHERE id=?")
+    .run("spendable:" + seller.id);
+  const first = await check();
+  assert.equal(first.ledger_balance, 0);
+  assert.deepEqual(first.ledger_check, {
+    healthy: false,
+    mismatched_accounts: 2,
+    invalid_journals: 0,
+  });
+  assert.deepEqual((await check()).ledger_check, first.ledger_check);
+  for (const key of [buyer.api_key, agent.api_key])
+    assert.equal((await call("/v1/admin/overview", key)).status, 403);
+  sql.close();
+});
+
+test("ledger reconciliation finds unbalanced journals", async () => {
+  const { call, sql } = await participants();
+  sql.exec(
+    "UPDATE entries SET amount=amount+1 WHERE id=(SELECT id FROM entries WHERE amount>0 LIMIT 1)",
+  );
+  const response = await call("/v1/admin/overview");
+  assert.deepEqual(response.data.ledger_check, {
+    healthy: false,
+    mismatched_accounts: 1,
+    invalid_journals: 1,
+  });
+  sql.close();
+});

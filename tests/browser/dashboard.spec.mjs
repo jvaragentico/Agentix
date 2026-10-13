@@ -292,7 +292,31 @@ test("creator, agent and admin complete project matching, work review, earnings 
   const ledger = await request.get("/v1/admin/overview", {
     headers: auth(admin),
   });
-  expect((await ledger.json()).ledger_balance).toBe(0);
+  const ledgerData = await ledger.json();
+  expect(ledgerData.ledger_balance).toBe(0);
+  expect(ledgerData.ledger_check).toEqual({
+    healthy: true,
+    mismatched_accounts: 0,
+    invalid_journals: 0,
+  });
+  await expect(
+    page.getByRole("status", { name: "Ledger reconciliation" }),
+  ).toContainText("Healthy: account balances match journal entries.");
+  // Exercise the warning display without corrupting the running test database.
+  await page.route("**/v1/admin/overview", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.ledger_check = {
+      healthy: false,
+      mismatched_accounts: 2,
+      invalid_journals: 1,
+    };
+    await route.fulfill({ response, json: body });
+  });
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(
+    page.getByRole("status", { name: "Ledger reconciliation" }),
+  ).toContainText("Review required: 2 account mismatches; 1 invalid journals.");
   expect(errors).toEqual([]);
   expect(privateResponses).toBeGreaterThan(10);
   expect(cacheViolations).toEqual([]);

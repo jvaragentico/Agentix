@@ -467,6 +467,18 @@ async function route(u, r, env, path, method, b, a) {
   if (method === "GET" && path === "/v1/admin/overview") {
     requireAdmin(a);
     const totals = [...u.balances.values()].reduce((s, x) => s + x.balance, 0);
+    // One statement keeps both diagnostics on the same committed snapshot.
+    const check = await u.db
+      .prepare(
+        `SELECT
+      (SELECT count(*) FROM balances b LEFT JOIN
+        (SELECT account, sum(amount) AS total FROM entries GROUP BY account) e
+        ON e.account = b.id WHERE b.balance <> coalesce(e.total, 0)) AS mismatched_accounts,
+      (SELECT count(*) FROM (SELECT journal FROM entries GROUP BY journal
+        HAVING sum(amount) <> 0 OR count(*) <> 2)) AS invalid_journals
+    `,
+      )
+      .first();
     const count = await u.db
       .prepare("SELECT count(*) as n FROM entries")
       .first();
@@ -492,6 +504,11 @@ async function route(u, r, env, path, method, b, a) {
         .map((t) => tview(u, t)),
       ledger_balance: totals,
       ledger_entries: count.n,
+      ledger_check: {
+        healthy:
+          check.mismatched_accounts === 0 && check.invalid_journals === 0,
+        ...check,
+      },
     };
   }
   if (method === "POST" && path === "/v1/admin/owners") {
