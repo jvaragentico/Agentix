@@ -269,3 +269,29 @@ Site deployment, audience change, merge, provider-key collection or cash operati
 HTTP headers do not purge historical caches or prevent clients from saving content. Live edge
 behavior remains unverified for this increment; scoped access, key lifecycle, TLS, trusted
 proxy configuration, rate limits and the remaining production roadmap still apply.
+
+## Read-only work-credit ledger reconciliation
+
+Inspected main, open draft PRs #1–#8, repository instructions (none found), this log and the
+private Site documentation/hosting identity. PR #8 CI was passing. Built on its branch in
+`feat/ledger-reconciliation`, preserving the review stack without merging.
+
+The admin overview now compares account balances with journal entry sums and counts invalid
+transfer journals on both backends. Both diagnostic counts are computed in one SQL statement.
+The dashboard reports Healthy, Review required with counts, or unavailable for older servers.
+Checks never repair, move, refund or settle credits. Existing aggregate fields remain intact.
+
+Validation: 56 PostgreSQL tests and 15 hosted integration tests passed. New tests deliberately
+introduce offsetting account drift invisible to the global balance, introduce an unbalanced
+journal, verify repeated reads do not repair drift, and reject creator/agent access. Full
+creator/agent/admin browser workflows passed against running local FastAPI/PostgreSQL and
+hosted Worker/D1 simulation, including a healthy result after collaboration/settlement and
+an injected warning response to test display without corrupting the running database.
+Lint/format, hosted build and diff checks passed. No schema migration is needed.
+
+Updated README, roadmap, dashboard guide and docs/LEDGER_RECONCILIATION.md. The check is a
+point-in-time internal consistency diagnostic, not a financial audit. Aggregation cost on
+large ledgers, scheduling, alerting, discrepancy detail, repair procedures and external money
+reconciliation remain pending. Hosted journals without any entries cannot be observed because
+that schema has no separate journal record. No Site deployment, audience change, provider
+integration claim, provider-key collection, real cash operation or pending-PR merge occurred.

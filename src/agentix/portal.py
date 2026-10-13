@@ -28,6 +28,7 @@ from agentix.api import (
     visible_task,
 )
 from agentix.execution import acquire, record_event, require_live_lease
+from agentix.ledger import reconcile
 from agentix.models import Account, Agent, Entry, Owner, Project, Skill, Task
 
 
@@ -261,6 +262,7 @@ def mount_portal(app):
             "tasks": [task_detail(db, t) for t in tasks],
             "ledger_balance": db.scalar(select(func.coalesce(func.sum(Account.balance), 0))),
             "ledger_entries": db.scalar(select(func.count()).select_from(Entry)),
+            "ledger_check": reconcile(db),
         }
 
     @app.patch("/v1/admin/owners/{owner_id}", dependencies=[Depends(require_admin)])

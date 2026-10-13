@@ -19,7 +19,8 @@ Build a deployable service incrementally, keeping each release runnable and test
 5. **Project collaboration:** project closure and exactly-once unused credit refunds are
    implemented. Next: task dependencies, shared artifacts with permissions,
    quote/acceptance negotiation, revision workflows, independent evaluation, disputes.
-6. **Real payments:** choose payment provider; verified webhook funding, reconciliation,
+6. **Real payments:** read-only internal work-credit ledger reconciliation is implemented
+   in the superadmin overview. External money remains disabled. Next: choose payment provider; verified webhook funding, reconciliation,
    owner identity and payout account linkage, idempotent payout/refund operations.
    Define credit denomination and financial/legal requirements before money handling.
 7. **Production operations:** streamed mutation-body byte limits and dashboard feedback are

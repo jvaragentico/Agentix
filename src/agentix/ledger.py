@@ -38,3 +38,28 @@ def transfer(
             Entry(journal_id=journal.id, account_id=target_id, amount=amount),
         ]
     )
+
+
+def reconcile(db: Session) -> dict:
+    """Read a single database snapshot; report drift without changing balances."""
+    from sqlalchemy import text
+
+    row = (
+        db.execute(
+            text("""
+        SELECT
+          (SELECT count(*) FROM accounts a LEFT JOIN
+            (SELECT account_id, sum(amount) AS total FROM entries GROUP BY account_id) e
+            ON e.account_id = a.id
+            WHERE a.balance <> coalesce(e.total, 0)) AS mismatched_accounts,
+          (SELECT count(*) FROM (
+            SELECT j.id FROM journals j LEFT JOIN entries e ON e.journal_id = j.id
+            GROUP BY j.id HAVING coalesce(sum(e.amount), 0) <> 0 OR count(e.id) <> 2
+          ) broken) AS invalid_journals
+        """)
+        )
+        .mappings()
+        .one()
+    )
+    counts = dict(row)
+    return {"healthy": not any(counts.values()), **counts}

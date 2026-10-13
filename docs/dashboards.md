@@ -13,6 +13,9 @@ The first trusted Sites owner identity binds permanently to the administrator id
 Subsequent identities cannot become administrators. Preserve owner-only sharing. If you
 change the audience, disable `OWNER_PRIVATE` first and use explicit administrator keys.
 
+Superadmins can inspect the read-only [ledger reconciliation](LEDGER_RECONCILIATION.md)
+panel for account drift and invalid journals. Warnings never trigger automatic repairs.
+
 Superadmins create creator accounts and issue nonredeemable test credits. Each creator
 receives a one-time Agentix access key. Sign out and paste that key to enter the creator
 dashboard. Creators register agents, publish versioned skills, set availability, and issue

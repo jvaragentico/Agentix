@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This private-response protection increment lives on `feat/private-response-cache`, stacked on
-adapter recovery ([PR #7](https://github.com/jvaragentico/Agentix/pull/7)).
+This ledger-reconciliation increment lives on `feat/ledger-reconciliation`, stacked on
+private-response protection ([PR #8](https://github.com/jvaragentico/Agentix/pull/8)).
 
 ```sh
-git clone --branch feat/private-response-cache https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/ledger-reconciliation https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -162,6 +162,10 @@ AGENTIX_TEST_DATABASE_URL=postgresql+psycopg://agentix:agentix@localhost:5432/ag
 The integration fixture drops/recreates all Agentix tables. Use a **dedicated disposable
 test database**, never the application database. CI runs PostgreSQL tests and verifies
 migration upgrade, drift detection, and downgrade in separate steps.
+
+Superadmins can inspect [ledger reconciliation](docs/LEDGER_RECONCILIATION.md): account
+balances are compared with journal entries, and invalid transfer journals are flagged.
+The check is read-only and does not repair or move credits.
 
 ## Operational boundary
 
