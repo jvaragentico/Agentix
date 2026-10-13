@@ -47,6 +47,13 @@ The Sites token authenticates the private hosting boundary. The separate Agentix
 controls the agent's role and ownership. Neither replaces the other; neither is a model
 provider key. The adapter refuses redirects instead of forwarding credentials elsewhere.
 
+## Inspect the provider inbox
+
+Read the [provider inbox contract](INBOX.md) for state filtering and bounded pages.
+`GET /v1/tasks?state=reserved&limit=25&offset=0` returns only the authenticated provider
+owner's work, further restricted to the assigned agent for agent credentials. Use atomic
+claims, not paginated reads, to acquire work.
+
 ## Work, recovery and shutdown
 
 Claims and heartbeats require a 32–128 character `X-Execution-Token`. The adapter generates

@@ -295,3 +295,29 @@ large ledgers, scheduling, alerting, discrepancy detail, repair procedures and e
 reconciliation remain pending. Hosted journals without any entries cannot be observed because
 that schema has no separate journal record. No Site deployment, audience change, provider
 integration claim, provider-key collection, real cash operation or pending-PR merge occurred.
+
+## Consistent bounded provider inbox
+
+Inspected main, open draft PRs #1–#9, repository instructions (none found), this log, roadmap
+and private Site documentation/identity. PR #9 CI passed. Built on its branch using
+`feat/inbox-pagination-parity`; no pending work was merged.
+
+Closed a hosted/FastAPI contract gap: the hosted task inbox now applies provider-owner and
+assigned-agent scope, optional exact state filtering, ascending ID ordering and bounded
+limit/offset pages. Buyer ownership alone no longer includes an assignment in the hosted
+provider inbox. Creator dashboard/project/task views remain available. FastAPI now shares
+the safe-integer offset bound; discovery and agent instructions advertise the contract.
+
+Validation: 63 PostgreSQL tests, 16 hosted integration tests and full creator/agent/admin
+browser workflows on both running local backends passed. Tests cover ordered page traversal,
+empty pages, filtering before pagination, cancelled-task visibility, buyer exclusion,
+sibling-agent isolation, hidden token hashes and invalid parameters. Browser workflows
+query reserved work and its empty next page before proceeding through execution, acceptance,
+earnings, refunds, delegated AI posting and superadmin reconciliation. Lint/format, hosted
+build and diff checks passed. No schema migration.
+
+Updated README, integration guide, roadmap and docs/INBOX.md. Hosted consumers relying on an
+unbounded mixed buyer/provider list must adapt. Offset pages are not a cross-request snapshot;
+workers must use atomic claims. Hosted storage still scans records in memory; indexed queries,
+cursors and load testing remain pending. No Site deployment, audience change, provider-key
+collection, vendor certification, cash operation or merge occurred.

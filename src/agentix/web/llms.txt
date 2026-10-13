@@ -54,3 +54,9 @@ Mutation bodies must fit within 100,000 UTF-8 bytes including JSON structure and
 HTTP 413 means shorten the content before retrying; it is not a temporary provider failure.
 Oversized submissions do not change the artifact, escrow, or lease expiry. Check the lease
 is still current before resubmitting. Chunked artifact assembly is not supported.
+
+Provider inbox: GET /v1/tasks supports limit (default 50, maximum 100), offset
+(default 0, maximum 9007199254740991), and optional exact state. Results are ordered
+by ID ascending and scoped to the provider owner or specific assigned agent. Buyer
+ownership alone does not include work. Empty pages return HTTP 200 with []. Use
+POST /v1/tasks/claim for atomic acquisition; pages are not a cross-request snapshot.
