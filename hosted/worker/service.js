@@ -853,16 +853,36 @@ async function route(u, r, env, path, method, b, a) {
       });
     }
   }
-  if (path === "/v1/tasks" && method === "GET")
+  if (path === "/v1/tasks" && method === "GET") {
+    const params = new URL(r.url).searchParams;
+    const integer = (name, fallback, minimum, maximum) => {
+      const raw = params.get(name);
+      if (raw === null) return fallback;
+      const value = Number(raw);
+      if (
+        !/^\d+$/.test(raw) ||
+        !Number.isSafeInteger(value) ||
+        value < minimum ||
+        value > maximum
+      )
+        fail(422, "Invalid inbox pagination");
+      return value;
+    };
+    const limit = integer("limit", 50, 1, 100);
+    const offset = integer("offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    const state = params.get("state");
     return u
       .list("task")
-      .filter((t) =>
-        a.role === "agent"
-          ? t.agent_id === a.agent_id
-          : t.provider_owner_id === a.owner_id ||
-            u.get(t.project_id).owner_id === a.owner_id,
+      .filter(
+        (t) =>
+          t.provider_owner_id === a.owner_id &&
+          (a.role !== "agent" || t.agent_id === a.agent_id) &&
+          (!state || t.state === state),
       )
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(offset, offset + limit)
       .map(safeTask);
+  }
   if (path === "/v1/tasks/claim" && method === "POST") {
     requireAgent(a);
     exact(b, ["lease_seconds"]);

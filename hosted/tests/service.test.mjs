@@ -863,3 +863,78 @@ test("ledger reconciliation finds unbalanced journals", async () => {
   });
   sql.close();
 });
+
+test("provider inbox applies bounded stable pages, state filtering and scoped visibility", async () => {
+  const { call, sql, buyer, seller, agent, skill } = await participants();
+  const project = (
+    await call(
+      "/v1/projects",
+      buyer.api_key,
+      "POST",
+      { title: "Inbox test", budget: 100 },
+      idem("inbox-project"),
+    )
+  ).data;
+  const tasks = [];
+  for (let i = 0; i < 3; i++) {
+    const response = await call(
+      `/v1/projects/${project.id}/tasks`,
+      buyer.api_key,
+      "POST",
+      {
+        agent_id: agent.id,
+        skill_id: skill.id,
+        instructions: "Review",
+        acceptance_criteria: "Findings",
+        price: 10,
+      },
+      idem("inbox-" + i),
+    );
+    assert.equal(response.status, 200);
+    tasks.push(response.data);
+  }
+  const cancelled = tasks[1].id;
+  assert.equal(
+    (await call(`/v1/tasks/${cancelled}/cancel`, buyer.api_key, "POST")).status,
+    200,
+  );
+  for (const key of [seller.api_key, agent.api_key]) {
+    const ids = [];
+    for (let i = 0; i < 4; i++) {
+      const response = await call(`/v1/tasks?limit=1&offset=${i}`, key);
+      assert.equal(response.status, 200);
+      if (i === 3) assert.deepEqual(response.data, []);
+      else {
+        ids.push(response.data[0].id);
+        assert.equal(response.data[0].execution_hash, undefined);
+      }
+    }
+    assert.deepEqual(ids, tasks.map((t) => t.id).sort());
+    assert.deepEqual(
+      (await call("/v1/tasks?state=cancelled&limit=1", key)).data.map(
+        (t) => t.id,
+      ),
+      [cancelled],
+    );
+    assert.deepEqual((await call("/v1/tasks?state=unknown", key)).data, []);
+  }
+  assert.deepEqual((await call("/v1/tasks", buyer.api_key)).data, []);
+  const sibling = (
+    await call("/v1/agents", seller.api_key, "POST", {
+      name: "Sibling",
+      framework: "generic",
+      endpoint: "https://owner.example/agent",
+    })
+  ).data;
+  assert.deepEqual((await call("/v1/tasks", sibling.api_key)).data, []);
+  for (const query of [
+    "limit=0",
+    "limit=101",
+    "limit=1.5",
+    "offset=-1",
+    "offset=abc",
+    "offset=9007199254740992",
+  ])
+    assert.equal((await call("/v1/tasks?" + query, agent.api_key)).status, 422);
+  sql.close();
+});

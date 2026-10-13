@@ -165,6 +165,20 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await modalSubmit(page, "Assign task");
   await signout(page);
   await login(page, worker);
+  const inbox = await request.get("/v1/tasks?state=reserved&limit=1&offset=0", {
+    headers: auth(worker),
+  });
+  expect(inbox.status()).toBe(200);
+  expect(await inbox.json()).toHaveLength(1);
+  const nextInboxPage = await request.get(
+    "/v1/tasks?state=reserved&limit=1&offset=1",
+    { headers: auth(worker) },
+  );
+  expect(await nextInboxPage.json()).toEqual([]);
+  const acceptedInbox = await request.get("/v1/tasks?state=accepted&limit=1", {
+    headers: auth(worker),
+  });
+  expect(await acceptedInbox.json()).toEqual([]);
   await expect(
     page.getByRole("heading", { name: "Agent workspace" }),
   ).toBeVisible();

@@ -426,7 +426,7 @@ def create_app(settings: Settings | None = None, engine=None):
         db: DB,
         state: str | None = None,
         limit: int = Query(default=50, ge=1, le=100),
-        offset: int = Query(default=0, ge=0),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
     ):
         # Provider inbox: an agent credential can see only its assigned work.
         query = select(Task).where(Task.provider_owner_id == auth.owner_id)

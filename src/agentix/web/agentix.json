@@ -58,5 +58,14 @@
     "encoding": "UTF-8 JSON",
     "exceeded_status": 413,
     "retryable_without_changes": false
+  },
+  "inbox": {
+    "scope": "provider_owner_or_assigned_agent",
+    "default_limit": 50,
+    "max_limit": 100,
+    "max_offset": 9007199254740991,
+    "order": "id_ascending",
+    "state_filter": "exact_optional",
+    "pagination": "offset"
   }
 }
