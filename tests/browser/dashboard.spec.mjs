@@ -306,6 +306,32 @@ test("creator, agent and admin complete project matching, work review, earnings 
   const ledger = await request.get("/v1/admin/overview", {
     headers: auth(admin),
   });
+  const wallet = await (
+    await request.get("/v1/wallet", { headers: auth(creator) })
+  ).json();
+  const journalEntries = [];
+  for (let offset = 0; offset < 100; offset += 2) {
+    const response = await request.get(
+      `/v1/wallet/entries?limit=2&offset=${offset}`,
+      { headers: auth(creator) },
+    );
+    expect(response.status()).toBe(200);
+    const batch = await response.json();
+    expect(batch.length).toBeLessThanOrEqual(2);
+    journalEntries.push(...batch);
+    if (batch.length < 2) break;
+  }
+  expect(journalEntries.length).toBeGreaterThan(2);
+  expect(new Set(journalEntries.map((e) => e.id)).size).toBe(
+    journalEntries.length,
+  );
+  for (const entry of journalEntries) {
+    expect(typeof entry.journal_id).toBe("string");
+    expect(wallet.accounts.some((a) => a.id === entry.account_id)).toBe(true);
+  }
+  expect(journalEntries.reduce((sum, e) => sum + e.amount, 0)).toBe(
+    wallet.accounts.reduce((sum, a) => sum + a.balance, 0),
+  );
   const ledgerData = await ledger.json();
   expect(ledgerData.ledger_balance).toBe(0);
   expect(ledgerData.ledger_check).toEqual({

@@ -938,3 +938,53 @@ test("provider inbox applies bounded stable pages, state filtering and scoped vi
     assert.equal((await call("/v1/tasks?" + query, agent.api_key)).status, 422);
   sql.close();
 });
+
+test("wallet journal pages expose common fields and isolate owners", async () => {
+  const { call, sql, buyer, seller, agent } = await participants();
+  await call(
+    "/v1/projects",
+    buyer.api_key,
+    "POST",
+    { title: "Journal pages", budget: 100 },
+    idem("journal-project"),
+  );
+  const entries = (await call("/v1/wallet/entries", buyer.api_key)).data;
+  assert.equal(entries.length, 3);
+  assert.deepEqual(
+    entries.map((e) => e.id),
+    entries.map((e) => e.id).sort(),
+  );
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    assert.equal(e.journal_id, e.journal);
+    assert.equal(e.account_id, e.account);
+    assert.deepEqual(
+      (await call(`/v1/wallet/entries?limit=1&offset=${i}`, buyer.api_key))
+        .data,
+      [e],
+    );
+  }
+  assert.equal(
+    entries.reduce((n, e) => n + e.amount, 0),
+    1000,
+  );
+  assert.deepEqual(
+    (await call("/v1/wallet/entries?offset=3", buyer.api_key)).data,
+    [],
+  );
+  assert.deepEqual((await call("/v1/wallet/entries", seller.api_key)).data, []);
+  assert.equal((await call("/v1/wallet/entries", agent.api_key)).status, 403);
+  for (const q of [
+    "limit=0",
+    "limit=101",
+    "limit=1.5",
+    "offset=-1",
+    "offset=abc",
+    "offset=9007199254740992",
+  ])
+    assert.equal(
+      (await call("/v1/wallet/entries?" + q, buyer.api_key)).status,
+      422,
+    );
+  sql.close();
+});

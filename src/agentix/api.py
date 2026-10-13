@@ -615,7 +615,7 @@ def create_app(settings: Settings | None = None, engine=None):
         auth: Auth,
         db: DB,
         limit: int = Query(default=50, ge=1, le=100),
-        offset: int = Query(default=0, ge=0),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
     ):
         require_owner(auth)
         query = select(Entry).join(Account).where(Account.owner_id == auth.owner_id)
