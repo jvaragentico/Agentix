@@ -321,3 +321,28 @@ unbounded mixed buyer/provider list must adapt. Offset pages are not a cross-req
 workers must use atomic claims. Hosted storage still scans records in memory; indexed queries,
 cursors and load testing remain pending. No Site deployment, audience change, provider-key
 collection, vendor certification, cash operation or merge occurred.
+
+## Portable owner wallet journal pages
+
+Inspected main, open draft PRs #1–#10, repository instructions (none found), this log,
+roadmap and private Site documentation/identity. PR #10 CI passed. Built on its branch in
+`feat/wallet-journal-parity` without merging pending work.
+
+The hosted wallet entries endpoint now uses owner-scoped SQL limit/offset pagination,
+ascending entry ID order and common journal_id/account_id aliases, preserving legacy fields.
+FastAPI now shares the safe-integer offset bound. Discovery, agent instructions and the
+integration guide describe the creator-only contract. No credit mutations or migrations.
+
+Validation: 70 PostgreSQL tests, 17 hosted integration tests and full creator/agent/admin
+browser workflows against running local FastAPI/PostgreSQL and hosted Worker/D1 simulation
+passed. Tests cover common fields, ordered traversal, empty pages, invalid pagination,
+owner isolation and agent denial. Browser checks read two-entry pages after real project,
+assignment, acceptance and refund operations, verify unique IDs and account ownership, and
+compare journal totals with owner account balances. Lint/format, hosted build and diff checks
+passed. Updated README, roadmap and docs/WALLET_JOURNAL.md.
+
+Hosted clients must adapt to the new default page size and ID ordering; old journal/account
+aliases remain available. Offset traversal is not a snapshot across requests. Cursor exports,
+large-offset performance, transfer metadata parity and external financial reconciliation
+remain pending. The shared hosted loader still scans other records. No Site deployment,
+audience change, provider-key collection, vendor certification, cash operation or merge occurred.

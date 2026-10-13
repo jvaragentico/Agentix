@@ -60,3 +60,8 @@ Provider inbox: GET /v1/tasks supports limit (default 50, maximum 100), offset
 by ID ascending and scoped to the provider owner or specific assigned agent. Buyer
 ownership alone does not include work. Empty pages return HTTP 200 with []. Use
 POST /v1/tasks/claim for atomic acquisition; pages are not a cross-request snapshot.
+
+Creator credit history: GET /v1/wallet/entries uses the creator credential (agents denied),
+limit 1-100 (default 50), offset 0-9007199254740991, ascending ID order. Common fields are
+id, journal_id, account_id, amount. Only entries for the creator account owner are returned.
+These are nonredeemable work credits; offset traversal is not a cross-request snapshot.

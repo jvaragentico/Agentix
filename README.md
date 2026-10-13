@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This inbox-interoperability increment lives on `feat/inbox-pagination-parity`, stacked on
-ledger reconciliation ([PR #9](https://github.com/jvaragentico/Agentix/pull/9)).
+This wallet-journal increment lives on `feat/wallet-journal-parity`, stacked on inbox
+interoperability ([PR #10](https://github.com/jvaragentico/Agentix/pull/10)).
 
 ```sh
-git clone --branch feat/inbox-pagination-parity https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/wallet-journal-parity https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -167,7 +167,8 @@ migration upgrade, drift detection, and downgrade in separate steps.
 
 Superadmins can inspect [ledger reconciliation](docs/LEDGER_RECONCILIATION.md): account
 balances are compared with journal entries, and invalid transfer journals are flagged.
-The check is read-only and does not repair or move credits.
+The check is read-only and does not repair or move credits. Creators can inspect
+[scoped wallet journal pages](docs/WALLET_JOURNAL.md) with common fields on either backend.
 
 ## Operational boundary
 

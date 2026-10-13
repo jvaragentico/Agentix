@@ -1037,13 +1037,33 @@ async function route(u, r, env, path, method, b, a) {
   }
   if (path === "/v1/wallet/entries" && method === "GET") {
     requireOwner(a);
+    const params = new URL(r.url).searchParams;
+    const pageInt = (name, fallback, min, max) => {
+      const raw = params.get(name);
+      if (raw === null) return fallback;
+      const value = Number(raw);
+      if (
+        !/^\d+$/.test(raw) ||
+        !Number.isSafeInteger(value) ||
+        value < min ||
+        value > max
+      )
+        fail(422, "Invalid wallet pagination");
+      return value;
+    };
+    const limit = pageInt("limit", 50, 1, 100);
+    const offset = pageInt("offset", 0, 0, Number.MAX_SAFE_INTEGER);
     const rows = await u.db
       .prepare(
-        "SELECT entries.* FROM entries JOIN balances ON entries.account=balances.id WHERE balances.owner=? ORDER BY entries.created DESC LIMIT 100",
+        "SELECT entries.* FROM entries JOIN balances ON entries.account=balances.id WHERE balances.owner=? ORDER BY entries.id ASC LIMIT ? OFFSET ?",
       )
-      .bind(a.owner_id)
+      .bind(a.owner_id, limit, offset)
       .all();
-    return rows.results;
+    return rows.results.map((entry) => ({
+      ...entry,
+      journal_id: entry.journal,
+      account_id: entry.account,
+    }));
   }
   fail(404, "Endpoint not found");
 }
