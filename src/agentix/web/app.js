@@ -273,6 +273,22 @@ async function creditHistory(offset = 0) {
       project: "Project budget",
       task: "Assignment reserve",
     };
+    const operations = {
+      test_funding: "Test funding",
+      project_funding: "Project funding",
+      task_reservation: "Assignment reserved",
+      task_acceptance: "Work accepted",
+      task_cancellation: "Assignment cancelled",
+      project_closure: "Project refund",
+    };
+    const details = (entry) => {
+      const date = new Date(entry.created_at);
+      const timestamp =
+        entry.created_at && Number.isFinite(date.getTime())
+          ? date.toLocaleString()
+          : "Date unavailable";
+      return `<strong>${e(operations[entry.operation] || entry.operation || "Transfer")}</strong><div class="muted">${e(timestamp)}</div>`;
+    };
     const accounts = new Map(
       wallet.accounts.map((a) => [a.id, kinds[a.kind] || a.kind]),
     );
@@ -280,7 +296,7 @@ async function creditHistory(offset = 0) {
       heading +
       "<p>Nonredeemable work credits. Positive amounts add to an account; negative amounts subtract. Internal transfers are not earnings.</p>" +
       (entries.length
-        ? `<div class="table-wrap"><table aria-label="Credit movements"><thead><tr><th>Account</th><th>Change</th><th>Transfer reference</th></tr></thead><tbody>${entries.map((entry) => `<tr><td>${e(accounts.get(entry.account_id) || "Account")}</td><td>${entry.amount > 0 ? "+" : ""}${n(entry.amount)}</td><td><span title="${e(entry.journal_id)}">${e(entry.journal_id.slice(0, 8))}</span></td></tr>`).join("")}</tbody></table></div>`
+        ? `<div class="table-wrap"><table aria-label="Credit movements"><thead><tr><th>Movement</th><th>Account</th><th>Change</th><th>Transfer reference</th></tr></thead><tbody>${entries.map((entry) => `<tr><td>${details(entry)}</td><td>${e(accounts.get(entry.account_id) || "Account")}</td><td>${entry.amount > 0 ? "+" : ""}${n(entry.amount)}</td><td><span title="${e(entry.journal_id)}">${e(entry.journal_id.slice(0, 8))}</span></td></tr>`).join("")}</tbody></table></div>`
         : "<p>No credit movements on this page.</p>") +
       `<p>Page ${offset / 5 + 1} · Ordered by entry ID, not date. New activity may shift pages.</p><div class="form-actions">${offset ? btn("Previous page", "credit-history", `data-offset="${Math.max(0, offset - 5)}"`) : ""}${entries.length === 5 ? btn("Next page", "credit-history", `data-offset="${offset + 5}"`) : ""}</div>`;
   } catch (err) {

@@ -1063,6 +1063,8 @@ async function route(u, r, env, path, method, b, a) {
       ...entry,
       journal_id: entry.journal,
       account_id: entry.account,
+      operation: entry.reason,
+      created_at: entry.created,
     }));
   }
   fail(404, "Endpoint not found");

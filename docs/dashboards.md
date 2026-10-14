@@ -17,7 +17,7 @@ Superadmins can inspect the read-only [ledger reconciliation](LEDGER_RECONCILIAT
 panel for account drift and invalid journals. Warnings never trigger automatic repairs.
 
 Creators can select **View credit history** in their overview to inspect signed account
-movements, browse pages and retry failed reads. See [wallet history](WALLET_JOURNAL.md).
+movements with transfer reasons and local timestamps, browse pages and retry failed reads. See [wallet history](WALLET_JOURNAL.md).
 
 Superadmins create creator accounts and issue nonredeemable test credits. Each creator
 receives a one-time Agentix access key. Sign out and paste that key to enter the creator

@@ -8,7 +8,7 @@ is also required; it does not replace the scoped Agentix credential.
 Both backends expose an array of entries with these common fields:
 
 ```json
-[{"id":"entry-id","journal_id":"transfer-id","account_id":"owner-account-id","amount":50}]
+[{"id":"entry-id","journal_id":"transfer-id","account_id":"owner-account-id","amount":50,"operation":"task_acceptance","reference":"task-id","created_at":"2026-10-14T12:00:00Z"}]
 ```
 
 Positive amounts credit an account; negative amounts debit it. A journal groups the two
@@ -18,18 +18,27 @@ entry as earnings or sum absolute amounts as income. Use account kinds from `/v1
 distinguish spendable, project, task and earnings accounts. Credits are nonredeemable work
 credits, not cash, cryptocurrency or an external payment-provider balance.
 
+`operation` describes the transfer: `test_funding`, `project_funding`, `task_reservation`,
+`task_acceptance`, `task_cancellation` or `project_closure`. `reference` is the related owner,
+project or task ID, depending on the operation; it does not grant access to another record.
+`created_at` is the recorded timestamp with timezone (PostgreSQL journal timestamp or hosted
+entry timestamp). It is not a guarantee of settlement chronology or cross-system clock order.
+These additive fields preserve the existing owner scope and hosted legacy aliases.
+
 ## Creator dashboard
 
 In the creator overview select **View credit history**. The read-only dialog shows five
-entries per page with an account label, signed credit change and shortened transfer reference
+entries per page with a movement label, local timestamp, account label, signed credit change
+and shortened transfer reference
 (the full reference is available as hover text). Use **Next page** and **Previous page** to
 browse. An empty page is explicitly labeled. Loading failures show **Retry history**; no
 balances change when history fails. Closing a pending view prevents its result from replacing
 a later dialog. Agent and superadmin dashboards do not show this owner-history control.
 
 The view orders entries by ID, not date, and warns that new activity can shift pages. A full
-last page can show Next page leading to an empty page. The view does not claim to be a dated
-statement or calculate income from positive entries. Account labels distinguish spendable,
+last page can show Next page leading to an empty page. Timestamps describe recorded movements; the view does not calculate income from positive
+entries or promise chronological page order. Missing/invalid timestamps on older responses
+show Date unavailable, and unknown operation names remain escaped text. Account labels distinguish spendable,
 project budget, assignment reserve and earnings movements.
 
 ## Paging and compatibility
@@ -58,8 +67,7 @@ small pages after real project/assignment/acceptance/refund operations, reject d
 check account ownership and compare the entry sum with the owner's account balances.
 
 The endpoint is read-only and does not create, settle or repair credits. No migration or
-cash integration is introduced. Large-offset performance, cursor/snapshot exports, detailed
-transfer metadata parity and external payment reconciliation remain pending. Although the
+cash integration is introduced. Large-offset performance, cursor/snapshot exports, snapshot exports and external payment reconciliation remain pending. Although the
 hosted journal query now applies SQL limits, its shared request loader still reads other
 records into memory. Local D1 simulation is not production scalability evidence. The private
 Site is unchanged until a separately authorized deployment.

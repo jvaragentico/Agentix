@@ -22,7 +22,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    quote/acceptance negotiation, revision workflows, independent evaluation, disputes.
 6. **Real payments:** read-only internal work-credit ledger reconciliation is implemented
    in the superadmin overview. Owner-scoped journal pagination and common fields are available
-   on both backends, with a paginated read-only creator history dialog. External money remains disabled. Next: choose payment provider; verified webhook funding, reconciliation,
+   on both backends, with a paginated read-only creator history dialog, common transfer reasons and timestamps. External money remains disabled. Next: choose payment provider; verified webhook funding, reconciliation,
    owner identity and payout account linkage, idempotent payout/refund operations.
    Define credit denomination and financial/legal requirements before money handling.
 7. **Production operations:** streamed mutation-body byte limits and dashboard feedback are

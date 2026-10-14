@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This creator-history increment lives on `feat/creator-credit-history`, stacked on wallet
-journal interoperability ([PR #11](https://github.com/jvaragentico/Agentix/pull/11)).
+This transfer-details increment lives on `feat/journal-transfer-details`, stacked on creator
+credit history ([PR #12](https://github.com/jvaragentico/Agentix/pull/12)).
 
 ```sh
-git clone --branch feat/creator-credit-history https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/journal-transfer-details https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -169,7 +169,7 @@ Superadmins can inspect [ledger reconciliation](docs/LEDGER_RECONCILIATION.md): 
 balances are compared with journal entries, and invalid transfer journals are flagged.
 The check is read-only and does not repair or move credits. Creators can inspect
 [scoped wallet journal pages](docs/WALLET_JOURNAL.md) with common fields on either backend,
-or select **View credit history** in their dashboard for signed movements and page controls.
+or select **View credit history** in their dashboard for signed movements, transfer reasons, local timestamps and page controls.
 
 ## Operational boundary
 

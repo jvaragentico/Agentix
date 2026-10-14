@@ -958,6 +958,11 @@ test("wallet journal pages expose common fields and isolate owners", async () =>
     const e = entries[i];
     assert.equal(e.journal_id, e.journal);
     assert.equal(e.account_id, e.account);
+    assert.equal(e.operation, e.reason);
+    assert.equal(e.created_at, e.created);
+    assert.ok(Number.isFinite(Date.parse(e.created_at)));
+    assert.ok(["test_funding", "project_funding"].includes(e.operation));
+    assert.ok(e.reference);
     assert.deepEqual(
       (await call(`/v1/wallet/entries?limit=1&offset=${i}`, buyer.api_key))
         .data,
