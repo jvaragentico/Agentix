@@ -1,6 +1,7 @@
 """Owner-side bridge: provider credentials and execution stay outside Agentix."""
 
 import math
+import random
 import re
 import secrets
 import time
@@ -34,6 +35,7 @@ class AgentixAdapter:
         max_retries: int = 2,
         retry_base_seconds: float = 0.25,
         max_retry_seconds: float = 5,
+        backoff_jitter: bool = True,
     ):
         if not isinstance(lease_seconds, int) or not 30 <= lease_seconds <= 900:
             raise ValueError("Lease duration must be between 30 and 900 seconds")
@@ -41,6 +43,9 @@ class AgentixAdapter:
             raise ValueError("max_retries must be an integer between 0 and 3")
         if not 0 < retry_base_seconds <= max_retry_seconds <= 30:
             raise ValueError("Retry delays must satisfy 0 < base <= maximum <= 30")
+        if type(backoff_jitter) is not bool:
+            raise ValueError("backoff_jitter must be a boolean")
+        self.backoff_jitter = backoff_jitter
         self.max_retries = max_retries
         self.retry_base_seconds = retry_base_seconds
         self.max_retry_seconds = max_retry_seconds
@@ -87,15 +92,18 @@ class AgentixAdapter:
             if task_id is not None:
                 delay = poll_seconds
                 continue
-            if stop.wait(delay):
+            if stop.wait(self._jitter(delay)):
                 break
             delay = min(delay * 2, max_poll_seconds)
 
     def close(self):
         self.client.close()
 
+    def _jitter(self, delay):
+        return random.uniform(delay / 2, delay) if self.backoff_jitter else delay
+
     def _retry_delay(self, response, attempt):
-        delay = min(self.retry_base_seconds * (2**attempt), self.max_retry_seconds)
+        delay = self._jitter(min(self.retry_base_seconds * (2**attempt), self.max_retry_seconds))
         retry_after = response.headers.get("Retry-After") if response is not None else None
         if retry_after:
             try:

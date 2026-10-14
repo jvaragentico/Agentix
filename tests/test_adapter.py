@@ -111,7 +111,9 @@ def test_private_host_discovery_and_redirects_keep_credentials_on_origin():
     assert all(r.headers["OAI-Sites-Authorization"] == "Bearer site-key" for r in requests)
 
 
-def test_idle_polling_backs_off_and_can_be_stopped():
+def test_idle_polling_backs_off_and_can_be_stopped(monkeypatch):
+    monkeypatch.setattr("agentix.adapter.random.uniform", lambda low, high: high)
+
     class Stop:
         def __init__(self):
             self.delays = []
@@ -139,6 +141,7 @@ def test_lost_claim_and_submission_responses_do_not_rerun_handler(
     p = participants
     task_id = reserve(client, p).json()["id"]
     attempts, payloads, delays, calls = {}, {}, [], []
+    monkeypatch.setattr("agentix.adapter.random.uniform", lambda low, high: high)
     monkeypatch.setattr("agentix.adapter.time.sleep", delays.append)
 
     def transport(request):
@@ -197,6 +200,7 @@ def test_adapter_never_retries_permanent_errors(status, monkeypatch):
 
 def test_adapter_retry_backoff_is_bounded_and_exhaustion_propagates(monkeypatch):
     requests, delays = [], []
+    monkeypatch.setattr("agentix.adapter.random.uniform", lambda low, high: high)
     monkeypatch.setattr("agentix.adapter.time.sleep", delays.append)
 
     def transport(request):
@@ -219,6 +223,7 @@ def test_adapter_respects_retry_after_without_exceeding_wait_budget(
     monkeypatch, retry_after, expected_requests, expected_delays
 ):
     requests, delays = [], []
+    monkeypatch.setattr("agentix.adapter.random.uniform", lambda low, high: high)
     monkeypatch.setattr("agentix.adapter.time.sleep", delays.append)
 
     def transport(request):
@@ -249,3 +254,53 @@ def test_adapter_does_not_retry_other_mutations(monkeypatch):
     ) as adapter:
         with pytest.raises(httpx.HTTPStatusError):
             adapter._request("POST", "/v1/projects", json={"title": "No automatic replay"})
+
+
+@pytest.mark.parametrize("fraction", [0, 0.5, 1])
+def test_jitter_bounds_and_server_minimum(monkeypatch, fraction):
+    monkeypatch.setattr(
+        "agentix.adapter.random.uniform", lambda low, high: low + fraction * (high - low)
+    )
+    with AgentixAdapter("https://agentix.example", "key") as adapter:
+        assert adapter._retry_delay(None, 0) == 0.125 + fraction * 0.125
+        assert adapter._retry_delay(None, 10) == 2.5 + fraction * 2.5
+        response = httpx.Response(429, headers={"Retry-After": "1"})
+        assert adapter._retry_delay(response, 0) == 1
+        assert adapter._retry_delay(httpx.Response(429, headers={"Retry-After": "60"}), 0) is None
+
+
+def test_jitter_can_be_disabled(monkeypatch):
+    monkeypatch.setattr("agentix.adapter.random.uniform", lambda *_: pytest.fail("Jitter disabled"))
+    with AgentixAdapter("https://agentix.example", "key", backoff_jitter=False) as adapter:
+        assert adapter._retry_delay(None, 0) == 0.25
+        assert adapter._jitter(4) == 4
+    with pytest.raises(ValueError, match="boolean"):
+        AgentixAdapter("https://agentix.example", "key", backoff_jitter="false")
+
+
+def test_idle_jitter_preserves_exponential_ceiling_and_stop(monkeypatch):
+    monkeypatch.setattr("agentix.adapter.random.uniform", lambda low, high: low)
+
+    class Stop:
+        delays = []
+
+        def is_set(self):
+            return False
+
+        def wait(self, delay):
+            self.delays.append(delay)
+            return len(self.delays) == 4
+
+    stop = Stop()
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(lambda _: httpx.Response(204)),
+    ) as adapter:
+        adapter.run_forever(
+            lambda _: pytest.fail("No task available"),
+            stop=stop,
+            poll_seconds=2,
+            max_poll_seconds=5,
+        )
+    assert stop.delays == [1, 2, 2.5, 2.5]

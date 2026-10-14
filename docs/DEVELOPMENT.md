@@ -397,3 +397,29 @@ Updated README, discovery, agent instructions, dashboard/ledger guides and roadm
 snapshot exports, chronological paging and scale testing remain pending. Timestamp sources
 are PostgreSQL journals and hosted entry records respectively. No live Site deployment,
 audience change, provider-key collection, vendor certification, cash operation or merge occurred.
+
+## Randomized bounded adapter backoff
+
+Inspected main, draft PRs #1–#13, repository instructions (none found), development log,
+roadmap and private Site identity/documentation. PR #13 CI passed. Built on its branch in
+`feat/adapter-backoff-jitter` without merging pending work.
+
+Owner-managed Python adapters now randomize idle and transient-retry waits between half the
+current exponential ceiling and that ceiling. Ceiling growth remains independent of sampled
+waits. Valid Retry-After hints remain minimum waits, and hints exceeding the configured budget
+still propagate rather than retrying early. The boolean backoff_jitter=False option restores
+fixed waits. Heartbeat timing, execution tokens, request replay and retry counts are unchanged.
+
+Validation: 75 PostgreSQL tests and 17 hosted integration tests passed. New deterministic
+random-boundary tests verify delay ranges, capped growth, server wait preservation, stop
+behavior, disabled jitter and invalid configuration. Full creator/agent/admin browser
+workflows passed on running local FastAPI/PostgreSQL and Worker/D1 simulation. Lost-response
+smoke tests passed against both running backends with default jitter: one handler execution,
+one submission and one creator settlement. Hosted build, lint/format and diff checks passed.
+
+Updated README, adapter guide, integration guidance and roadmap. This changes default timing:
+configured polling delays are ceilings and average waits are shorter than fixed backoff.
+Jitter is not rate limiting or fleet load evidence; server hints can still align clients.
+Retry sleeps are not stop-event interruptible, while idle waits are. Durable recovery, total
+deadlines and task-attempt caps remain pending. No migration, Site deployment, audience change,
+provider-key collection, vendor certification, real cash operation or merge occurred.
