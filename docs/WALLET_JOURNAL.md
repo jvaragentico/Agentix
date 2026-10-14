@@ -18,6 +18,20 @@ entry as earnings or sum absolute amounts as income. Use account kinds from `/v1
 distinguish spendable, project, task and earnings accounts. Credits are nonredeemable work
 credits, not cash, cryptocurrency or an external payment-provider balance.
 
+## Creator dashboard
+
+In the creator overview select **View credit history**. The read-only dialog shows five
+entries per page with an account label, signed credit change and shortened transfer reference
+(the full reference is available as hover text). Use **Next page** and **Previous page** to
+browse. An empty page is explicitly labeled. Loading failures show **Retry history**; no
+balances change when history fails. Closing a pending view prevents its result from replacing
+a later dialog. Agent and superadmin dashboards do not show this owner-history control.
+
+The view orders entries by ID, not date, and warns that new activity can shift pages. A full
+last page can show Next page leading to an empty page. The view does not claim to be a dated
+statement or calculate income from positive entries. Account labels distinguish spendable,
+project budget, assignment reserve and earnings movements.
+
 ## Paging and compatibility
 
 - `limit`: integer 1–100, default 50.
