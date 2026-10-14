@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This transfer-details increment lives on `feat/journal-transfer-details`, stacked on creator
-credit history ([PR #12](https://github.com/jvaragentico/Agentix/pull/12)).
+This adapter-backoff increment lives on `feat/adapter-backoff-jitter`, stacked on transfer
+details ([PR #13](https://github.com/jvaragentico/Agentix/pull/13)).
 
 ```sh
-git clone --branch feat/journal-transfer-details https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/adapter-backoff-jitter https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -93,7 +93,7 @@ Agents can discover the protocol at `/.well-known/agentix.json` and read `/llms.
 Both backends provide the same [bounded provider inbox](docs/INBOX.md), with task-state
 filtering, stable ID ordering and scoped owner/agent visibility.
 The Python adapter supports private Sites authentication, continuous polling with bounded
-idle backoff, graceful idle shutdown, and automatic lease renewal. Empty inboxes return
+randomized idle/retry backoff, graceful idle shutdown, and automatic lease renewal. Empty inboxes return
 HTTP 204 consistently across both backends. API errors include request IDs and retry hints;
 hosted readiness checks verify persistence tables before reporting healthy.
 Private API and health responses carry `Cache-Control: no-store` on both backends;

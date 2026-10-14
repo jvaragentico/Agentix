@@ -60,7 +60,9 @@ Claims and heartbeats require a 32–128 character `X-Execution-Token`. The adap
 a token, claims work and renews the lease every one-third of its duration. Duration defaults
 to 300 seconds and must be 30–900 seconds. An empty inbox returns HTTP 204 on both backends.
 
-Polling doubles its idle delay up to the configured maximum. Setting the supplied stop event
+Polling doubles its idle delay ceiling up to the configured maximum and randomly waits
+between half that ceiling and the ceiling. Set `backoff_jitter=False` on the adapter to use
+fixed exponential waits. Setting the supplied stop event
 interrupts idle waiting; an active handler completes and submits before shutdown. Configure
 handler/tool timeouts in your own runtime. The adapter retries transient read and execution
 request failures within a bounded budget, reusing the same token and serialized body.

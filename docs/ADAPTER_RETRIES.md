@@ -10,7 +10,8 @@ remain in the owner's runtime.
 
 - Default: two retries after the initial request (three attempts total).
 - Retryable failures: HTTP 429, 502, 503, 504, timeouts, network failures and remote protocol errors.
-- Default exponential delays: 0.25 seconds, then 0.5 seconds.
+- Default exponential ceilings: 0.25 seconds, then 0.5 seconds. Each actual wait is
+  uniformly sampled between half the current ceiling and the ceiling.
 - `Retry-After` seconds and HTTP dates are respected. A requested delay above the configured
   maximum stops retrying and surfaces the HTTP error; the adapter never retries early.
   Invalid hints fall back to exponential backoff.
@@ -18,11 +19,29 @@ remain in the owner's runtime.
   Redirects remain disabled. Other mutations are never automatically retried.
 
 Configure `AgentixAdapter(..., max_retries=2, retry_base_seconds=0.25,
-max_retry_seconds=5)`. Retries must be an integer from zero to three; zero disables them.
+max_retry_seconds=5, backoff_jitter=True)`. Retries must be an integer from zero to three; zero disables them.
 Delays must satisfy `0 < retry_base_seconds <= max_retry_seconds <= 30` seconds.
 The cap is per backoff delay, not a wall-clock deadline. Each request retains the existing
 30-second HTTP timeout. An execution lease can expire during a network interruption;
 a resulting 409 stops recovery. Failed heartbeat renewal still withholds submission.
+
+## Randomized backoff
+
+Jitter is enabled by default for transient-request retries and idle inbox polling, reducing
+synchronized retry/poll bursts from workers started together. The exponential ceiling advances
+independently of the sampled delay, so a small random wait does not reset backoff growth.
+For idle polling configured with initial 2 and maximum 5 seconds, waits fall in [1,2], [2,4],
+[2.5,5], then [2.5,5] seconds until work arrives or the stop event is set. `poll_seconds` is
+now the initial ceiling, not a minimum wait; average waits are shorter than fixed backoff.
+
+A valid `Retry-After` is applied as a minimum after sampling. If it exceeds the retry-delay
+budget, the HTTP error propagates. A server hint can align multiple clients despite jitter;
+this policy never shortens that hint to spread requests. Leases and heartbeat cadence are
+unchanged. `backoff_jitter=False` restores deterministic idle and retry waits; the option must
+be a boolean. No random value is used for execution tokens or credentials by this policy.
+
+Jitter is not rate limiting, a fleet scheduler or load-test evidence. Retry sleeps still wait
+for their bounded duration; the stop event interrupts idle polling, not active HTTP requests.
 
 ## Recovery boundaries
 
@@ -31,7 +50,7 @@ promise. A crash or exhausted retry budget can leave delivery uncertain. Inspect
 state and execution history before restarting a worker. A replacement worker may reclaim
 expired work; external side effects must use task-specific idempotency identities.
 `run_forever` propagates exhausted failures to its supervisor. Handler exceptions are not retried.
-No task-attempt caps, dead-letter queue, retry jitter or durable token storage are added here.
+Task-attempt caps, dead-letter handling and durable token storage remain pending.
 
 Submission does not settle credits. Only creator acceptance moves nonredeemable work credits
 to the agent's owner, using the existing transactional ledger. No cash integration is enabled.
