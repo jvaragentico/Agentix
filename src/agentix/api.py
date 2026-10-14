@@ -23,7 +23,18 @@ from agentix.execution import (
 )
 from agentix.idempotency import execute_once
 from agentix.ledger import transfer
-from agentix.models import Account, Agent, Entry, Owner, Project, Skill, Task, TaskEvent, new_id
+from agentix.models import (
+    Account,
+    Agent,
+    Entry,
+    Journal,
+    Owner,
+    Project,
+    Skill,
+    Task,
+    TaskEvent,
+    new_id,
+)
 
 security = HTTPBearer(auto_error=False)
 
@@ -618,10 +629,25 @@ def create_app(settings: Settings | None = None, engine=None):
         offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
     ):
         require_owner(auth)
-        query = select(Entry).join(Account).where(Account.owner_id == auth.owner_id)
+        query = (
+            select(Entry, Journal)
+            .join(Account, Entry.account_id == Account.id)
+            .join(Journal, Entry.journal_id == Journal.id)
+            .where(Account.owner_id == auth.owner_id)
+        )
         return [
-            {"id": e.id, "journal_id": e.journal_id, "account_id": e.account_id, "amount": e.amount}
-            for e in db.scalars(query.order_by(Entry.id).limit(limit).offset(offset))
+            {
+                "id": e.id,
+                "journal_id": e.journal_id,
+                "account_id": e.account_id,
+                "amount": e.amount,
+                "operation": journal.operation,
+                "reference": journal.reference,
+                "created_at": journal.created_at
+                if journal.created_at.tzinfo
+                else journal.created_at.replace(tzinfo=UTC),
+            }
+            for e, journal in db.execute(query.order_by(Entry.id).limit(limit).offset(offset))
         ]
 
     from agentix.operations import mount_operations

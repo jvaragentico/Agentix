@@ -272,10 +272,21 @@ test("creator, agent and admin complete project matching, work review, earnings 
     page.getByRole("table", { name: "Credit movements" }),
   ).toBeVisible();
   await expect(page.locator("dialog tbody tr")).toHaveCount(5);
+  await expect(page.locator("dialog")).not.toContainText("Date unavailable");
   const firstCreditPage = await page.locator("dialog tbody").innerText();
   await page.getByRole("button", { name: "Next page", exact: true }).click();
   await expect(page.locator("dialog")).toContainText("Page 2");
   await expect(page.locator("dialog tbody tr")).toHaveCount(4);
+  const movementText =
+    firstCreditPage + (await page.locator("dialog tbody").innerText());
+  for (const label of [
+    "Test funding",
+    "Project funding",
+    "Assignment reserved",
+    "Work accepted",
+    "Project refund",
+  ])
+    expect(movementText).toContain(label);
   await page
     .getByRole("button", { name: "Previous page", exact: true })
     .click();

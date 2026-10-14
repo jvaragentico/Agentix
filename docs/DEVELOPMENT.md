@@ -371,3 +371,29 @@ Updated README, dashboard guide, wallet journal guide and roadmap. Offset pages 
 susceptible to concurrent activity; exports, snapshot cursors, dated metadata parity and
 large-ledger performance remain pending. No live Site deployment, audience change, provider
 credential collection, vendor certification, real cash operation or pending-PR merge occurred.
+
+## Common transfer details in creator credit history
+
+Inspected main, draft PRs #1–#12, repository instructions (none found), development log,
+roadmap and private Site identity/documentation. PR #12 CI passed. Built on its history view
+in `feat/journal-transfer-details`, reusing journal data rather than adding another ledger.
+
+Wallet entries now expose operation, related-record reference and timezone-bearing created_at
+on both backends. FastAPI joins the journal within the existing scoped paginated query; hosted
+responses retain legacy fields while adding common aliases. The creator dialog labels funding,
+reservations, acceptance, cancellation and project refunds and renders local timestamps.
+Unknown/missing metadata has escaped-text and unavailable-date fallbacks. ID page order is
+unchanged; no chronological ordering or settlement timing guarantee is implied.
+
+Validation: 70 PostgreSQL tests and 17 hosted integration tests passed. Extended tests verify
+common metadata, timezone-bearing timestamps, shared journal time, references and legacy
+aliases while retaining owner isolation, agent denial and pagination assertions. Full browser
+workflows passed against local FastAPI/PostgreSQL and Worker/D1 simulation, checking movement
+labels across two credit-history pages after real funding, reservation, acceptance and refund
+operations. Existing retry, ledger, credential and agent workflows remain green. Lint/format,
+hosted build and diff checks passed. No migration or new credit movement is introduced.
+
+Updated README, discovery, agent instructions, dashboard/ledger guides and roadmap. Cursor or
+snapshot exports, chronological paging and scale testing remain pending. Timestamp sources
+are PostgreSQL journals and hosted entry records respectively. No live Site deployment,
+audience change, provider-key collection, vendor certification, cash operation or merge occurred.

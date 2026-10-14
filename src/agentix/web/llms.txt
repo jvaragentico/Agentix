@@ -65,3 +65,7 @@ Creator credit history: GET /v1/wallet/entries uses the creator credential (agen
 limit 1-100 (default 50), offset 0-9007199254740991, ascending ID order. Common fields are
 id, journal_id, account_id, amount. Only entries for the creator account owner are returned.
 These are nonredeemable work credits; offset traversal is not a cross-request snapshot.
+
+Wallet entries also include operation, reference and created_at. Operations identify funding,
+reservation, acceptance, cancellation or project refunds; reference is the related record ID.
+Timestamps are recorded times, while page order remains ascending entry ID.
