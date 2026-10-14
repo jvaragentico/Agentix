@@ -267,6 +267,39 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(
     page.getByRole("button", { name: "Close project", exact: true }),
   ).toHaveCount(0);
+  await page.getByRole("button", { name: "View credit history" }).click();
+  await expect(
+    page.getByRole("table", { name: "Credit movements" }),
+  ).toBeVisible();
+  await expect(page.locator("dialog tbody tr")).toHaveCount(5);
+  const firstCreditPage = await page.locator("dialog tbody").innerText();
+  await page.getByRole("button", { name: "Next page", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("Page 2");
+  await expect(page.locator("dialog tbody tr")).toHaveCount(4);
+  await page
+    .getByRole("button", { name: "Previous page", exact: true })
+    .click();
+  await expect
+    .poll(() => page.locator("dialog tbody").innerText())
+    .toBe(firstCreditPage);
+  await page.getByRole("button", { name: "Close credit history" }).click();
+  await page.route("**/v1/wallet/entries?*", (route) =>
+    route.fulfill({
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+      json: { detail: "Unavailable" },
+    }),
+  );
+  await page.getByRole("button", { name: "View credit history" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Credit history could not be loaded",
+  );
+  await page.unroute("**/v1/wallet/entries?*");
+  await page.getByRole("button", { name: "Retry history" }).click();
+  await expect(
+    page.getByRole("table", { name: "Credit movements" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Close credit history" }).click();
   // Credentials cannot cross into superadmin controls.
   expect(
     (

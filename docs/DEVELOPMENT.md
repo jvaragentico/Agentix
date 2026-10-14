@@ -346,3 +346,28 @@ aliases remain available. Offset traversal is not a snapshot across requests. Cu
 large-offset performance, transfer metadata parity and external financial reconciliation
 remain pending. The shared hosted loader still scans other records. No Site deployment,
 audience change, provider-key collection, vendor certification, cash operation or merge occurred.
+
+## Creator credit-history dashboard
+
+Inspected main, draft PRs #1–#11, repository instructions (none found), this log, roadmap
+and private Site identity/documentation. PR #11 CI passed. Built on its wallet journal work
+in `feat/creator-credit-history`, reusing the scoped read APIs without new endpoints.
+
+Creator overviews now offer View credit history. The read-only dialog shows signed amounts,
+account-kind labels and transfer references in five-entry pages. Previous/Next controls,
+loading and empty states, and an explicit retry after read failure are included. Pending
+results are discarded after close/cancel or a different history request. The UI explains
+nonredeemable credits, internal transfers and ID ordering rather than implying cash income
+or chronological statements. Agent/admin dashboards do not expose this creator control.
+
+Validation: 70 PostgreSQL tests, 17 hosted integration tests and full creator/agent/admin
+browser workflows on both running local backends passed. Browser checks open the view after
+real work settlement/refunds, traverse two pages and return to identical first-page contents,
+then simulate a 503 and successfully retry. Existing scoped journal, financial consistency,
+key rotation, leasing, delegated spending, history and oversized-artifact tests remain green.
+Hosted build, lint/format and diff checks passed. No migration or backend mutation changes.
+
+Updated README, dashboard guide, wallet journal guide and roadmap. Offset pages remain
+susceptible to concurrent activity; exports, snapshot cursors, dated metadata parity and
+large-ledger performance remain pending. No live Site deployment, audience change, provider
+credential collection, vendor certification, real cash operation or pending-PR merge occurred.
