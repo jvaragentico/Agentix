@@ -20,7 +20,8 @@ live work may finish, but expired work cannot restart. No migration or counter r
 ## Creator recovery
 
 The assignment dialog shows an exhaustion warning after expiry and hides worker start/free-run
-buttons. The project creator can use the existing expired-work cancellation action to return
+buttons. The project creator can open [Review exhausted work](RECOVERY_QUEUE.md) to find eligible
+assignments independently of recent dashboard history and use the expired-work cancellation action to return
 reserved credits to the project exactly once. See [expired cancellation](EXPIRED_CANCELLATION.md).
 Exhaustion itself never automatically refunds, pays or changes the task state. Until cancelled,
 the assignment retains reserved credits and agent capacity. A creator may review the history,

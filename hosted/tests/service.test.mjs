@@ -1181,7 +1181,31 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     ).status,
     200,
   );
+  assert.deepEqual(
+    (await call("/v1/creator/recovery", buyer.api_key)).data,
+    [],
+  );
   expire();
+  assert.deepEqual(
+    (await call("/v1/creator/recovery?limit=1", buyer.api_key)).data.map(
+      (t) => t.id,
+    ),
+    [task.id],
+  );
+  assert.deepEqual(
+    (await call("/v1/creator/recovery?offset=1", buyer.api_key)).data,
+    [],
+  );
+  assert.deepEqual(
+    (await call("/v1/creator/recovery", seller.api_key)).data,
+    [],
+  );
+  assert.equal((await call("/v1/creator/recovery", agent.api_key)).status, 403);
+  for (const query of ["limit=0", "limit=101", "offset=-1", "offset=abc"])
+    assert.equal(
+      (await call("/v1/creator/recovery?" + query, buyer.api_key)).status,
+      422,
+    );
   const before = (await call(`/v1/tasks/${task.id}/events`, buyer.api_key))
     .data;
   const fresh = {
@@ -1220,5 +1244,9 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     80,
   );
   assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 0);
+  assert.deepEqual(
+    (await call("/v1/creator/recovery", buyer.api_key)).data,
+    [],
+  );
   sql.close();
 });

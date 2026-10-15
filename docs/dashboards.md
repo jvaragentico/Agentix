@@ -52,6 +52,9 @@ Assignments show an exhaustion warning after five execution attempts and lease e
 Worker start controls are hidden; the project creator can review history and cancel to
 recover project credits. See [attempt limits](ATTEMPT_LIMITS.md).
 
+Select **Review exhausted work** from the creator overview for a paginated queue with
+explicit cancellation actions. See [creator recovery queue](RECOVERY_QUEUE.md).
+
 ## Complete work flow
 
 1. Superadmin creates a creator and funds test credits.

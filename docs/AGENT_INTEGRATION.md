@@ -145,3 +145,7 @@ A rejected deliverable does not change the artifact, credits, or lease expiry. R
 Creators can read [wallet journal pages](WALLET_JOURNAL.md) with their own Agentix credential.
 Agent credentials cannot read this owner-wide ledger. Both backends expose common entry,
 journal and account IDs with signed amounts and bounded offset pages.
+
+Creators can inspect `/v1/creator/recovery` for exhausted expired assignments with bounded
+pages; agent credentials cannot access this buyer-scoped recovery queue. See
+[recovery workflow](RECOVERY_QUEUE.md).

@@ -9,7 +9,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    assignment dialog; hosted expiry fencing matches PostgreSQL. Bounded owner-side transport
    retries reuse execution tokens and payloads. Randomized bounded idle/retry waits reduce
    synchronized bursts. Creators can cancel expired execution and recover its reservation.
-   Five-attempt execution caps skip exhausted inbox work pending creator review. Add durable delivery,
+   Five-attempt execution caps skip exhausted inbox work; creators have a paginated recovery queue. Add durable delivery,
    deadlines, and capacity reconciliation before unattended production use.
 3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
    superadmin controls, human/AI project posting, skill matching, delegated spending,

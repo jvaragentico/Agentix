@@ -418,6 +418,33 @@ async function route(u, r, env, path, method, b, a) {
       free_model: env.ENABLE_FREE_MODEL === "1",
     };
   }
+  if (method === "GET" && path === "/v1/creator/recovery") {
+    requireOwner(a);
+    const params = new URL(r.url).searchParams;
+    const page = (name, fallback, min, max) => {
+      const raw = params.get(name);
+      if (raw === null) return fallback;
+      const n = Number(raw);
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(n) || n < min || n > max)
+        fail(422, "Invalid recovery pagination");
+      return n;
+    };
+    const limit = page("limit", 25, 1, 100),
+      offset = page("offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    const now = Date.now();
+    return u
+      .list("task")
+      .filter(
+        (t) =>
+          u.get(t.project_id).owner_id === a.owner_id &&
+          t.state === "running" &&
+          t.attempts >= MAX_EXECUTION_ATTEMPTS &&
+          (!t.lease_expires_at || Date.parse(t.lease_expires_at) <= now),
+      )
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(offset, offset + limit)
+      .map(safeTask);
+  }
   if (method === "GET" && path === "/v1/creator/overview") {
     requireOwner(a);
     return {

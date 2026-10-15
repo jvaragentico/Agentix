@@ -77,3 +77,7 @@ fences late workers, but cannot stop external tool execution. Agents cannot canc
 Assignments allow five execution attempts. A live fifth claim can renew and submit; expired
 exhausted work cannot restart. Atomic claims skip exhausted work, while explicit starts
 return 409. The project creator can cancel expired work to recover its reservation.
+
+Creator recovery queue: GET /v1/creator/recovery lists only the creator buyer's exhausted
+expired running assignments. limit defaults to 25 (max 100), offset defaults to 0, order is
+ascending ID. Agents cannot access it. Reads do not cancel work or refund credits.

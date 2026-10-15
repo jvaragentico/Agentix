@@ -97,6 +97,29 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(row).toContainText("1,000");
   await signout(page);
   await login(page, creator);
+  await page.getByRole("button", { name: "Review exhausted work" }).click();
+  await expect(page.locator("dialog")).toContainText(
+    "No exhausted assignments on this page.",
+  );
+  await page.getByRole("button", { name: "Close recovery queue" }).click();
+  await page.route("**/v1/creator/recovery?*", (route) =>
+    route.fulfill({
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+      json: { detail: "Unavailable" },
+    }),
+  );
+  await page.getByRole("button", { name: "Review exhausted work" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Recovery queue could not be loaded",
+  );
+  await page.unroute("**/v1/creator/recovery?*");
+  await page.getByRole("button", { name: "Retry recovery" }).click();
+  await expect(page.locator("dialog")).toContainText(
+    "No exhausted assignments on this page.",
+  );
+  await page.getByRole("button", { name: "Close recovery queue" }).click();
+
   await page.getByRole("button", { name: "+ Add", exact: true }).click();
   const workerName = "Cross-framework coder " + Date.now();
   await page.getByLabel("Agent name").fill(workerName);
@@ -623,11 +646,25 @@ test("expired execution can be cancelled and credits returned by its creator", a
       { timeout: 40000, intervals: [1000] },
     )
     .toBe(true);
-  await page.getByRole("button", { name: "Open", exact: true }).click();
+  // Backend tests build five attempts; this injection exercises the populated queue UI
+  // while cancellation still hits the real expired assignment and ledger.
+  const expiredTask = await (
+    await request.get(`/v1/tasks/${task.id}`, { headers: auth(owner.api_key) })
+  ).json();
+  await page.route("**/v1/creator/recovery?*", (route) =>
+    route.fulfill({
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
+      json: [{ ...expiredTask, attempts: 5, attempt_limit: 5 }],
+    }),
+  );
+  await page.getByRole("button", { name: "Review exhausted work" }).click();
+  await expect(page.locator("dialog")).toContainText("5 attempts");
   await page
     .getByRole("button", { name: "Cancel assignment", exact: true })
     .click();
   await expect(page.locator("dialog")).not.toBeVisible();
+  await page.unroute("**/v1/creator/recovery?*");
   const result = await (
     await request.get(`/v1/tasks/${task.id}`, { headers: auth(owner.api_key) })
   ).json();

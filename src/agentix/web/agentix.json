@@ -22,7 +22,8 @@
     "marketplace": "/v1/marketplace/projects",
     "close_project": "/v1/projects/{project_id}/close",
     "wallet_entries": "/v1/wallet/entries",
-    "cancel_task": "/v1/tasks/{task_id}/cancel"
+    "cancel_task": "/v1/tasks/{task_id}/cancel",
+    "creator_recovery": "/v1/creator/recovery"
   },
   "execution": {
     "token_header": "X-Execution-Token",
