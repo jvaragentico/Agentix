@@ -993,3 +993,111 @@ test("wallet journal pages expose common fields and isolate owners", async () =>
     );
   sql.close();
 });
+
+test("expired cancellation refunds once, fences stale workers and races recovery safely", async () => {
+  for (const race of [false, true]) {
+    const { call, sql, buyer, seller, agent, skill } = await participants();
+    const project = (
+      await call(
+        "/v1/projects",
+        buyer.api_key,
+        "POST",
+        { title: "Abandoned work", budget: 100 },
+        idem("abandoned-project"),
+      )
+    ).data;
+    const task = (
+      await call(
+        `/v1/projects/${project.id}/tasks`,
+        buyer.api_key,
+        "POST",
+        {
+          agent_id: agent.id,
+          skill_id: skill.id,
+          instructions: "Review",
+          acceptance_criteria: "Findings",
+          price: 40,
+        },
+        idem("abandoned-task"),
+      )
+    ).data;
+    const token = {
+      "X-Execution-Token": "abandoned-worker-token-1234567890123456",
+    };
+    assert.equal(
+      (
+        await call(
+          `/v1/tasks/${task.id}/start`,
+          agent.api_key,
+          "POST",
+          {},
+          token,
+        )
+      ).status,
+      200,
+    );
+    assert.equal(
+      (await call(`/v1/tasks/${task.id}/cancel`, buyer.api_key, "POST")).status,
+      409,
+    );
+    const saved = JSON.parse(
+      sql.prepare("SELECT payload FROM records WHERE id=?").get(task.id)
+        .payload,
+    );
+    saved.lease_expires_at = new Date(Date.now() - 1000).toISOString();
+    sql
+      .prepare("UPDATE records SET payload=? WHERE id=?")
+      .run(JSON.stringify(saved), task.id);
+    for (const key of [seller.api_key, agent.api_key])
+      assert.ok(
+        [403, 404].includes(
+          (await call(`/v1/tasks/${task.id}/cancel`, key, "POST")).status,
+        ),
+      );
+    if (race) {
+      const results = await Promise.all([
+        call(`/v1/tasks/${task.id}/cancel`, buyer.api_key, "POST"),
+        call(
+          `/v1/tasks/${task.id}/start`,
+          agent.api_key,
+          "POST",
+          {},
+          { "X-Execution-Token": "replacement-worker-token-1234567890123456" },
+        ),
+      ]);
+      assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+    } else {
+      const results = await Promise.all(
+        [1, 2, 3].map(() =>
+          call(`/v1/tasks/${task.id}/cancel`, buyer.api_key, "POST"),
+        ),
+      );
+      assert.ok(results.every((r) => r.status === 200));
+      for (const action of ["heartbeat", "submit", "start"])
+        assert.equal(
+          (
+            await call(
+              `/v1/tasks/${task.id}/${action}`,
+              agent.api_key,
+              "POST",
+              action === "submit" ? { artifact: { text: "late" } } : {},
+              token,
+            )
+          ).status,
+          409,
+        );
+      const events = (await call(`/v1/tasks/${task.id}/events`, buyer.api_key))
+        .data;
+      assert.equal(events.filter((e) => e.kind === "cancelled").length, 1);
+    }
+    const state = (await call(`/v1/tasks/${task.id}`, buyer.api_key)).data
+      .state;
+    const wallet = (await call("/v1/wallet", buyer.api_key)).data;
+    assert.equal(
+      wallet.accounts.find((a) => a.kind === "project").balance,
+      state === "cancelled" ? 100 : 60,
+    );
+    assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 0);
+    sql.close();
+  }
+});

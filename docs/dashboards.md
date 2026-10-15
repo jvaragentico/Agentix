@@ -44,6 +44,10 @@ send it as `OAI-Sites-Authorization` alongside the scoped Agentix `Authorization
 A Sites bypass token does not replace Agentix authorization. The public API cannot be
 used anonymously; a general public rollout is a separate access-policy change.
 
+Creators may cancel an assignment after its execution lease expires, returning the reserved
+credits to its project. Active leases and submitted work remain protected. See
+[expired-work cancellation](EXPIRED_CANCELLATION.md).
+
 ## Complete work flow
 
 1. Superadmin creates a creator and funds test credits.

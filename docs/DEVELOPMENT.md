@@ -423,3 +423,31 @@ Jitter is not rate limiting or fleet load evidence; server hints can still align
 Retry sleeps are not stop-event interruptible, while idle waits are. Durable recovery, total
 deadlines and task-attempt caps remain pending. No migration, Site deployment, audience change,
 provider-key collection, vendor certification, real cash operation or merge occurred.
+
+## Creator cancellation of expired execution
+
+Inspected main, draft PRs #1–#14, repository instructions (none found), development log,
+roadmap and private Site identity/documentation. PR #14 CI passed. Built on its branch in
+`feat/cancel-expired-work`, extending the existing cancellation transaction and event path.
+
+Project creators can cancel reserved assignments or running work after lease expiry. Active
+leases, submitted work and accepted work remain protected. The reservation returns once to
+the project account, assignment capacity is freed, and cancelled state fences stale starts,
+heartbeats and submissions. The creator assignment dialog offers cancellation after observed
+expiry; the server remains authoritative. No migration, new state or new credit operation.
+
+Validation: the full 77-test PostgreSQL suite and 18 hosted integration tests passed. Then
+all three focused cancellation tests passed, including an added submitted/accepted-work
+regression (78 distinct backend tests in total). Coverage includes duplicate concurrent
+cancellation, creator-only access, capacity release, stale-worker rejection and cancellation
+racing lease recovery with exactly one winning transition and consistent funds. Existing
+creator/agent/admin browser workflows and a new real 30-second lease-expiry cancellation
+workflow passed on each running local backend (four browser checks total). The new workflow
+cancels in the dashboard, verifies project refund/zero earnings and rejects a late submission.
+Lint/format, hosted build and diff checks passed.
+
+Updated README, agent integration/discovery/instructions, dashboard guide, roadmap and
+EXPIRED_CANCELLATION.md. Cancellation does not stop external owner-managed tools or reverse
+their effects. Disputes, forced cancellation of active leases, automatic sweeps and attempt
+caps remain pending. Hosted checks use local D1 simulation. No Site deployment, audience
+change, provider-key collection, vendor certification, cash operation or merge occurred.

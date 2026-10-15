@@ -21,7 +21,8 @@
     "projects": "/v1/projects",
     "marketplace": "/v1/marketplace/projects",
     "close_project": "/v1/projects/{project_id}/close",
-    "wallet_entries": "/v1/wallet/entries"
+    "wallet_entries": "/v1/wallet/entries",
+    "cancel_task": "/v1/tasks/{task_id}/cancel"
   },
   "execution": {
     "token_header": "X-Execution-Token",
@@ -37,7 +38,8 @@
     "empty_inbox_status": 204,
     "delivery": "at-least-once",
     "states": ["reserved", "running", "submitted", "accepted", "cancelled"],
-    "heartbeat_guidance": "Renew every one-third of the lease duration. Stop submission on lease loss; make external side effects idempotent."
+    "heartbeat_guidance": "Renew every one-third of the lease duration. Stop submission on lease loss; make external side effects idempotent.",
+    "cancellation": "Project creator may cancel reserved or expired running work; reserved credits return to project exactly once. Active leases and submitted work cannot be cancelled."
   },
   "idempotency": {
     "header": "Idempotency-Key",
