@@ -249,7 +249,7 @@ async function openTask(taskId) {
   modal.innerHTML = `<div class="modal-head"><h2>Assignment</h2>${btn("×", "close", "", "ghost")}</div><div class="tags"><span class="badge ${t.state}">${e(t.state)}</span><span class="tag">${n(t.price)} credits</span></div><h3>Instructions</h3><p>${e(t.instructions)}</p><h3 style="margin-top:18px">Acceptance criteria</h3><p>${e(t.acceptance_criteria)}</p>${history}${claimable && exhausted ? '<p role="alert">Execution attempt limit reached. The project creator can cancel expired work and recover its reservation.</p>' : ""}${t.artifact ? `<h3 style="margin-top:18px">Deliverable</h3><div class="artifact">${e(t.artifact.text || JSON.stringify(t.artifact, null, 2))}</div>` : ""}<div class="form-actions">${user.role === "agent" && t.agent_id === user.agent_id && claimable && !exhausted ? btn("Start manually", "start", `data-id="${t.id}"`) : ""}${user.role === "agent" && claimable && !exhausted && user.free_model ? btn("Run free AI", "run-free", `data-id="${t.id}"`, "primary") : ""}${user.role === "agent" && t.state === "running" && lease ? btn("Submit deliverable", "submit", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && t.state === "submitted" ? btn("Accept & pay credits", "accept", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && claimable ? btn("Cancel assignment", "cancel", `data-id="${t.id}"`, "danger") : ""}</div>`;
   if (!modal.open) modal.showModal();
 }
-async function recoveryQueue(offset = 0) {
+async function recoveryQueue(offset = 0, projectId = "") {
   if (user.role !== "creator") return;
   const requestKey = key,
     loadId = id();
@@ -258,7 +258,10 @@ async function recoveryQueue(offset = 0) {
   modal.innerHTML = heading + '<p role="status">Loading exhausted work…</p>';
   if (!modal.open) modal.showModal();
   try {
-    const tasks = await api(`/v1/creator/recovery?limit=5&offset=${offset}`);
+    const tasks = await api(
+      `/v1/creator/recovery?limit=5&offset=${offset}${projectId ? `&project_id=${encodeURIComponent(projectId)}` : ""}`,
+    );
+    const filterAttr = `data-project="${e(projectId)}"`;
     if (
       !modal.open ||
       modal.dataset.creditLoad !== loadId ||
@@ -267,11 +270,14 @@ async function recoveryQueue(offset = 0) {
       return;
     modal.innerHTML =
       heading +
+      (projectId
+        ? `<p>Showing one project. ${btn("All projects", "recovery")}</p>`
+        : "") +
       "<p>Cancellation returns the reservation to its project. It cannot stop external tools.</p>" +
       (tasks.length
-        ? `<ul>${tasks.map((t) => `<li><p>${e(t.instructions)}</p><p>${n(t.attempts)} attempts · ${n(t.price)} credits reserved</p>${btn("Cancel assignment", "cancel", `data-id="${e(t.id)}"`, "danger")}</li>`).join("")}</ul>`
+        ? `<ul>${tasks.map((t) => `<li><h3>${e(t.project_title || "Project")}</h3><p>Agent: ${e(t.agent_name || "Agent")}</p><p>${e(t.instructions)}</p><p>${n(t.attempts)} attempts · ${n(t.price)} credits reserved</p>${!projectId ? btn("Only this project", "recovery", `data-project="${e(t.project_id)}"`) : ""}${btn("Cancel assignment", "cancel", `data-id="${e(t.id)}"`, "danger")}</li>`).join("")}</ul>`
         : "<p>No exhausted assignments on this page.</p>") +
-      `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "recovery", `data-offset="${offset - 5}"`) : ""}${tasks.length === 5 ? btn("Next page", "recovery", `data-offset="${offset + 5}"`) : ""}</div>`;
+      `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "recovery", `data-offset="${offset - 5}" ${filterAttr}`) : ""}${tasks.length === 5 ? btn("Next page", "recovery", `data-offset="${offset + 5}" ${filterAttr}`) : ""}</div>`;
   } catch (error) {
     if (
       !modal.open ||
@@ -282,7 +288,11 @@ async function recoveryQueue(offset = 0) {
     modal.innerHTML =
       heading +
       '<p role="alert">Recovery queue could not be loaded.</p>' +
-      btn("Retry recovery", "recovery", `data-offset="${offset}"`);
+      btn(
+        "Retry recovery",
+        "recovery",
+        `data-offset="${offset}" data-project="${e(projectId)}"`,
+      );
   }
 }
 async function creditHistory(offset = 0) {
@@ -362,7 +372,10 @@ document.addEventListener("click", async (ev) => {
   const action = b.dataset.action;
   try {
     if (action === "recovery") {
-      await recoveryQueue(Number(b.dataset.offset || 0));
+      await recoveryQueue(
+        Number(b.dataset.offset || 0),
+        b.dataset.project || "",
+      );
       return;
     }
     if (action === "credit-history") {

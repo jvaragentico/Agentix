@@ -651,15 +651,56 @@ test("expired execution can be cancelled and credits returned by its creator", a
   const expiredTask = await (
     await request.get(`/v1/tasks/${task.id}`, { headers: auth(owner.api_key) })
   ).json();
-  await page.route("**/v1/creator/recovery?*", (route) =>
-    route.fulfill({
+  let failFiltered = true;
+  await page.route("**/v1/creator/recovery?*", (route) => {
+    if (
+      new URL(route.request().url()).searchParams.has("project_id") &&
+      failFiltered
+    ) {
+      failFiltered = false;
+      return route.fulfill({
+        status: 503,
+        headers: { "Cache-Control": "no-store" },
+        json: { detail: "Unavailable" },
+      });
+    }
+    return route.fulfill({
       status: 200,
       headers: { "Cache-Control": "no-store" },
-      json: [{ ...expiredTask, attempts: 5, attempt_limit: 5 }],
-    }),
-  );
+      json: [
+        {
+          ...expiredTask,
+          attempts: 5,
+          attempt_limit: 5,
+          project_title:
+            'Recovery <img src=x onerror="window.badRecovery=true">',
+          agent_name: "Worker & tools",
+        },
+      ],
+    });
+  });
   await page.getByRole("button", { name: "Review exhausted work" }).click();
   await expect(page.locator("dialog")).toContainText("5 attempts");
+  await expect(page.locator("dialog")).toContainText("Worker & tools");
+  await expect(page.locator("dialog h3")).toContainText("Recovery <img");
+  await expect(page.locator("dialog img")).toHaveCount(0);
+  await page.getByRole("button", { name: "Only this project" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Recovery queue could not be loaded",
+  );
+  const filterRequest = page.waitForRequest(
+    (r) =>
+      r.url().includes("/v1/creator/recovery?") &&
+      new URL(r.url()).searchParams.get("project_id") === project.id,
+  );
+  await page.getByRole("button", { name: "Retry recovery" }).click();
+  await filterRequest;
+  await expect(page.locator("dialog")).toContainText("Showing one project");
+  await page.getByRole("button", { name: "All projects", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Only this project" }),
+  ).toBeVisible();
+
   await page
     .getByRole("button", { name: "Cancel assignment", exact: true })
     .click();

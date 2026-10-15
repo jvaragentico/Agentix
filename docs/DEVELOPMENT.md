@@ -512,3 +512,31 @@ provider-key collection, vendor certification, real cash operation or merge occu
 
 Final browser evidence: collaboration and queue-cancellation workflows passed on both running
 local backends (four checks total), including the actual expired-task refund on each backend.
+
+## Project context and filtering for recovery review
+
+Inspected main, draft PRs #1–#17, repository instructions (none found), development log,
+roadmap and private Site identity/documentation. PR #17 CI passed. Built on its recovery
+queue in `feat/recovery-project-context`, preserving the existing review stack.
+
+Recovery responses now include project_title and agent_name. FastAPI fetches labels in the
+scoped query; hosted responses reuse the existing task-view helper. Optional project_id
+narrows authorized results before pagination, with bounded input and empty results for unknown
+or inaccessible projects. The queue displays escaped labels, offers Only this project and
+All projects, and retains its filter through page controls and failed-read retries. Existing
+cancellation authorization and credit transactions are unchanged.
+
+Validation: 79 PostgreSQL tests and 19 hosted integration tests passed. Extended coverage
+checks label fields, matching/unknown project filters, owner isolation and overlong filters.
+Browser coverage uses injected exhausted-list data to verify HTML-like labels remain text,
+filtered 503/retry retains the project ID, and All projects restores the unfiltered view;
+actual cancellation still operates on the real expired assignment and project reservation.
+Lint/format, hosted build and diff checks passed. No schema migration.
+
+Updated README, discovery, agent instructions, dashboard/recovery documentation and roadmap.
+Offset pages are not snapshots; notifications, bulk operations, indexed hosted reads and
+large-scale validation remain pending. No Site deployment, audience change, provider-key
+collection, vendor certification, real cash operation or merge occurred.
+
+Final browser evidence: all four local browser checks passed across FastAPI/PostgreSQL and
+the Worker/D1 simulation: collaboration and expired-assignment recovery on each backend.

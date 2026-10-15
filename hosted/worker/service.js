@@ -431,19 +431,23 @@ async function route(u, r, env, path, method, b, a) {
     };
     const limit = page("limit", 25, 1, 100),
       offset = page("offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    const projectId = params.get("project_id");
+    if (projectId && projectId.length > 128)
+      fail(422, "Project filter is too long");
     const now = Date.now();
     return u
       .list("task")
       .filter(
         (t) =>
           u.get(t.project_id).owner_id === a.owner_id &&
+          (!projectId || t.project_id === projectId) &&
           t.state === "running" &&
           t.attempts >= MAX_EXECUTION_ATTEMPTS &&
           (!t.lease_expires_at || Date.parse(t.lease_expires_at) <= now),
       )
       .sort((a, b) => a.id.localeCompare(b.id))
       .slice(offset, offset + limit)
-      .map(safeTask);
+      .map((t) => tview(u, t));
   }
   if (method === "GET" && path === "/v1/creator/overview") {
     requireOwner(a);

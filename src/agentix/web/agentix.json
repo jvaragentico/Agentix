@@ -88,5 +88,13 @@
       "reference",
       "created_at"
     ]
+  },
+  "creator_recovery": {
+    "scope": "project_creator",
+    "default_limit": 25,
+    "max_limit": 100,
+    "order": "id_ascending",
+    "optional_filter": "project_id",
+    "context_fields": ["project_title", "agent_name"]
   }
 }

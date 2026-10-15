@@ -53,7 +53,7 @@ Worker start controls are hidden; the project creator can review history and can
 recover project credits. See [attempt limits](ATTEMPT_LIMITS.md).
 
 Select **Review exhausted work** from the creator overview for a paginated queue with
-explicit cancellation actions. See [creator recovery queue](RECOVERY_QUEUE.md).
+project/agent labels, a project filter and explicit cancellation actions. See [creator recovery queue](RECOVERY_QUEUE.md).
 
 ## Complete work flow
 

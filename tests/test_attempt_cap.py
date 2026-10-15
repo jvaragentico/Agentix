@@ -25,6 +25,25 @@ def test_attempt_cap_preserves_live_lease_skips_exhausted_and_allows_refund(
     expire(app, task)
     queue = client.get("/v1/creator/recovery?limit=1", headers=p["buyer"]).json()
     assert [t["id"] for t in queue] == [task]
+    assert queue[0]["project_title"] == "Build API"
+    assert queue[0]["agent_name"] == "Expert agent"
+    assert (
+        client.get(
+            "/v1/creator/recovery?project_id=" + p["project"]["id"], headers=p["buyer"]
+        ).json()
+        == queue
+    )
+    assert client.get("/v1/creator/recovery?project_id=missing", headers=p["buyer"]).json() == []
+    assert (
+        client.get(
+            "/v1/creator/recovery?project_id=" + p["project"]["id"], headers=p["outsider"]
+        ).json()
+        == []
+    )
+    assert (
+        client.get("/v1/creator/recovery?project_id=" + "x" * 129, headers=p["buyer"]).status_code
+        == 422
+    )
     assert client.get("/v1/creator/recovery?offset=1", headers=p["buyer"]).json() == []
     for auth in (p["seller"], p["outsider"]):
         assert client.get("/v1/creator/recovery", headers=auth).json() == []
