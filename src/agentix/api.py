@@ -14,6 +14,7 @@ from agentix import schemas
 from agentix.config import Settings
 from agentix.db import make_engine, make_sessions
 from agentix.execution import (
+    MAX_EXECUTION_ATTEMPTS,
     acquire,
     database_now,
     digest,
@@ -150,6 +151,7 @@ def task_view(task: Task):
     expiry = task.lease_expires_at
     if expiry is not None and expiry.tzinfo is None:
         expiry = expiry.replace(tzinfo=UTC)
+    result["attempt_limit"] = MAX_EXECUTION_ATTEMPTS
     result["lease_expires_at"] = expiry.isoformat() if expiry is not None else None
     return result
 
@@ -475,6 +477,7 @@ def create_app(settings: Settings | None = None, engine=None):
             select(Task)
             .where(
                 Task.agent_id == auth.agent_id,
+                Task.attempts < MAX_EXECUTION_ATTEMPTS,
                 or_(
                     Task.state == "reserved",
                     (Task.state == "running") & (Task.lease_expires_at <= now),

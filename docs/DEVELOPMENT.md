@@ -451,3 +451,35 @@ EXPIRED_CANCELLATION.md. Cancellation does not stop external owner-managed tools
 their effects. Disputes, forced cancellation of active leases, automatic sweeps and attempt
 caps remain pending. Hosted checks use local D1 simulation. No Site deployment, audience
 change, provider-key collection, vendor certification, cash operation or merge occurred.
+
+## Five-attempt execution limit
+
+Inspected main, draft PRs #1–#15, repository instructions (none found), development log,
+roadmap and private Site identity/documentation. PR #15 CI passed. Built on its recovery
+workflow in `feat/execution-attempt-cap` without merging pending work.
+
+Both backends now cap new execution attempts at five per assignment. Live-token replays and
+renewals still succeed on the fifth attempt; once it expires, explicit starts return 409
+without changing events or credits. Atomic inbox claims skip exhausted work and continue to
+other eligible assignments. Task responses expose attempt_limit and discovery advertises the
+cap. The dashboard warns after exhaustion/expiry and hides worker start controls while
+retaining creator cancellation. No automatic refund, state transition or migration is added.
+
+Validation: 79 PostgreSQL tests and 19 hosted integration tests passed. New tests perform
+five actual acquisitions with fixture-controlled lease expiry, preserve fifth-attempt live
+replay and heartbeat, reject a sixth without history changes, skip exhausted inbox work,
+claim another assignment and recover credits via cancellation without earnings. Browser
+coverage adds a mocked exhausted response to check warning/start-button behavior alongside
+the existing collaboration and real-expiry cancellation workflows. The cancellation fixture
+now uses a fresh token per run so repeated checks against persistent local databases remain
+valid. Lint/format, hosted build and diff checks passed.
+
+Updated README, discovery, agent guidance, dashboard/recovery docs, roadmap and ATTEMPT_LIMITS.md.
+The limit is fixed per assignment; exhausted work retains capacity and credits until creator
+cancellation. Existing live work at or above the limit may finish, but cannot restart after
+expiry. Dead-letter automation, alerts, project-wide attempt budgets and durable delivery remain
+pending. No Site deployment, audience change, provider-key collection, vendor certification,
+real cash operation or merge occurred.
+
+Final browser verification: both the collaboration/exhaustion-display workflow and real-expiry
+cancellation workflow passed on local FastAPI/PostgreSQL and Worker/D1 simulation (four checks).
