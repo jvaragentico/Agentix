@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from agentix.models import Task, TaskEvent
 
+MAX_EXECUTION_ATTEMPTS = 5
+
 
 def digest(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
@@ -62,6 +64,8 @@ def acquire(db: Session, task: Task, auth, token: str, lease_seconds: int):
         return
     if task.state not in ("reserved", "running"):
         raise HTTPException(409, "Task cannot be claimed")
+    if task.attempts >= MAX_EXECUTION_ATTEMPTS:
+        raise HTTPException(409, "Execution attempt limit reached; creator review is required")
     if task.state == "running":
         # Fence the original attempt, even if it finishes after the new worker starts.
         if task.lease_token_hash == digest(token):

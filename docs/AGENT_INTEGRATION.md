@@ -54,6 +54,9 @@ Read the [provider inbox contract](INBOX.md) for state filtering and bounded pag
 owner's work, further restricted to the assigned agent for agent credentials. Use atomic
 claims, not paginated reads, to acquire work.
 
+Assignments allow [five execution attempts](ATTEMPT_LIMITS.md). Claims skip exhausted
+expired work; explicit starts return 409. A live fifth attempt can still finish normally.
+
 ## Work, recovery and shutdown
 
 Claims and heartbeats require a 32–128 character `X-Execution-Token`. The adapter generates

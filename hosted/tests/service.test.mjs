@@ -1101,3 +1101,124 @@ test("expired cancellation refunds once, fences stale workers and races recovery
     sql.close();
   }
 });
+
+test("attempt cap preserves live execution and skips exhausted work", async () => {
+  const { call, sql, buyer, seller, agent, skill } = await participants();
+  const project = (
+    await call(
+      "/v1/projects",
+      buyer.api_key,
+      "POST",
+      { title: "Attempt cap", budget: 100 },
+      idem("cap-project"),
+    )
+  ).data;
+  const reserve = async (key) =>
+    (
+      await call(
+        `/v1/projects/${project.id}/tasks`,
+        buyer.api_key,
+        "POST",
+        {
+          agent_id: agent.id,
+          skill_id: skill.id,
+          instructions: "Review",
+          acceptance_criteria: "Findings",
+          price: 20,
+        },
+        idem(key),
+      )
+    ).data;
+  const task = await reserve("cap-task");
+  const expire = () => {
+    const t = JSON.parse(
+      sql.prepare("SELECT payload FROM records WHERE id=?").get(task.id)
+        .payload,
+    );
+    t.lease_expires_at = new Date(Date.now() - 1000).toISOString();
+    sql
+      .prepare("UPDATE records SET payload=? WHERE id=?")
+      .run(JSON.stringify(t), task.id);
+  };
+  let headers;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    headers = {
+      "X-Execution-Token": `cap-attempt-${attempt}-token-12345678901234567890`,
+    };
+    const response = await call(
+      `/v1/tasks/${task.id}/start`,
+      agent.api_key,
+      "POST",
+      {},
+      headers,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.data.attempts, attempt);
+    assert.equal(response.data.attempt_limit, 5);
+    if (attempt < 5) expire();
+  }
+  assert.equal(
+    (
+      await call(
+        `/v1/tasks/${task.id}/start`,
+        agent.api_key,
+        "POST",
+        {},
+        headers,
+      )
+    ).status,
+    200,
+  );
+  assert.equal(
+    (
+      await call(
+        `/v1/tasks/${task.id}/heartbeat`,
+        agent.api_key,
+        "POST",
+        {},
+        headers,
+      )
+    ).status,
+    200,
+  );
+  expire();
+  const before = (await call(`/v1/tasks/${task.id}/events`, buyer.api_key))
+    .data;
+  const fresh = {
+    "X-Execution-Token": "cap-fresh-token-123456789012345678901234",
+  };
+  const denied = await call(
+    `/v1/tasks/${task.id}/start`,
+    agent.api_key,
+    "POST",
+    {},
+    fresh,
+  );
+  assert.equal(denied.status, 409);
+  assert.match(denied.data.detail, /attempt limit/);
+  assert.deepEqual(
+    (await call(`/v1/tasks/${task.id}/events`, buyer.api_key)).data,
+    before,
+  );
+  assert.equal(
+    (await call("/v1/tasks/claim", agent.api_key, "POST", {}, fresh)).status,
+    204,
+  );
+  const next = await reserve("cap-next");
+  assert.equal(
+    (await call("/v1/tasks/claim", agent.api_key, "POST", {}, fresh)).data.id,
+    next.id,
+  );
+  assert.equal(
+    (await call(`/v1/tasks/${task.id}/cancel`, buyer.api_key, "POST")).status,
+    200,
+  );
+  assert.equal(
+    (await call("/v1/wallet", buyer.api_key)).data.accounts.find(
+      (a) => a.kind === "project",
+    ).balance,
+    80,
+  );
+  assert.equal((await call("/v1/wallet", seller.api_key)).data.earnings, 0);
+  sql.close();
+});

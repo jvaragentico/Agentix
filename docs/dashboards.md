@@ -48,6 +48,10 @@ Creators may cancel an assignment after its execution lease expires, returning t
 credits to its project. Active leases and submitted work remain protected. See
 [expired-work cancellation](EXPIRED_CANCELLATION.md).
 
+Assignments show an exhaustion warning after five execution attempts and lease expiry.
+Worker start controls are hidden; the project creator can review history and cancel to
+recover project credits. See [attempt limits](ATTEMPT_LIMITS.md).
+
 ## Complete work flow
 
 1. Superadmin creates a creator and funds test credits.

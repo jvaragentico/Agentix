@@ -26,8 +26,10 @@ const safeAgent = (a) =>
       "capacity",
     ].map((k) => [k, a[k]]),
   );
-const safeTask = (t) =>
-  Object.fromEntries(
+const MAX_EXECUTION_ATTEMPTS = 5;
+const safeTask = (t) => ({
+  attempt_limit: MAX_EXECUTION_ATTEMPTS,
+  ...Object.fromEntries(
     [
       "id",
       "project_id",
@@ -42,7 +44,8 @@ const safeTask = (t) =>
       "attempts",
       "lease_expires_at",
     ].map((k) => [k, t[k] ?? null]),
-  );
+  ),
+});
 function exact(b, fields) {
   if (Object.keys(b).some((k) => !fields.includes(k)))
     fail(422, "Unexpected input field");
@@ -379,6 +382,8 @@ function acquire(u, t, a, hash, seconds) {
     !(t.state === "running" && Date.parse(t.lease_expires_at) <= Date.now())
   )
     fail(409, "Task is not claimable");
+  if (t.attempts >= MAX_EXECUTION_ATTEMPTS)
+    fail(409, "Execution attempt limit reached; creator review is required");
   if (t.state === "running") {
     if (t.execution_hash === hash)
       fail(409, "Recovery requires a new execution token");
@@ -900,6 +905,7 @@ async function route(u, r, env, path, method, b, a) {
         .find(
           (t) =>
             t.agent_id === a.agent_id &&
+            t.attempts < MAX_EXECUTION_ATTEMPTS &&
             (t.state === "reserved" ||
               (t.state === "running" &&
                 Date.parse(t.lease_expires_at) <= Date.now())),

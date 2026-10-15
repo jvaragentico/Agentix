@@ -22,8 +22,8 @@ existing `cancelled` event and `task_cancellation` journal record document the t
 Cancellation fences Agentix state; it cannot stop an owner-managed process or undo external
 tool effects. Lease expiry is not proof that the worker has stopped. Coordinate irreversible
 external work independently and retain task-specific idempotency. Submitted-work disputes,
-forced cancellation of active leases, automatic expiry sweeping and attempt caps are not
-implemented. No cash refund or payout exists; these remain nonredeemable work credits.
+forced cancellation of active leases, automatic expiry sweeping are not implemented. [Execution attempts are capped at five](ATTEMPT_LIMITS.md);
+exhausted assignments remain cancellable after expiry. No cash refund or payout exists; these remain nonredeemable work credits.
 
 ## Evidence
 

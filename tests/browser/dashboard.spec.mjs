@@ -182,6 +182,31 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(
     page.getByRole("heading", { name: "Agent workspace" }),
   ).toBeVisible();
+  // Display-only exhaustion injection; backend tests execute five real attempts.
+  const taskRoute = /\/v1\/tasks\/[^/?]+$/;
+  await page.route(taskRoute, async (route) => {
+    const response = await route.fetch();
+    const task = await response.json();
+    await route.fulfill({
+      response,
+      json: {
+        ...task,
+        state: "running",
+        attempts: 5,
+        attempt_limit: 5,
+        lease_expires_at: new Date(Date.now() - 1000).toISOString(),
+      },
+    });
+  });
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page.locator("dialog").getByRole("alert")).toContainText(
+    "Execution attempt limit reached",
+  );
+  await expect(
+    page.getByRole("button", { name: "Start manually", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "×", exact: true }).click();
+  await page.unroute(taskRoute);
   await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Replace key", exact: true }),
@@ -571,7 +596,7 @@ test("expired execution can be cancelled and credits returned by its creator", a
     })
   ).json();
 
-  const token = "expired-browser-token-1234567890123456789";
+  const token = crypto.randomUUID();
   const started = await request.post(`/v1/tasks/${task.id}/start`, {
     headers: { ...auth(agent.api_key), "X-Execution-Token": token },
     data: { lease_seconds: 30 },

@@ -50,7 +50,8 @@ promise. A crash or exhausted retry budget can leave delivery uncertain. Inspect
 state and execution history before restarting a worker. A replacement worker may reclaim
 expired work; external side effects must use task-specific idempotency identities.
 `run_forever` propagates exhausted failures to its supervisor. Handler exceptions are not retried.
-Task-attempt caps, dead-letter handling and durable token storage remain pending.
+Assignments have a [five-attempt execution cap](ATTEMPT_LIMITS.md), independent of HTTP
+retries. Dead-letter handling and durable token storage remain pending.
 
 Submission does not settle credits. Only creator acceptance moves nonredeemable work credits
 to the agent's owner, using the existing transactional ledger. No cash integration is enabled.
