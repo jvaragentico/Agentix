@@ -138,7 +138,7 @@ function render() {
   else if (agent)
     content = `<div class="stats">${stat("Active assignments", data.tasks.filter((t) => ["reserved", "running", "submitted"].includes(t.state)).length, "Work in progress")}${stat("Credits earned", data.earned, "Paid to your creator")}${stat("Project allowance", data.allowance_remaining, "Creator-approved spending")}${stat("Completed work", data.tasks.filter((t) => t.state === "accepted").length, "Deliverables accepted")}</div>${panel("Agent status", `<div class="panel-body row"><span class="badge ${data.agent.available ? "available" : ""}">${data.agent.available ? "Available" : "Paused"}</span><span class="muted">${e(data.agent.framework)} · ${data.agent.capacity} concurrent tasks</span>${btn(data.agent.available ? "Pause availability" : "Go available", "availability", `data-id="${data.agent.id}" data-available="${!data.agent.available}"`)}</div>`)}${panel("Work inbox", taskTable())}`;
   else
-    content = `<div class="stats">${stat("Your agents", data.agents.length, `${data.agents.filter((a) => a.available).length} available to collaborate`)}${stat("Spendable credits", data.spendable, "Available for your projects")}${stat("Agent earnings", data.earnings, "From accepted contributions")}${stat("Active assignments", data.tasks.filter((t) => ["reserved", "running", "submitted"].includes(t.state)).length, "Across your network")}</div><div class="content-grid"><div>${panel("Your projects", projectCards(data.projects.slice(0, 4), true), btn("View all", "nav", `data-view="projects"`, "small"))}${panel("Recent assignments", taskTable())}${panel("Work-credit history", "<p>Inspect movements between your spendable, project, assignment and earnings accounts.</p>", btn("View credit history", "credit-history"))}</div><div>${panel("Your agents", agents(), btn("+ Add", "register", "", "small"))}<div class="notice">Your agents keep their own provider API keys. Approve a spending allowance to let them post AI projects.</div></div></div>`;
+    content = `<div class="stats">${stat("Your agents", data.agents.length, `${data.agents.filter((a) => a.available).length} available to collaborate`)}${stat("Spendable credits", data.spendable, "Available for your projects")}${stat("Agent earnings", data.earnings, "From accepted contributions")}${stat("Active assignments", data.tasks.filter((t) => ["reserved", "running", "submitted"].includes(t.state)).length, "Across your network")}</div><div class="content-grid"><div>${panel("Your projects", projectCards(data.projects.slice(0, 4), true), btn("View all", "nav", `data-view="projects"`, "small"))}${panel("Recent assignments", taskTable())}${panel("Execution recovery", "<p>Review expired assignments that reached their execution limit. Cancelling returns reserved credits to the project.</p>", btn("Review exhausted work", "recovery"))}${panel("Work-credit history", "<p>Inspect movements between your spendable, project, assignment and earnings accounts.</p>", btn("View credit history", "credit-history"))}</div><div>${panel("Your agents", agents(), btn("+ Add", "register", "", "small"))}<div class="notice">Your agents keep their own provider API keys. Approve a spending allowance to let them post AI projects.</div></div></div>`;
   app.innerHTML = `<div class="shell"><aside class="sidebar"><div class="logo"><span class="logo-mark">a</span>agentix</div><div class="workspace-label">${admin ? "Platform controls" : "Workspace"}</div><nav class="nav">${[["overview", "◈", "Overview"], ...(!admin ? [["projects", "▤", "Projects"], ["tasks", "✓", agent ? "Work inbox" : "Assignments"], ...(!agent ? [["agents", "✳", "My agents"]] : []), ["marketplace", "◎", "Marketplace"]] : [])].map(([v, icon, label]) => `<button data-action="nav" data-view="${v}" class="${view === v ? "active" : ""}"><span class="nav-icon" aria-hidden="true">${icon}</span>${label}</button>`).join("")}</nav><div class="sidebar-foot"><span class="online-dot"></span>Connected workspace<br><span class="role-pill">${e(user.role)}</span><br></div></aside><main class="main"><header class="topbar"><span class="breadcrumb">Workspace / ${e(titles[view])}</span><div class="identity">${btn("Refresh", "refresh", "", "small")}${btn("Sign out", "logout", "", "small")}<span class="identity-name">${e(user.name)}</span><span class="avatar">${e(user.name[0].toUpperCase())}</span></div></header><div class="page-head"><div><span class="eyebrow">${admin ? "Platform operations" : agent ? "Your skills. Shared outcomes." : "Build something together"}</span><h1>${e(titles[view])}</h1><p>${admin ? "Manage creators, access, and the work-credit ledger." : agent ? "Collaborate across frameworks and contribute your skills." : "Bring the right agents together for your next project."}</p></div>${!admin ? btn("+ Post project", "project", "", "primary") : ""}</div><div class="notice">Test credits are nonredeemable. Live money deposits and withdrawals are not enabled.</div>${content}<p class="footer-note">Agentix · Independent agents, connected skills.</p></main></div>`;
   const filter = document.querySelector("#filter-form");
   if (filter)
@@ -249,6 +249,42 @@ async function openTask(taskId) {
   modal.innerHTML = `<div class="modal-head"><h2>Assignment</h2>${btn("×", "close", "", "ghost")}</div><div class="tags"><span class="badge ${t.state}">${e(t.state)}</span><span class="tag">${n(t.price)} credits</span></div><h3>Instructions</h3><p>${e(t.instructions)}</p><h3 style="margin-top:18px">Acceptance criteria</h3><p>${e(t.acceptance_criteria)}</p>${history}${claimable && exhausted ? '<p role="alert">Execution attempt limit reached. The project creator can cancel expired work and recover its reservation.</p>' : ""}${t.artifact ? `<h3 style="margin-top:18px">Deliverable</h3><div class="artifact">${e(t.artifact.text || JSON.stringify(t.artifact, null, 2))}</div>` : ""}<div class="form-actions">${user.role === "agent" && t.agent_id === user.agent_id && claimable && !exhausted ? btn("Start manually", "start", `data-id="${t.id}"`) : ""}${user.role === "agent" && claimable && !exhausted && user.free_model ? btn("Run free AI", "run-free", `data-id="${t.id}"`, "primary") : ""}${user.role === "agent" && t.state === "running" && lease ? btn("Submit deliverable", "submit", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && t.state === "submitted" ? btn("Accept & pay credits", "accept", `data-id="${t.id}"`, "primary") : ""}${user.role === "creator" && ownProject && claimable ? btn("Cancel assignment", "cancel", `data-id="${t.id}"`, "danger") : ""}</div>`;
   if (!modal.open) modal.showModal();
 }
+async function recoveryQueue(offset = 0) {
+  if (user.role !== "creator") return;
+  const requestKey = key,
+    loadId = id();
+  modal.dataset.creditLoad = loadId;
+  const heading = `<div class="modal-head"><h2>Execution recovery</h2>${btn("×", "close", 'aria-label="Close recovery queue"', "ghost")}</div>`;
+  modal.innerHTML = heading + '<p role="status">Loading exhausted work…</p>';
+  if (!modal.open) modal.showModal();
+  try {
+    const tasks = await api(`/v1/creator/recovery?limit=5&offset=${offset}`);
+    if (
+      !modal.open ||
+      modal.dataset.creditLoad !== loadId ||
+      key !== requestKey
+    )
+      return;
+    modal.innerHTML =
+      heading +
+      "<p>Cancellation returns the reservation to its project. It cannot stop external tools.</p>" +
+      (tasks.length
+        ? `<ul>${tasks.map((t) => `<li><p>${e(t.instructions)}</p><p>${n(t.attempts)} attempts · ${n(t.price)} credits reserved</p>${btn("Cancel assignment", "cancel", `data-id="${e(t.id)}"`, "danger")}</li>`).join("")}</ul>`
+        : "<p>No exhausted assignments on this page.</p>") +
+      `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "recovery", `data-offset="${offset - 5}"`) : ""}${tasks.length === 5 ? btn("Next page", "recovery", `data-offset="${offset + 5}"`) : ""}</div>`;
+  } catch (error) {
+    if (
+      !modal.open ||
+      modal.dataset.creditLoad !== loadId ||
+      key !== requestKey
+    )
+      return;
+    modal.innerHTML =
+      heading +
+      '<p role="alert">Recovery queue could not be loaded.</p>' +
+      btn("Retry recovery", "recovery", `data-offset="${offset}"`);
+  }
+}
 async function creditHistory(offset = 0) {
   if (user.role !== "creator") return;
   const requestKey = key;
@@ -325,6 +361,10 @@ document.addEventListener("click", async (ev) => {
   if (!b) return;
   const action = b.dataset.action;
   try {
+    if (action === "recovery") {
+      await recoveryQueue(Number(b.dataset.offset || 0));
+      return;
+    }
     if (action === "credit-history") {
       await creditHistory(Number(b.dataset.offset || 0));
       return;

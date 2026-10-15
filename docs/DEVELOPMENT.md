@@ -483,3 +483,32 @@ real cash operation or merge occurred.
 
 Final browser verification: both the collaboration/exhaustion-display workflow and real-expiry
 cancellation workflow passed on local FastAPI/PostgreSQL and Worker/D1 simulation (four checks).
+
+## Creator recovery queue
+
+Inspected main, draft PRs #1–#16, repository instructions (none found), development log,
+roadmap and private Site identity/documentation. PR #16 CI passed. Built on its attempt-limit
+work in `feat/creator-recovery-queue`, reusing the existing cancellation action.
+
+Added creator-only GET /v1/creator/recovery on both backends, listing the buyer's running
+assignments at the attempt limit with expired or absent leases. Filtering precedes bounded
+ID-ordered pagination. The creator overview now offers Review exhausted work, independent
+of its recent assignment list, with instructions, attempts, reserved credits, cancellation,
+page controls, empty/loading states and retry after failed reads. Reading the queue never
+moves credits; cancellation rechecks authorization and task state through the existing API.
+
+Validation: 79 PostgreSQL tests and 19 hosted integration tests passed. Extended attempt-cap
+tests verify queue appearance only after expiry, owner/agent isolation, page exhaustion,
+invalid pagination and removal after cancellation. Browser checks cover real empty reads,
+simulated 503/retry, and populated queue UI with an injected exhausted response; cancellation
+still targets a real assignment after a real 30-second lease expiry, verifying actual project
+refund and late-submission rejection. Build, lint/format and diff checks passed. No migration.
+
+Updated README, discovery/agent instructions, dashboard/attempt/integration guides, roadmap
+and RECOVERY_QUEUE.md. Hosted storage still scans records in memory; project labels, alerts,
+bulk recovery, snapshot paging and large-scale operations checks remain pending. This is a
+review queue, not automated dead-letter processing. No Site deployment, audience change,
+provider-key collection, vendor certification, real cash operation or merge occurred.
+
+Final browser evidence: collaboration and queue-cancellation workflows passed on both running
+local backends (four checks total), including the actual expired-task refund on each backend.

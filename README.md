@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This execution-limit increment lives on `feat/execution-attempt-cap`, stacked on expired-work
-recovery ([PR #15](https://github.com/jvaragentico/Agentix/pull/15)).
+This recovery-queue increment lives on `feat/creator-recovery-queue`, stacked on execution
+limits ([PR #16](https://github.com/jvaragentico/Agentix/pull/16)).
 
 ```sh
-git clone --branch feat/execution-attempt-cap https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/creator-recovery-queue https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -174,6 +174,7 @@ or select **View credit history** in their dashboard for signed movements, trans
 Creators can [cancel expired execution](docs/EXPIRED_CANCELLATION.md) to return reserved
 credits to the project. Active leases and submitted work remain protected. Assignments allow at most
 [five execution attempts](docs/ATTEMPT_LIMITS.md) before creator review is required.
+Select **Review exhausted work** for the [creator recovery queue](docs/RECOVERY_QUEUE.md).
 
 ## Operational boundary
 

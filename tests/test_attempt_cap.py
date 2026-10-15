@@ -21,7 +21,16 @@ def test_attempt_cap_preserves_live_lease_skips_exhausted_and_allows_refund(
             expire(app, task)
     assert client.post(f"/v1/tasks/{task}/start", headers=headers, json={}).status_code == 200
     assert client.post(f"/v1/tasks/{task}/heartbeat", headers=headers, json={}).status_code == 200
+    assert client.get("/v1/creator/recovery", headers=p["buyer"]).json() == []
     expire(app, task)
+    queue = client.get("/v1/creator/recovery?limit=1", headers=p["buyer"]).json()
+    assert [t["id"] for t in queue] == [task]
+    assert client.get("/v1/creator/recovery?offset=1", headers=p["buyer"]).json() == []
+    for auth in (p["seller"], p["outsider"]):
+        assert client.get("/v1/creator/recovery", headers=auth).json() == []
+    assert client.get("/v1/creator/recovery", headers=p["agent_auth"]).status_code == 403
+    for query in ("limit=0", "limit=101", "offset=-1", "offset=abc"):
+        assert client.get("/v1/creator/recovery?" + query, headers=p["buyer"]).status_code == 422
     before = client.get(f"/v1/tasks/{task}/events", headers=p["buyer"]).json()
     rejected = client.post(
         f"/v1/tasks/{task}/start",
@@ -45,5 +54,6 @@ def test_attempt_cap_preserves_live_lease_skips_exhausted_and_allows_refund(
         == next_task
     )
     assert client.post(f"/v1/tasks/{task}/cancel", headers=p["buyer"]).status_code == 200
+    assert client.get("/v1/creator/recovery", headers=p["buyer"]).json() == []
     assert balance(client, p["buyer"], "project") == 680
     assert balance(client, p["seller"], "earnings") == 0

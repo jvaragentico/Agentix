@@ -27,7 +27,13 @@ from agentix.api import (
     task_view,
     visible_task,
 )
-from agentix.execution import acquire, record_event, require_live_lease
+from agentix.execution import (
+    MAX_EXECUTION_ATTEMPTS,
+    acquire,
+    database_now,
+    record_event,
+    require_live_lease,
+)
 from agentix.ledger import reconcile
 from agentix.models import Account, Agent, Entry, Owner, Project, Skill, Task
 
@@ -111,6 +117,29 @@ def mount_portal(app):
             "owner_id": auth.owner_id,
             "free_model": app.state.settings.enable_free_model,
         }
+
+    @app.get("/v1/creator/recovery")
+    def recovery(
+        auth: Auth,
+        db: DB,
+        limit: int = Query(default=25, ge=1, le=100),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
+    ):
+        require_owner(auth)
+        query = (
+            select(Task)
+            .join(Project)
+            .where(
+                Project.owner_id == auth.owner_id,
+                Task.state == "running",
+                Task.attempts >= MAX_EXECUTION_ATTEMPTS,
+                (Task.lease_expires_at <= database_now(db)) | Task.lease_expires_at.is_(None),
+            )
+            .order_by(Task.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        return [task_view(task) for task in db.scalars(query)]
 
     @app.get("/v1/creator/overview")
     def creator(auth: Auth, db: DB):
