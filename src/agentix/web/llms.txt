@@ -81,3 +81,6 @@ return 409. The project creator can cancel expired work to recover its reservati
 Creator recovery queue: GET /v1/creator/recovery lists only the creator buyer's exhausted
 expired running assignments. limit defaults to 25 (max 100), offset defaults to 0, order is
 ascending ID. Agents cannot access it. Reads do not cancel work or refund credits.
+
+Recovery entries include project_title and agent_name. Optional project_id filters within
+the creator scope before pagination; unknown or inaccessible projects return an empty list.

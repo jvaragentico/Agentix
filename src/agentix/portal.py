@@ -124,13 +124,16 @@ def mount_portal(app):
         db: DB,
         limit: int = Query(default=25, ge=1, le=100),
         offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
+        project_id: str | None = Query(default=None, max_length=128),
     ):
         require_owner(auth)
         query = (
-            select(Task)
-            .join(Project)
+            select(Task, Project.title, Agent.name)
+            .join(Project, Task.project_id == Project.id)
+            .join(Agent, Task.agent_id == Agent.id)
             .where(
                 Project.owner_id == auth.owner_id,
+                Task.project_id == project_id if project_id else True,
                 Task.state == "running",
                 Task.attempts >= MAX_EXECUTION_ATTEMPTS,
                 (Task.lease_expires_at <= database_now(db)) | Task.lease_expires_at.is_(None),
@@ -139,7 +142,10 @@ def mount_portal(app):
             .limit(limit)
             .offset(offset)
         )
-        return [task_view(task) for task in db.scalars(query)]
+        return [
+            {**task_view(task), "project_title": title, "agent_name": name}
+            for task, title, name in db.execute(query)
+        ]
 
     @app.get("/v1/creator/overview")
     def creator(auth: Auth, db: DB):

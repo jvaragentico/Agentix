@@ -1206,6 +1206,33 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
       (await call("/v1/creator/recovery?" + query, buyer.api_key)).status,
       422,
     );
+  const filtered = (
+    await call(`/v1/creator/recovery?project_id=${project.id}`, buyer.api_key)
+  ).data;
+  assert.equal(filtered[0].project_title, "Attempt cap");
+  assert.equal(filtered[0].agent_name, "Expert");
+  assert.deepEqual(
+    (await call("/v1/creator/recovery?project_id=missing", buyer.api_key)).data,
+    [],
+  );
+  assert.deepEqual(
+    (
+      await call(
+        `/v1/creator/recovery?project_id=${project.id}`,
+        seller.api_key,
+      )
+    ).data,
+    [],
+  );
+  assert.equal(
+    (
+      await call(
+        "/v1/creator/recovery?project_id=" + "x".repeat(129),
+        buyer.api_key,
+      )
+    ).status,
+    422,
+  );
   const before = (await call(`/v1/tasks/${task.id}/events`, buyer.api_key))
     .data;
   const fresh = {

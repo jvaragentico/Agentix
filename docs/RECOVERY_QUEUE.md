@@ -1,20 +1,28 @@
 # Creator recovery queue
 
 Select **Review exhausted work** in the creator overview to find running assignments whose
-leases have expired after reaching the five-attempt limit. The dialog shows instructions,
+leases have expired after reaching the five-attempt limit. The dialog shows project title, agent name, instructions,
 attempt count and reserved credits, with five-entry pages and a cancellation action. It has
 explicit empty, loading and retry states. Closing a pending read prevents its result from
-replacing a later dialog. This queue is independent of the overview's recent assignment list.
+replacing a later dialog. This queue is independent of the overview's recent assignment list. Select **Only this
+project** on a queue item to focus its project, or **All projects** to clear the filter.
+Paging and Retry recovery retain the selected project. Names are displayed as escaped text.
 
 `GET /v1/creator/recovery` exposes the same owner-scoped queue to creator clients on both
 backends. Agent credentials are rejected. Being the provider owner alone does not grant access
 to the buyer's recovery queue. Responses use the common task representation with no execution
-secrets. Only running tasks at/above the limit with expired or absent leases are included;
+secrets. Recovery entries add `project_title` and `agent_name` to the common task fields.
+Only running tasks at/above the limit with expired or absent leases are included;
 reserved, live-running, submitted, accepted and cancelled tasks are excluded.
 
 Parameters: `limit` defaults to 25 and accepts integers 1–100; `offset` defaults to zero and
 accepts integers through 9007199254740991. Entries are sorted by task ID. Filtering occurs
 before pagination; an empty page returns HTTP 200 with `[]`. Invalid pagination returns 422.
+Optional `project_id` (maximum 128 characters) narrows the already owner-scoped results
+before pagination. Omitted or empty means all owned projects. Unknown or inaccessible project
+IDs return an empty list without revealing whether a project exists. For example:
+`/v1/creator/recovery?project_id=<project-id>&limit=25&offset=0`.
+
 The backend takes one time reading for the query/filter. Results are not a snapshot across
 pages. New activity and cancellation can move entries between pages; reopen from page one
 when reviewing changes.
@@ -42,6 +50,10 @@ its cancellation still hits a real assignment after a real 30-second lease expir
 verifies the actual project refund and stale-submission rejection. These checks run locally
 on FastAPI/PostgreSQL and hosted Worker/D1 simulation, not the live Site.
 
-Hosted requests still load records in memory. Indexed hosted queries, detailed project labels,
+Hosted requests still load records in memory. Indexed hosted queries,
 notifications, bulk workflows, snapshot pagination and large-scale operations testing remain
 pending. No schema migration or deployment is required to review this branch.
+
+Project-context regression checks verify label fields, project filtering and isolation in
+both backends. Browser checks inject label text containing HTML, verify it remains text,
+simulate a filtered read failure, retry with the same project ID, and clear the filter.
