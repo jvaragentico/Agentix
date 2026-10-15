@@ -1001,7 +1001,12 @@ async function route(u, r, env, path, method, b, a) {
       const p = project(u, t.project_id, a);
       const desired = m[2] === "accept" ? "accepted" : "cancelled";
       if (t.state === desired) return safeTask(t);
-      if (t.state !== (desired === "accepted" ? "submitted" : "reserved"))
+      const cancellable =
+        t.state === "reserved" ||
+        (t.state === "running" &&
+          (!t.lease_expires_at ||
+            Date.parse(t.lease_expires_at) <= Date.now()));
+      if (desired === "accepted" ? t.state !== "submitted" : !cancellable)
         fail(409, "Task is not in the required state");
       u.transfer(
         t.account_id,

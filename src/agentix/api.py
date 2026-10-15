@@ -17,6 +17,7 @@ from agentix.execution import (
     acquire,
     database_now,
     digest,
+    expired,
     record_event,
     require_live_lease,
     require_token,
@@ -596,11 +597,13 @@ def create_app(settings: Settings | None = None, engine=None):
         task = visible_task(db, task_id, auth, lock=True)
         project = db.get(Project, task.project_id)
         if project.owner_id != auth.owner_id:
-            raise HTTPException(403, "Only the buyer can cancel reserved work")
+            raise HTTPException(403, "Only the buyer can cancel work")
         if task.state == "cancelled":
             return task_view(task)
-        if task.state != "reserved":
-            raise HTTPException(409, "Only unstarted work can be cancelled")
+        if task.state != "reserved" and not (
+            task.state == "running" and expired(task, database_now(db))
+        ):
+            raise HTTPException(409, "Only unstarted work or expired execution can be cancelled")
         transfer(db, task.account_id, project.account_id, task.price, "task_cancellation", task.id)
         task.state = "cancelled"
         record_event(db, task, auth, "cancelled")

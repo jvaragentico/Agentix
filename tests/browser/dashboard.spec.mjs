@@ -507,3 +507,117 @@ test("real free API completes a task and credits go to the creator", async ({
     fullPage: true,
   });
 });
+
+test("expired execution can be cancelled and credits returned by its creator", async ({
+  page,
+  request,
+}) => {
+  const creatorResponse = await request.post("/v1/admin/owners", {
+    headers: auth(admin),
+    data: { name: "Expired lease validation " + Date.now() },
+  });
+  expect(creatorResponse.status()).toBe(201);
+  const owner = await creatorResponse.json();
+  const funded = await request.post(
+    `/v1/admin/owners/${owner.id}/test-funding`,
+    { headers: idem(admin), data: { amount: 500 } },
+  );
+  expect(funded.ok()).toBe(true);
+  const agentResponse = await request.post("/v1/agents", {
+    headers: auth(owner.api_key),
+    data: {
+      name: "Free marketing worker",
+      framework: "owner-managed",
+      endpoint: "https://owner.example/agent",
+    },
+  });
+  const agent = await agentResponse.json();
+  await request.patch(`/v1/agents/${agent.id}/availability`, {
+    headers: auth(agent.api_key),
+    data: { available: true },
+  });
+  const skill = await (
+    await request.post(`/v1/agents/${agent.id}/skills`, {
+      headers: auth(owner.api_key),
+      data: {
+        slug: "marketing",
+        version: "1",
+        description: "Create a tagline",
+      },
+    })
+  ).json();
+  const project = await (
+    await request.post("/v1/projects", {
+      headers: idem(owner.api_key),
+      data: {
+        title: "Free model launch copy",
+        budget: 100,
+        published: true,
+        required_skills: ["marketing"],
+      },
+    })
+  ).json();
+  const task = await (
+    await request.post(`/v1/projects/${project.id}/tasks`, {
+      headers: idem(owner.api_key),
+      data: {
+        agent_id: agent.id,
+        skill_id: skill.id,
+        instructions:
+          "Write one short original marketing tagline for Agentix, a platform where independent AI agents collaborate.",
+        acceptance_criteria: "A single concise tagline",
+        price: 40,
+      },
+    })
+  ).json();
+
+  const token = "expired-browser-token-1234567890123456789";
+  const started = await request.post(`/v1/tasks/${task.id}/start`, {
+    headers: { ...auth(agent.api_key), "X-Execution-Token": token },
+    data: { lease_seconds: 30 },
+  });
+  expect(started.status()).toBe(200);
+  expect(
+    (
+      await request.post(`/v1/tasks/${task.id}/cancel`, {
+        headers: auth(owner.api_key),
+      })
+    ).status(),
+  ).toBe(409);
+  await login(page, owner.api_key);
+  await expect
+    .poll(
+      async () => {
+        const response = await request.get(`/v1/tasks/${task.id}`, {
+          headers: auth(owner.api_key),
+        });
+        return (
+          Date.parse((await response.json()).lease_expires_at) <= Date.now()
+        );
+      },
+      { timeout: 40000, intervals: [1000] },
+    )
+    .toBe(true);
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Cancel assignment", exact: true })
+    .click();
+  await expect(page.locator("dialog")).not.toBeVisible();
+  const result = await (
+    await request.get(`/v1/tasks/${task.id}`, { headers: auth(owner.api_key) })
+  ).json();
+  expect(result.state).toBe("cancelled");
+  const wallet = await (
+    await request.get("/v1/wallet", { headers: auth(owner.api_key) })
+  ).json();
+  expect(wallet.earnings).toBe(0);
+  expect(wallet.accounts.find((a) => a.kind === "project").balance).toBe(100);
+  expect(
+    (
+      await request.post(`/v1/tasks/${task.id}/submit`, {
+        headers: { ...auth(agent.api_key), "X-Execution-Token": token },
+        data: { artifact: { text: "late result" } },
+      })
+    ).status(),
+  ).toBe(409);
+});

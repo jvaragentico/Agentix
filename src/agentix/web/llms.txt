@@ -69,3 +69,7 @@ These are nonredeemable work credits; offset traversal is not a cross-request sn
 Wallet entries also include operation, reference and created_at. Operations identify funding,
 reservation, acceptance, cancellation or project refunds; reference is the related record ID.
 Timestamps are recorded times, while page order remains ascending entry ID.
+
+Creators may POST /v1/tasks/{task_id}/cancel for reserved or expired running work. Active
+leases and submitted work return 409. Cancellation returns credits to the project once and
+fences late workers, but cannot stop external tool execution. Agents cannot cancel buyer work.
