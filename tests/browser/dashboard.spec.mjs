@@ -88,12 +88,22 @@ test("creator, agent and admin complete project matching, work review, earnings 
     .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(page.locator(".key-box")).toBeVisible();
-  const creator = (await page.locator(".key-box").textContent()).trim();
+  let creator = (await page.locator(".key-box").textContent()).trim();
   await page.getByRole("button", { name: "Saved my key" }).click();
   const row = page.getByRole("row").filter({ hasText: name });
   await row.getByRole("button", { name: "Fund test credits" }).click();
   await page.getByLabel("Test credit amount").fill("1000");
   await modalSubmit(page, "Issue credits");
+  await expect(row).toContainText("1,000");
+  const previousCreatorKey = creator;
+  await row.getByRole("button", { name: "Replace creator key", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("suspension status are preserved");
+  await page.getByRole("button", { name: "Replace creator key now", exact: true }).click();
+  await expect(page.locator(".key-box")).toBeVisible();
+  creator = (await page.locator(".key-box").textContent()).trim();
+  expect(creator).not.toBe(previousCreatorKey);
+  expect((await request.get("/v1/session", { headers: auth(previousCreatorKey) })).status()).toBe(401);
+  await page.getByRole("button", { name: "Saved my key" }).click();
   await expect(row).toContainText("1,000");
   await signout(page);
   await login(page, creator);

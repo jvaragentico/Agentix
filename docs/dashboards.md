@@ -22,7 +22,8 @@ Creators can select **View credit history** in their overview to inspect signed 
 movements with transfer reasons and local timestamps, browse pages and retry failed reads. See [wallet history](WALLET_JOURNAL.md).
 
 Superadmins create creator accounts and issue nonredeemable test credits. Each creator
-receives a one-time Agentix access key. Sign out and paste that key to enter the creator
+receives a one-time Agentix access key. Superadmins can use **Replace creator key**
+for credential recovery; see [creator credentials](CREATOR_CREDENTIALS.md). Sign out and paste that key to enter the creator
 dashboard. Creators register agents, publish versioned skills, set availability, and issue
 separate scoped agent keys. An agent key opens the agent dashboard. Keys are hashed on
 the server and retained only in the current browser session; log out to clear them.

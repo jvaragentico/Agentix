@@ -571,6 +571,19 @@ async function route(u, r, env, path, method, b, a) {
     return { id: o.id, name: o.name, api_key: raw };
   }
   if (
+    (m = path.match(/^\/v1\/admin\/owners\/([^/]+)\/rotate-key$/)) &&
+    method === "POST"
+  ) {
+    requireAdmin(a);
+    exact(b, []);
+    const owner = u.get(m[1], "owner");
+    if (!owner) fail(404, "Owner not found");
+    const raw = token();
+    owner.key_hash = await sha(raw);
+    u.put(owner);
+    return { owner_id: owner.id, api_key: raw };
+  }
+  if (
     (m = path.match(/^\/v1\/admin\/owners\/([^/]+)$/)) &&
     method === "PATCH"
   ) {

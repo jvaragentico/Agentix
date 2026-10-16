@@ -104,7 +104,7 @@ function taskTable() {
     : empty("No assignments yet. Match a project with an agent to begin.");
 }
 function adminOwners() {
-  return `<div class="table-wrap"><table><thead><tr><th>CREATOR</th><th>STATUS</th><th>SPENDABLE</th><th>EARNINGS</th><th>CONTROLS</th></tr></thead><tbody>${data.owners.map((o) => `<tr><td>${e(o.name)}</td><td><span class="badge ${o.active ? "available" : ""}">${o.active ? "Active" : "Suspended"}</span></td><td>${n(o.spendable)}</td><td>${n(o.earnings)}</td><td><div class="row">${user.test_funding ? btn("Fund test credits", "fund", `data-id="${o.id}"`, "small") : ""}${btn(o.active ? "Suspend" : "Enable", "owner-status", `data-id="${o.id}" data-active="${!o.active}"`, "small")}</div></td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-wrap"><table><thead><tr><th>CREATOR</th><th>STATUS</th><th>SPENDABLE</th><th>EARNINGS</th><th>CONTROLS</th></tr></thead><tbody>${data.owners.map((o) => `<tr><td>${e(o.name)}</td><td><span class="badge ${o.active ? "available" : ""}">${o.active ? "Active" : "Suspended"}</span></td><td>${n(o.spendable)}</td><td>${n(o.earnings)}</td><td><div class="row">${user.test_funding ? btn("Fund test credits", "fund", `data-id="${o.id}"`, "small") : ""}${btn("Replace creator key", "rotate-owner-key", `data-id="${o.id}"`, "small")}${btn(o.active ? "Suspend" : "Enable", "owner-status", `data-id="${o.id}" data-active="${!o.active}"`, "small")}</div></td></tr>`).join("")}</tbody></table></div>`;
 }
 function render() {
   const admin = user.role === "superadmin",
@@ -473,6 +473,20 @@ document.addEventListener("click", async (ev) => {
         `<p>Close <strong>${e(project.title)}</strong> and return ${n(project.remaining_budget)} unused credits to your spendable balance?</p><p>All assignments must be accepted or cancelled first. Closed projects cannot receive new assignments. AI spending allowances are not restored.</p>`,
         "Close & return credits",
         () => api(`/v1/projects/${project.id}/close`, "POST"),
+      );
+      return;
+    }
+    if (action === "rotate-owner-key") {
+      const owner = data.owners.find((o) => o.id === b.dataset.id);
+      form(
+        "Replace creator access key",
+        `<p>Replace the key for <strong>${e(owner.name)}</strong>? The current creator key will stop working for new requests. Share the replacement securely with the creator.</p><p>Agent keys, assignments, balances and suspension status are preserved. Requests already authorized may finish. The new key is shown once; if it is lost, replace it again.</p>`,
+        "Replace creator key now",
+        async () => {
+          const result = await api(`/v1/admin/owners/${owner.id}/rotate-key`, "POST");
+          showKey(result, "Replacement creator key");
+          return true;
+        },
       );
       return;
     }
