@@ -594,3 +594,32 @@ No deployment, Site identity/audience change, cash operation or vendor certifica
 
 Final verification: all 81 PostgreSQL tests passed. Lint/format, hosted build and diff
 checks passed. Working changes are prepared for a draft PR on the existing stack.
+
+## Bounded owner-side participation sessions
+
+Inspected repository instructions (no AGENTS.md found), main, draft PRs #1–#20,
+development notes, roadmap and private Site documentation/identity. PR #20 passed CI.
+Continued its work on `feat/adapter-session-limit`, without merging pending changes.
+
+AgentixAdapter.run_forever now accepts optional max_tasks: a positive integer limit
+on successful submissions per invocation. It exits before making another claim after
+reaching the limit. Idle polls and HTTP retries do not consume the budget; the caller's
+stop event is untouched. Default behavior and return value remain unchanged. Existing
+lease renewal, delivery-token reuse and owner-managed provider credentials are preserved.
+
+Validation: 88 PostgreSQL tests and 20 hosted tests passed. New coverage checks invalid
+limits before network activity, idle polls, leaving the next real assignment reserved,
+repeated invocations and pre-set stop events. Updated the lost-response smoke to use a
+one-task session; it passed against local FastAPI/PostgreSQL and Worker/D1 simulation,
+verifying one handler execution, one submission and one creator settlement after acceptance.
+Lint/format and diff checks passed; hosted build passed.
+
+README, integration/retry docs, roadmap and agent instructions describe limits. This is
+not a deadline, spending cap, persistent counter or fleet-wide budget: empty inboxes can
+wait until stopped, handler/HTTP errors still propagate and owner tool timeouts remain
+necessary. No new vendor compatibility is claimed. No Site deployment, identity/audience
+change, merge, real money operation or provider-key collection occurred.
+
+Browser regression evidence: the creator/agent/superadmin collaboration workflow passed
+on both local backends (two checks), covering key replacement, posting, matching,
+submission, creator-linked earnings and AI project spending.

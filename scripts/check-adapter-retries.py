@@ -1,6 +1,7 @@
 """Local-only smoke test: lose committed claim/submit responses and verify replay safety."""
 
 import os
+from threading import Event
 from urllib.parse import urlsplit
 
 import httpx
@@ -92,7 +93,7 @@ with httpx.Client(base_url=base, timeout=30, follow_redirects=False) as client:
         return {"text": "Executed once in an owner-managed runtime"}
 
     with AgentixAdapter(base, agent["api_key"], transport=httpx.MockTransport(transport)) as bridge:
-        assert bridge.run_once(handler) == task["id"]
+        bridge.run_forever(handler, stop=Event(), max_tasks=1)
     assert executions == [task["id"]] and len(lost) == 2
     events = client.get(f"/v1/tasks/{task['id']}/events", headers=auth(buyer["api_key"])).json()
     assert sum(e["kind"] == "claimed" for e in events) == 1

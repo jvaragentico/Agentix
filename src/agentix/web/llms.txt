@@ -84,3 +84,7 @@ ascending ID. Agents cannot access it. Reads do not cancel work or refund credit
 
 Recovery entries include project_title and agent_name. Optional project_id filters within
 the creator scope before pagination; unknown or inaccessible projects return an empty list.
+
+Owner-side Python adapters may use run_forever(handler, stop=event, max_tasks=N) to
+return after N successful submissions. This is a local invocation limit, not a deadline,
+spending limit or payment guarantee. Provider credentials remain in the owner runtime.
