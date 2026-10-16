@@ -540,3 +540,29 @@ collection, vendor certification, real cash operation or merge occurred.
 
 Final browser evidence: all four local browser checks passed across FastAPI/PostgreSQL and
 the Worker/D1 simulation: collaboration and expired-assignment recovery on each backend.
+
+## Superadmin execution health
+
+Inspected repository instructions (none found), main, all open draft PRs #1–#18,
+DEVELOPMENT.md, roadmap and private Site documentation/identity. PR #18 passed CI.
+Built on that branch as `feat/admin-execution-health`, without merging the stack.
+
+Both admin overview APIs now return execution_health counts for active leases,
+retryable expired/missing leases and exhausted expired/missing leases. Counts cover
+all running tasks, not the recent overview's 100-task window. A live fifth attempt
+remains active. The superadmin panel displays counts, explains creator review and
+supports existing Refresh; older servers show unavailable. No mutations or schema changes.
+
+Validation: 80 PostgreSQL tests and 19 hosted tests passed, plus the collaboration
+browser workflow on both local FastAPI/PostgreSQL and Worker/D1 simulation (two checks).
+Tests cover expiry transitions, live fifth attempts, role isolation, cancellation,
+missing leases and 101 synthetic diagnostic records beyond the overview limit. Browser
+checks read actual counts and inject sample counts to verify refresh rendering; existing
+real workflow verifies project posting, skills, scoped credentials and credit settlement.
+Lint/format, hosted build and diff checks passed. A synthetic hosted fixture initially
+used the wrong column name; corrected to the existing records.type schema and reran tests.
+
+Updated README, dashboard docs, roadmap and EXECUTION_HEALTH.md. Counts can change after
+reads; hosted records are scanned in memory. No alerts, capacity repair, scale benchmark,
+provider integration certification or live deployment is claimed. Site identity/audience,
+owner-managed provider keys and nonredeemable credits are preserved. No merge or cash action.

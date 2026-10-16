@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import String, cast, func, select
+from sqlalchemy import String, case, cast, func, select
 
 from agentix import schemas
 from agentix.api import (
@@ -281,7 +281,19 @@ def mount_portal(app):
         projects = db.scalars(select(Project).order_by(Project.created_at.desc()).limit(100))
         agents = db.scalars(select(Agent).order_by(Agent.created_at.desc()).limit(100))
         tasks = db.scalars(select(Task).order_by(Task.created_at.desc()).limit(100))
+        category = case(
+            (Task.lease_expires_at > database_now(db), "active_leases"),
+            (Task.attempts >= MAX_EXECUTION_ATTEMPTS, "exhausted"),
+            else_="retryable_expired",
+        )
+        execution_health = dict.fromkeys(("active_leases", "retryable_expired", "exhausted"), 0)
+        execution_health.update(
+            db.execute(
+                select(category, func.count()).where(Task.state == "running").group_by(category)
+            ).all()
+        )
         return {
+            "execution_health": execution_health,
             "owners": [
                 {
                     "id": o.id,
