@@ -1295,3 +1295,29 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
   assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 101 });
   sql.close();
 });
+
+test("admin creator key replacement preserves identity, agents and suspension", async () => {
+  const { call, sql, buyer, seller, agent } = await participants();
+  const endpoint = `/v1/admin/owners/${seller.id}/rotate-key`;
+  const before = (await call("/v1/creator/overview", seller.api_key)).data;
+  const wallet = (await call("/v1/wallet", seller.api_key)).data;
+  for (const key of [seller.api_key, buyer.api_key, agent.api_key])
+    assert.equal((await call(endpoint, key, "POST")).status, 403);
+  assert.equal((await call("/v1/admin/owners/missing/rotate-key", "test-admin", "POST")).status, 404);
+  const replaced = await call(endpoint, "test-admin", "POST");
+  assert.equal(replaced.status, 200);
+  assert.equal(replaced.data.owner_id, seller.id);
+  const key = replaced.data.api_key;
+  assert.equal((await call("/v1/session", seller.api_key)).status, 401);
+  assert.deepEqual((await call("/v1/creator/overview", key)).data, before);
+  assert.deepEqual((await call("/v1/wallet", key)).data, wallet);
+  assert.equal(JSON.stringify(before).includes(key), false);
+  assert.equal((await call("/v1/session", agent.api_key)).status, 200);
+  assert.equal((await call(`/v1/admin/owners/${seller.id}`, "test-admin", "PATCH", { active: false })).status, 200);
+  const latest = (await call(endpoint, "test-admin", "POST")).data.api_key;
+  assert.equal((await call("/v1/session", latest)).status, 401);
+  assert.equal((await call(`/v1/admin/owners/${seller.id}`, "test-admin", "PATCH", { active: true })).status, 200);
+  assert.equal((await call("/v1/session", key)).status, 401);
+  assert.equal((await call("/v1/session", latest)).data.owner_id, seller.id);
+  sql.close();
+});

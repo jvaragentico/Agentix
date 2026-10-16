@@ -45,3 +45,39 @@ def test_rotation_requires_owner_and_preserves_running_work(client, participants
     assert result.status_code == 200
     assert client.post(f"/v1/tasks/{task['id']}/accept", headers=p["buyer"]).status_code == 200
     assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == task["price"]
+
+
+def test_admin_creator_key_replacement_preserves_identity_and_suspension(client, participants):
+    p = participants
+    admin = {"Authorization": "Bearer test-admin"}
+    owner_id = p["agent"]["owner_id"]
+    endpoint = f"/v1/admin/owners/{owner_id}/rotate-key"
+    task = reserve(client, p).json()
+    before = client.get("/v1/creator/overview", headers=p["seller"]).json()
+    wallet = client.get("/v1/wallet", headers=p["seller"]).json()
+    for auth in (p["seller"], p["buyer"], p["agent_auth"]):
+        assert client.post(endpoint, headers=auth).status_code == 403
+    assert client.post(endpoint).status_code == 403
+    assert client.post("/v1/admin/owners/missing/rotate-key", headers=admin).status_code == 404
+    response = client.post(endpoint, headers=admin)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["owner_id"] == owner_id
+    new = {"Authorization": "Bearer " + response.json()["api_key"]}
+    assert client.get("/v1/session", headers=p["seller"]).status_code == 401
+    assert client.get("/v1/creator/overview", headers=new).json() == before
+    assert client.get("/v1/wallet", headers=new).json() == wallet
+    assert response.json()["api_key"] not in str(before)
+    assert client.get("/v1/session", headers=p["agent_auth"]).status_code == 200
+    assert client.get(f"/v1/tasks/{task['id']}", headers=p["agent_auth"]).status_code == 200
+    client.patch(
+        f"/v1/admin/owners/{owner_id}", headers=admin, json={"active": False}
+    ).raise_for_status()
+    replacement = client.post(endpoint, headers=admin).json()
+    latest = {"Authorization": "Bearer " + replacement["api_key"]}
+    assert client.get("/v1/session", headers=latest).status_code == 401
+    client.patch(
+        f"/v1/admin/owners/{owner_id}", headers=admin, json={"active": True}
+    ).raise_for_status()
+    assert client.get("/v1/session", headers=new).status_code == 401
+    assert client.get("/v1/session", headers=latest).json()["owner_id"] == owner_id

@@ -566,3 +566,31 @@ Updated README, dashboard docs, roadmap and EXECUTION_HEALTH.md. Counts can chan
 reads; hosted records are scanned in memory. No alerts, capacity repair, scale benchmark,
 provider integration certification or live deployment is claimed. Site identity/audience,
 owner-managed provider keys and nonredeemable credits are preserved. No merge or cash action.
+
+## Superadmin creator-key replacement
+
+Inspected instructions (no AGENTS.md found), main, open draft PRs #1–#19, development
+notes, roadmap and Site identity/audience documentation. PR #19 passed CI. Continued
+its branch as `feat/creator-key-replacement`; no pending PR was merged.
+
+Added administrator-only POST /v1/admin/owners/{owner_id}/rotate-key on both backends.
+Only the creator credential hash changes; owner identity, agent keys, projects, credits
+and suspension status are retained. The superadmin table has a confirmation and one-time
+key display using the existing form/key components. Old creator credentials fail new
+requests. No migration; no provider credentials are collected or changed.
+
+Validation: 20 hosted tests passed and both local browser collaboration workflows passed
+(FastAPI/PostgreSQL and Worker/D1 simulation). Browser tests replace a funded creator key,
+verify old-key rejection, sign in with the replacement and complete the existing project,
+agent, settlement and AI posting workflow. Backend tests check role denial, missing owners,
+unchanged overview/wallet/agent access, repeated replacement and suspended-owner behavior.
+The initial PostgreSQL run exposed a test expecting 401 instead of the existing admin
+guard's 403 for absent authorization; the expectation was corrected without changing auth.
+
+README, dashboard docs, roadmap and CREATOR_CREDENTIALS.md explain explicit recovery if
+a response is lost and the limits: no credential audit events, expiry policy, notification,
+admin-key rotation or account-wide agent revocation yet. Hosted tests use local D1 simulation.
+No deployment, Site identity/audience change, cash operation or vendor certification occurred.
+
+Final verification: all 81 PostgreSQL tests passed. Lint/format, hosted build and diff
+checks passed. Working changes are prepared for a draft PR on the existing stack.

@@ -25,6 +25,7 @@ from agentix.api import (
     require_owner,
     security,
     task_view,
+    token_hash,
     visible_task,
 )
 from agentix.execution import (
@@ -311,6 +312,15 @@ def mount_portal(app):
             "ledger_entries": db.scalar(select(func.count()).select_from(Entry)),
             "ledger_check": reconcile(db),
         }
+
+    @app.post("/v1/admin/owners/{owner_id}/rotate-key", dependencies=[Depends(require_admin)])
+    def rotate_owner_key(owner_id: str, db: DB):
+        owner = db.get(Owner, owner_id, with_for_update=True)
+        if owner is None:
+            raise HTTPException(404, "Owner not found")
+        token = secrets.token_urlsafe(32)
+        owner.token_hash = token_hash(token)
+        return {"owner_id": owner.id, "api_key": token}
 
     @app.patch("/v1/admin/owners/{owner_id}", dependencies=[Depends(require_admin)])
     def owner_status(owner_id: str, body: schemas.OwnerStatus, db: DB):
