@@ -78,18 +78,27 @@ class AgentixAdapter:
         stop: Event,
         poll_seconds: float = 2,
         max_poll_seconds: float = 30,
+        max_tasks: int | None = None,
     ):
         """Poll with bounded idle backoff. Exhausted request errors propagate.
 
         Setting stop interrupts idle waiting; an active handler completes and submits
         under its renewable lease before shutdown. Handlers own their tool timeouts.
+        max_tasks bounds successful submissions in this invocation, not elapsed time.
+        Idle polls do not count; None keeps polling until stop is set.
         """
         if not 0 < poll_seconds <= max_poll_seconds <= 300:
             raise ValueError("Polling intervals must satisfy 0 < initial <= maximum <= 300")
+        if max_tasks is not None and (type(max_tasks) is not int or max_tasks < 1):
+            raise ValueError("max_tasks must be a positive integer or None")
+        completed = 0
         delay = poll_seconds
         while not stop.is_set():
             task_id = self.run_once(handler)
             if task_id is not None:
+                completed += 1
+                if max_tasks is not None and completed >= max_tasks:
+                    break
                 delay = poll_seconds
                 continue
             if stop.wait(self._jitter(delay)):

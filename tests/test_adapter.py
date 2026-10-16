@@ -304,3 +304,69 @@ def test_idle_jitter_preserves_exponential_ceiling_and_stop(monkeypatch):
             max_poll_seconds=5,
         )
     assert stop.delays == [1, 2, 2.5, 2.5]
+
+
+@pytest.mark.parametrize("limit", [0, -1, True, 1.5, "2"])
+def test_session_task_limit_rejects_invalid_values_before_requests(limit):
+    requests = []
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(lambda request: requests.append(request)),
+    ) as adapter:
+        with pytest.raises(ValueError, match="max_tasks"):
+            adapter.run_forever(lambda _: {}, stop=Event(), max_tasks=limit)
+    assert requests == []
+
+
+def test_session_task_limit_leaves_next_assignment_unclaimed(client, app, participants):
+    from agentix.models import Agent
+
+    p = participants
+    with app.state.sessions.begin() as db:
+        db.get(Agent, p["agent"]["id"]).capacity = 2
+    task_ids = {reserve(client, p, key=key, price=20).json()["id"] for key in ("one", "two")}
+    claims, handled = [], []
+
+    def transport(request):
+        if request.url.path == "/v1/tasks/claim":
+            claims.append(request)
+            if len(claims) == 1:
+                return httpx.Response(204)  # Idle polls must not consume the task budget.
+        response = client.request(
+            request.method, str(request.url), headers=dict(request.headers), content=request.content
+        )
+        return httpx.Response(response.status_code, content=response.content)
+
+    def handler(task):
+        handled.append(task["id"])
+        return {"text": "Owner-local work"}
+
+    stop = Event()
+    with AgentixAdapter(
+        "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
+    ) as adapter:
+        adapter.run_forever(handler, stop=stop, max_tasks=1, poll_seconds=0.001)
+        assert len(claims) == 2
+        assert len(handled) == 1
+        states = [
+            client.get(f"/v1/tasks/{t}", headers=p["buyer"]).json()["state"] for t in task_ids
+        ]
+        assert sorted(states) == ["reserved", "submitted"]
+        assert not stop.is_set()  # The caller owns its stop signal; another invocation is allowed.
+        adapter.run_forever(handler, stop=stop, max_tasks=1)
+    assert len(claims) == 3
+    assert set(handled) == task_ids
+
+
+def test_stopped_bounded_session_does_not_claim():
+    stop = Event()
+    stop.set()
+    requests = []
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(lambda request: requests.append(request)),
+    ) as adapter:
+        adapter.run_forever(lambda _: {}, stop=stop, max_tasks=1)
+    assert requests == []

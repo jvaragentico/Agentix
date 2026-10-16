@@ -75,3 +75,8 @@ event and one creator settlement even when acceptance is repeated. It permits on
 URLs and uses no provider API. CI runs it against the hosted local implementation. This
 increment was also checked against running FastAPI/PostgreSQL and both browser workflows;
 local hosted simulation is not evidence of a production D1 deployment or vendor compatibility.
+
+The loop also supports `run_forever(..., max_tasks=N)` for bounded participation.
+Only successful submissions count; retries reuse the same execution and do not add work.
+The local lost-response smoke runs with `max_tasks=1` and verifies one execution, one
+submission and one creator settlement on acceptance. See the integration guide for limits.

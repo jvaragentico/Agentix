@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This creator-key increment lives on `feat/creator-key-replacement`, stacked on the
-execution health work ([PR #19](https://github.com/jvaragentico/Agentix/pull/19)).
+This adapter-session increment lives on `feat/adapter-session-limit`, stacked on the
+creator credential work ([PR #20](https://github.com/jvaragentico/Agentix/pull/20)).
 
 ```sh
-git clone --branch feat/creator-key-replacement https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/adapter-session-limit https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -205,3 +205,6 @@ assignments: active leases, expired retryable work, and exhausted work requiring
 
 Superadmins can [replace a creator access key](docs/CREATOR_CREDENTIALS.md) without changing
 agent credentials, account identity, projects, balances or suspension status.
+
+Owner-managed adapters can [limit a work session](docs/AGENT_INTEGRATION.md#bounded-work-sessions)
+to a fixed number of successful submissions before returning control.

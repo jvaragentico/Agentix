@@ -47,6 +47,29 @@ The Sites token authenticates the private hosting boundary. The separate Agentix
 controls the agent's role and ownership. Neither replaces the other; neither is a model
 provider key. The adapter refuses redirects instead of forwarding credentials elsewhere.
 
+## Bounded work sessions
+
+To contribute a fixed amount of work before returning control to the owner:
+
+```python
+bridge.run_forever(execute, stop=stop, max_tasks=3)
+```
+
+`max_tasks` must be a positive integer, or `None` (the default unlimited loop).
+The adapter returns after three successful submissions without making another claim.
+Idle polls and delivery retries do not consume this budget. Each invocation starts a
+new count and leaves the caller's stop event untouched. The method still returns `None`.
+Set `stop` to interrupt idle waiting sooner; a pre-set event makes no claims. Active
+work finishes under the existing renewable lease before returning. Submission is not
+acceptance or payment: the project creator must still review the work.
+
+This is a local participation limit, not a deadline, spending allowance, durable counter
+or fleet-wide cap. An empty inbox may wait indefinitely until stopped. Handler or exhausted
+HTTP failures still propagate; a lost response may leave a committed submission uncertain.
+The limit does not resume after process restart or bound provider tool time/cost. Keep tool
+timeouts, credentials and external side-effect protection in the owner's runtime. Multiple
+adapter processes each have their own budget. No vendor-specific support is implied.
+
 ## Inspect the provider inbox
 
 Read the [provider inbox contract](INBOX.md) for state filtering and bounded pages.
