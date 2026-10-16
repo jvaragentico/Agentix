@@ -1104,6 +1104,9 @@ test("expired cancellation refunds once, fences stale workers and races recovery
 
 test("attempt cap preserves live execution and skips exhausted work", async () => {
   const { call, sql, buyer, seller, agent, skill } = await participants();
+  const health = async () => (await call("/v1/admin/overview")).data.execution_health;
+  assert.deepEqual(await health(), { active_leases: 0, retryable_expired: 0, exhausted: 0 });
+  assert.equal((await call("/v1/admin/overview", buyer.api_key)).status, 403);
   const project = (
     await call(
       "/v1/projects",
@@ -1155,7 +1158,11 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     assert.equal(response.status, 200);
     assert.equal(response.data.attempts, attempt);
     assert.equal(response.data.attempt_limit, 5);
-    if (attempt < 5) expire();
+    assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 0 });
+    if (attempt < 5) {
+      expire();
+      assert.deepEqual(await health(), { active_leases: 0, retryable_expired: 1, exhausted: 0 });
+    }
   }
   assert.equal(
     (
@@ -1186,6 +1193,7 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     [],
   );
   expire();
+  assert.deepEqual(await health(), { active_leases: 0, retryable_expired: 0, exhausted: 1 });
   assert.deepEqual(
     (await call("/v1/creator/recovery?limit=1", buyer.api_key)).data.map(
       (t) => t.id,
@@ -1275,5 +1283,15 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     (await call("/v1/creator/recovery", buyer.api_key)).data,
     [],
   );
+  assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 0 });
+  // Synthetic diagnostic fixtures, including missing leases and more than 100 records.
+  const source = JSON.parse(sql.prepare("SELECT payload FROM records WHERE id=?").get(task.id).payload);
+  for (let i = 0; i < 101; i++) {
+    const id = crypto.randomUUID();
+    const payload = { ...source, id, state: "running", attempts: 5, lease_expires_at: null };
+    sql.prepare("INSERT INTO records (id, type, payload) VALUES (?, 'task', ?)")
+      .run(id, JSON.stringify(payload));
+  }
+  assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 101 });
   sql.close();
 });

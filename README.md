@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This recovery-context increment lives on `feat/recovery-project-context`, stacked on the
-creator recovery queue ([PR #17](https://github.com/jvaragentico/Agentix/pull/17)).
+This execution-health increment lives on `feat/admin-execution-health`, stacked on the
+recovery context work ([PR #18](https://github.com/jvaragentico/Agentix/pull/18)).
 
 ```sh
-git clone --branch feat/recovery-project-context https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/admin-execution-health https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -199,3 +199,6 @@ Browser checks: `npm ci`, then `npm run test:browser`. Hosted transaction checks
 `npm ci --prefix hosted`, then `npm test --prefix hosted`. Browser checks require a running
 API and an administrator credential in `AGENTIX_ADMIN_TOKEN`; set `AGENTIX_BROWSER_URL`.
 Live free inference is tested explicitly before publication and is opt-in during CI.
+
+Superadmins can inspect [execution health](docs/EXECUTION_HEALTH.md) across all running
+assignments: active leases, expired retryable work, and exhausted work requiring creator review.

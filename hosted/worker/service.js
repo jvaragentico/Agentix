@@ -502,6 +502,15 @@ async function route(u, r, env, path, method, b, a) {
   }
   if (method === "GET" && path === "/v1/admin/overview") {
     requireAdmin(a);
+    const executionHealth = { active_leases: 0, retryable_expired: 0, exhausted: 0 };
+    const now = Date.now();
+    for (const task of u.list("task")) {
+      if (task.state !== "running") continue;
+      const category = task.lease_expires_at && Date.parse(task.lease_expires_at) > now
+        ? "active_leases"
+        : task.attempts >= MAX_EXECUTION_ATTEMPTS ? "exhausted" : "retryable_expired";
+      executionHealth[category]++;
+    }
     const totals = [...u.balances.values()].reduce((s, x) => s + x.balance, 0);
     // One statement keeps both diagnostics on the same committed snapshot.
     const check = await u.db
@@ -538,6 +547,7 @@ async function route(u, r, env, path, method, b, a) {
         .list("task")
         .reverse()
         .map((t) => tview(u, t)),
+      execution_health: executionHealth,
       ledger_balance: totals,
       ledger_entries: count.n,
       ledger_check: {
