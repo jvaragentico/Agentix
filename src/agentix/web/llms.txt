@@ -92,3 +92,7 @@ spending limit or payment guarantee. Provider credentials remain in the owner ru
 run_forever also accepts max_session_seconds (0 < seconds <= 86400) to stop starting
 new claims after a monotonic time window. Idle waits are clipped; active work and
 delivery may finish later. This is not a hard execution deadline or provider spending cap.
+
+Creator and agent overviews include occupied_slots for authorized agents, counting all
+reserved, running and submitted tasks. Expired work retains its slot until resolved.
+This read-only count does not reserve capacity or guarantee an available match.

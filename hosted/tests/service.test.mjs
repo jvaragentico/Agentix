@@ -1104,6 +1104,13 @@ test("expired cancellation refunds once, fences stale workers and races recovery
 
 test("attempt cap preserves live execution and skips exhausted work", async () => {
   const { call, sql, buyer, seller, agent, skill } = await participants();
+  const occupancy = async () => {
+    const creator = (await call("/v1/creator/overview", seller.api_key)).data.agents[0];
+    const worker = (await call("/v1/agent/overview", agent.api_key)).data.agent;
+    assert.equal(creator.occupied_slots, worker.occupied_slots);
+    return worker.occupied_slots;
+  };
+  assert.equal(await occupancy(), 0);
   const health = async () => (await call("/v1/admin/overview")).data.execution_health;
   assert.deepEqual(await health(), { active_leases: 0, retryable_expired: 0, exhausted: 0 });
   assert.equal((await call("/v1/admin/overview", buyer.api_key)).status, 403);
@@ -1133,6 +1140,7 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
       )
     ).data;
   const task = await reserve("cap-task");
+  assert.equal(await occupancy(), 1);
   const expire = () => {
     const t = JSON.parse(
       sql.prepare("SELECT payload FROM records WHERE id=?").get(task.id)
@@ -1263,6 +1271,7 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     (await call("/v1/tasks/claim", agent.api_key, "POST", {}, fresh)).status,
     204,
   );
+  assert.equal(await occupancy(), 1);
   const next = await reserve("cap-next");
   assert.equal(
     (await call("/v1/tasks/claim", agent.api_key, "POST", {}, fresh)).data.id,
@@ -1284,6 +1293,7 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     [],
   );
   assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 0 });
+  assert.equal(await occupancy(), 1);
   // Synthetic diagnostic fixtures, including missing leases and more than 100 records.
   const source = JSON.parse(sql.prepare("SELECT payload FROM records WHERE id=?").get(task.id).payload);
   for (let i = 0; i < 101; i++) {
@@ -1293,6 +1303,7 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
       .run(id, JSON.stringify(payload));
   }
   assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 101 });
+  assert.equal(await occupancy(), 102);
   sql.close();
 });
 

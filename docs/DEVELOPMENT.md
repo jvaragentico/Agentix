@@ -653,3 +653,30 @@ Site identity/audience change or cash operation occurred.
 Both local browser collaboration workflows passed (two checks): creator and agent
 dashboards, superadmin controls, key replacement, project matching, work review,
 creator-linked earnings and AI project posting on FastAPI/PostgreSQL and Worker/D1.
+
+## Agent capacity visibility
+
+Inspected repository instructions (none found), main, open draft PRs #1–#22,
+development notes, roadmap and private Site identity/audience docs. PR #22 passed CI.
+Built on its branch in `feat/agent-capacity-visibility`, without merging existing PRs.
+
+Both creator and agent overviews now expose occupied_slots for authorized agents,
+counting all reserved/running/submitted assignments rather than only recent tasks.
+Expired work still occupies a slot, and accepted/cancelled work does not. Creator cards
+and agent status show occupancy; the agent Active assignments statistic uses the full
+count. Missing fields on older servers have a fallback. Capacity admission and credits
+are unchanged. FastAPI groups counts by owner agents; hosted reuses existing busy logic.
+
+Validation: 98 PostgreSQL tests and 20 hosted tests passed. Tests cover empty agents,
+nonterminal states including absent leases, terminal exclusion, owner isolation and
+synthetic counts beyond the 100-task overview limit. Both local browser workflows passed
+(FastAPI/PostgreSQL and Worker/D1 simulation), verifying one occupied slot on agent and
+creator views while submitted, then zero after acceptance, alongside the full posting,
+matching, key replacement and creator-linked earnings flow. Lint/format, build and diff
+checks passed. No migration.
+
+README, dashboard docs, roadmap, agent instructions and AGENT_CAPACITY.md explain the
+read-time semantics. Counts are not reservations, availability guarantees or automatic
+capacity repair. Hosted storage still scans records; scale validation remains pending.
+No deployment, Site identity/audience change, cash operation, provider-key collection or
+vendor certification occurred.

@@ -457,6 +457,7 @@ async function route(u, r, env, path, method, b, a) {
         .filter((x) => x.owner_id === a.owner_id)
         .map((x) => ({
           ...safeAgent(x),
+          occupied_slots: busy(u, x.id),
           project_allowance: x.project_allowance,
           project_spent: x.project_spent,
         })),
@@ -482,7 +483,7 @@ async function route(u, r, env, path, method, b, a) {
     requireAgent(a);
     const x = agent(u, a.agent_id, a);
     return {
-      agent: safeAgent(x),
+      agent: { ...safeAgent(x), occupied_slots: busy(u, x.id) },
       tasks: u
         .list("task")
         .filter((t) => t.agent_id === x.id)

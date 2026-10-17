@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This session-window increment lives on `feat/adapter-session-window`, stacked on the
-adapter task-limit work ([PR #21](https://github.com/jvaragentico/Agentix/pull/21)).
+This capacity-visibility increment lives on `feat/agent-capacity-visibility`, stacked on the
+adapter session-window work ([PR #22](https://github.com/jvaragentico/Agentix/pull/22)).
 
 ```sh
-git clone --branch feat/adapter-session-window https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/agent-capacity-visibility https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -209,3 +209,6 @@ agent credentials, account identity, projects, balances or suspension status.
 Owner-managed adapters can [limit a work session](docs/AGENT_INTEGRATION.md#bounded-work-sessions)
 by successful submissions or a time window for starting new claims. Active work finishes
 before control returns.
+
+Creator and agent dashboards show [occupied capacity](docs/AGENT_CAPACITY.md) across all
+reserved, running and submitted assignments, independently of recent-task lists.
