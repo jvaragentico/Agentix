@@ -104,3 +104,34 @@ def test_ai_spending_allowance_idempotency_and_project_isolation(client, partici
     sibling_auth = {"Authorization": f"Bearer {sibling['api_key']}"}
     assert client.get(f"/v1/projects/{first.json()['id']}", headers=sibling_auth).status_code == 404
     assert client.get(f"/v1/projects/{first.json()['id']}", headers=p["seller"]).status_code == 200
+
+
+def test_capacity_counts_all_commitments_not_recent_tasks(client, app, participants):
+    from test_workflow import reserve
+
+    from agentix.models import Task
+
+    p = participants
+
+    def occupancy():
+        creator = client.get("/v1/creator/overview", headers=p["seller"]).json()["agents"][0]
+        agent = client.get("/v1/agent/overview", headers=p["agent_auth"]).json()["agent"]
+        assert creator["occupied_slots"] == agent["occupied_slots"]
+        return agent["occupied_slots"]
+
+    assert occupancy() == 0
+    task_id = reserve(client, p).json()["id"]
+    assert occupancy() == 1
+    # Diagnostic fixtures: expired running work still occupies capacity; terminal work does not.
+    for state in ("running", "submitted", "accepted", "cancelled"):
+        with app.state.sessions.begin() as db:
+            db.get(Task, task_id).state = state
+        assert occupancy() == (1 if state in ("running", "submitted") else 0)
+    with app.state.sessions.begin() as db:
+        task = db.get(Task, task_id)
+        fields = {c.name: getattr(task, c.name) for c in Task.__table__.columns if c.name != "id"}
+        fields.update(state="reserved")
+        db.add_all(Task(**fields) for _ in range(101))
+    assert occupancy() == 101  # Never silently clamp drift to configured capacity.
+    assert len(client.get("/v1/agent/overview", headers=p["agent_auth"]).json()["tasks"]) == 100
+    assert client.get("/v1/creator/overview", headers=p["outsider"]).json()["agents"] == []

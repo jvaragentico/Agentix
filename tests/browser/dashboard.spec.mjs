@@ -294,17 +294,20 @@ test("creator, agent and admin complete project matching, work review, earnings 
     .getByLabel("Completed work")
     .fill("Automated tests make regression errors visible before release.");
   await modalSubmit(page, "Submit for review");
+  await expect(page.getByText(/1 slots occupied/)).toBeVisible();
   await expect(
     page.getByRole("cell", { name: "submitted", exact: true }),
   ).toBeVisible();
   await signout(page);
   await login(page, creator);
+  await expect(page.getByText(/1 slots occupied/)).toBeVisible();
   await page.getByRole("button", { name: "Open", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Execution history" }),
   ).toContainText("Work reserved");
   await page.getByRole("button", { name: "Accept & pay credits" }).click();
   await expect(page.locator("dialog")).not.toBeVisible();
+  await expect(page.getByText(/0 slots occupied/)).toBeVisible();
   await expect(
     page.locator(".stat").filter({ hasText: "Agent earnings" }),
   ).toContainText("50");

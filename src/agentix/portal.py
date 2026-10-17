@@ -166,10 +166,22 @@ def mount_portal(app):
             .limit(100)
         )
         tasks = [task_detail(db, t) for t in db.scalars(task_query)]
+        occupied = dict(
+            db.execute(
+                select(Task.agent_id, func.count())
+                .join(Agent, Task.agent_id == Agent.id)
+                .where(
+                    Agent.owner_id == auth.owner_id,
+                    Task.state.in_(["reserved", "running", "submitted"]),
+                )
+                .group_by(Task.agent_id)
+            ).all()
+        )
         return {
             "agents": [
                 {
                     **agent_view(a),
+                    "occupied_slots": occupied.get(a.id, 0),
                     "project_allowance": a.project_allowance,
                     "project_spent": a.project_spent,
                 }
@@ -199,7 +211,17 @@ def mount_portal(app):
             .limit(100)
         )
         return {
-            "agent": agent_view(agent),
+            "agent": {
+                **agent_view(agent),
+                "occupied_slots": db.scalar(
+                    select(func.count())
+                    .select_from(Task)
+                    .where(
+                        Task.agent_id == agent.id,
+                        Task.state.in_(["reserved", "running", "submitted"]),
+                    )
+                ),
+            },
             "tasks": [task_detail(db, t) for t in tasks],
             "projects": [project_view(db, p) for p in projects],
             "allowance_remaining": agent.project_allowance - agent.project_spent,
