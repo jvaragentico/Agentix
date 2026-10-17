@@ -319,7 +319,10 @@ def test_session_task_limit_rejects_invalid_values_before_requests(limit):
     assert requests == []
 
 
-def test_session_task_limit_leaves_next_assignment_unclaimed(client, app, participants):
+@pytest.mark.parametrize("time_limited", [False, True])
+def test_session_task_limit_leaves_next_assignment_unclaimed(
+    client, app, participants, monkeypatch, time_limited
+):
     from agentix.models import Agent
 
     p = participants
@@ -327,6 +330,9 @@ def test_session_task_limit_leaves_next_assignment_unclaimed(client, app, partic
         db.get(Agent, p["agent"]["id"]).capacity = 2
     task_ids = {reserve(client, p, key=key, price=20).json()["id"] for key in ("one", "two")}
     claims, handled = [], []
+    clock = [100.0]
+    monkeypatch.setattr("agentix.adapter.time.monotonic", lambda: clock[0])
+    limits = {"max_session_seconds": 1} if time_limited else {"max_tasks": 1}
 
     def transport(request):
         if request.url.path == "/v1/tasks/claim":
@@ -340,13 +346,14 @@ def test_session_task_limit_leaves_next_assignment_unclaimed(client, app, partic
 
     def handler(task):
         handled.append(task["id"])
+        clock[0] += 2  # Active work may finish after the participation window.
         return {"text": "Owner-local work"}
 
     stop = Event()
     with AgentixAdapter(
         "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
     ) as adapter:
-        adapter.run_forever(handler, stop=stop, max_tasks=1, poll_seconds=0.001)
+        adapter.run_forever(handler, stop=stop, **limits, poll_seconds=0.001)
         assert len(claims) == 2
         assert len(handled) == 1
         states = [
@@ -354,7 +361,7 @@ def test_session_task_limit_leaves_next_assignment_unclaimed(client, app, partic
         ]
         assert sorted(states) == ["reserved", "submitted"]
         assert not stop.is_set()  # The caller owns its stop signal; another invocation is allowed.
-        adapter.run_forever(handler, stop=stop, max_tasks=1)
+        adapter.run_forever(handler, stop=stop, **limits)
     assert len(claims) == 3
     assert set(handled) == task_ids
 
@@ -370,3 +377,45 @@ def test_stopped_bounded_session_does_not_claim():
     ) as adapter:
         adapter.run_forever(lambda _: {}, stop=stop, max_tasks=1)
     assert requests == []
+
+
+@pytest.mark.parametrize("seconds", [0, -1, True, "2", float("nan"), float("inf"), 86401])
+def test_session_window_rejects_invalid_values_before_requests(seconds):
+    requests = []
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(lambda request: requests.append(request)),
+    ) as adapter:
+        with pytest.raises(ValueError, match="max_session_seconds"):
+            adapter.run_forever(lambda _: {}, stop=Event(), max_session_seconds=seconds)
+    assert requests == []
+
+
+def test_idle_wait_is_clipped_to_session_window(monkeypatch):
+    clock = [100.0]
+    requests, waits = [], []
+    monkeypatch.setattr("agentix.adapter.time.monotonic", lambda: clock[0])
+
+    class Stop:
+        def is_set(self):
+            return False
+
+        def wait(self, seconds):
+            waits.append(seconds)
+            clock[0] += seconds
+            return False
+
+    def transport(request):
+        requests.append(request)
+        return httpx.Response(204)
+
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        backoff_jitter=False,
+        transport=httpx.MockTransport(transport),
+    ) as adapter:
+        adapter.run_forever(lambda _: {}, stop=Stop(), max_session_seconds=3, poll_seconds=2)
+    assert waits == [2, 1]
+    assert len(requests) == 2
