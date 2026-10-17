@@ -119,9 +119,17 @@ def test_capacity_counts_all_commitments_not_recent_tasks(client, app, participa
         assert creator["occupied_slots"] == agent["occupied_slots"]
         return agent["occupied_slots"]
 
+    def capacity_check():
+        response = client.get("/v1/admin/overview", headers=ADMIN)
+        assert response.status_code == 200
+        return response.json()["capacity_check"]
+
+    healthy = {"healthy": True, "overcommitted_agents": 0, "excess_assignments": 0}
+    assert capacity_check() == healthy
     assert occupancy() == 0
     task_id = reserve(client, p).json()["id"]
     assert occupancy() == 1
+    assert capacity_check() == healthy
     # Diagnostic fixtures: expired running work still occupies capacity; terminal work does not.
     for state in ("running", "submitted", "accepted", "cancelled"):
         with app.state.sessions.begin() as db:
@@ -135,3 +143,10 @@ def test_capacity_counts_all_commitments_not_recent_tasks(client, app, participa
     assert occupancy() == 101  # Never silently clamp drift to configured capacity.
     assert len(client.get("/v1/agent/overview", headers=p["agent_auth"]).json()["tasks"]) == 100
     assert client.get("/v1/creator/overview", headers=p["outsider"]).json()["agents"] == []
+
+    expected = {"healthy": False, "overcommitted_agents": 1, "excess_assignments": 100}
+    before = client.get("/v1/wallet", headers=p["seller"]).json()
+    assert capacity_check() == expected
+    assert capacity_check() == expected
+    assert occupancy() == 101
+    assert client.get("/v1/wallet", headers=p["seller"]).json() == before

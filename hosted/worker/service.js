@@ -503,6 +503,20 @@ async function route(u, r, env, path, method, b, a) {
   }
   if (method === "GET" && path === "/v1/admin/overview") {
     requireAdmin(a);
+    const occupied = new Map();
+    for (const task of u.list("task")) {
+      if (["reserved", "running", "submitted"].includes(task.state))
+        occupied.set(task.agent_id, (occupied.get(task.agent_id) || 0) + 1);
+    }
+    const capacityCheck = { healthy: true, overcommitted_agents: 0, excess_assignments: 0 };
+    for (const agent of u.list("agent")) {
+      const excess = (occupied.get(agent.id) || 0) - agent.capacity;
+      if (excess > 0) {
+        capacityCheck.healthy = false;
+        capacityCheck.overcommitted_agents++;
+        capacityCheck.excess_assignments += excess;
+      }
+    }
     const executionHealth = { active_leases: 0, retryable_expired: 0, exhausted: 0 };
     const now = Date.now();
     for (const task of u.list("task")) {
@@ -548,6 +562,7 @@ async function route(u, r, env, path, method, b, a) {
         .list("task")
         .reverse()
         .map((t) => tview(u, t)),
+      capacity_check: capacityCheck,
       execution_health: executionHealth,
       ledger_balance: totals,
       ledger_entries: count.n,

@@ -27,3 +27,31 @@ Tests cover empty and occupied agents, running/missing-lease and submitted state
 exclusion, owner isolation and synthetic counts above 100. Browser checks exercise real
 submission and acceptance, showing one occupied slot before review and zero after acceptance
 on both local backends. Hosted verification uses D1 simulation, not a production deployment.
+
+## Superadmin capacity check
+
+`GET /v1/admin/overview` includes administrator-only `capacity_check`:
+
+```json
+{"healthy": true, "overcommitted_agents": 0, "excess_assignments": 0}
+```
+
+Every agent is checked, including paused agents and agents owned by suspended creators.
+For each agent, occupied assignments use the same reserved/running/submitted definition.
+An agent exactly at capacity is healthy. `overcommitted_agents` counts agents above
+capacity; `excess_assignments` sums only the positive differences. Spare slots on other
+agents cannot offset an overcommitted agent. Empty systems return zero counts and healthy.
+The check is independent of recent overview lists. FastAPI uses a grouped query with a
+HAVING condition; hosted uses an in-memory task-count map.
+
+The superadmin panel displays healthy, review-required or unavailable (older server)
+text. Refresh reads the check again. It does not identify which particular assignments
+should be cancelled, modify capacity, cancel work, or move credits. Warnings need operator
+investigation with the existing agent/task records; detailed drill-down and automatic
+repair are not implemented. Counts can change after a read and are not a platform-wide
+transaction snapshot shared with the other overview panels.
+
+Synthetic overcapacity fixtures verify counts beyond 100 tasks and that repeated reads
+leave work and balances unchanged. Browser checks read a real healthy result and inject
+warning data to verify display after Refresh. This is diagnostic coverage, not a load
+benchmark or proof that every source of capacity drift is detected.

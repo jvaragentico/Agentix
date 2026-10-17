@@ -452,10 +452,14 @@ test("creator, agent and admin complete project matching, work review, earnings 
   );
   await expect(page.getByRole("status", { name: "Execution health", exact: true }))
     .toContainText(`${ledgerData.execution_health.exhausted} exhausted`);
+  expect(ledgerData.capacity_check).toEqual({ healthy: true, overcommitted_agents: 0, excess_assignments: 0 });
+  await expect(page.getByRole("status", { name: "Capacity check", exact: true }))
+    .toHaveText("Healthy: assignments fit configured agent capacity.");
   // Exercise the warning display without corrupting the running test database.
   await page.route("**/v1/admin/overview", async (route) => {
     const response = await route.fetch();
     const body = await response.json();
+    body.capacity_check = { healthy: false, overcommitted_agents: 2, excess_assignments: 3 };
     body.execution_health = { active_leases: 3, retryable_expired: 2, exhausted: 1 };
     body.ledger_check = {
       healthy: false,
@@ -470,6 +474,8 @@ test("creator, agent and admin complete project matching, work review, earnings 
   ).toContainText("Review required: 2 account mismatches; 1 invalid journals.");
   await expect(page.getByRole("status", { name: "Execution health", exact: true }))
     .toHaveText("3 active leases · 2 expired and retryable · 1 exhausted");
+  await expect(page.getByRole("status", { name: "Capacity check", exact: true }))
+    .toHaveText("Review required: 2 overcommitted agents; 3 excess assignments.");
   expect(errors).toEqual([]);
   expect(privateResponses).toBeGreaterThan(10);
   expect(cacheViolations).toEqual([]);
