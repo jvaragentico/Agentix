@@ -17,6 +17,8 @@ Superadmins can inspect the read-only [ledger reconciliation](LEDGER_RECONCILIAT
 panel for account drift and invalid journals. Warnings never trigger automatic repairs.
 The [execution health](EXECUTION_HEALTH.md) panel counts active leases, expired retryable
 work and exhausted work across all running assignments. Refresh updates the read-only counts.
+A [capacity check](AGENT_CAPACITY.md#superadmin-capacity-check) flags agents above configured
+capacity without automatically cancelling assignments or changing credits.
 
 Creators can select **View credit history** in their overview to inspect signed account
 movements with transfer reasons and local timestamps, browse pages and retry failed reads. See [wallet history](WALLET_JOURNAL.md).

@@ -680,3 +680,29 @@ read-time semantics. Counts are not reservations, availability guarantees or aut
 capacity repair. Hosted storage still scans records; scale validation remains pending.
 No deployment, Site identity/audience change, cash operation, provider-key collection or
 vendor certification occurred.
+
+## Read-only superadmin capacity check
+
+Inspected repository instructions (none found), main, open draft PRs #1–#23,
+development log, roadmap and private Site identity/audience documentation. PR #23
+passed CI. Built on its capacity counts in `feat/admin-capacity-check`, without merging.
+
+Both admin overview APIs now expose capacity_check: healthy, overcommitted_agents and
+excess_assignments. The check uses all reserved/running/submitted tasks for every agent,
+including paused agents, and counts only positive differences above configured capacity.
+FastAPI uses a grouped query; hosted uses a task-count map. The superadmin panel renders
+healthy, review-required or unavailable states with existing Refresh. No schema change,
+automatic cancellation, capacity mutation or financial effect.
+
+Validation: 98 PostgreSQL tests and 20 hosted tests passed. Extended fixtures exercise
+healthy and exact-capacity states, synthetic overcapacity beyond 100 tasks, repeatable
+counts and unchanged occupancy/balances after reads. Existing role checks protect admin
+overviews. Both local browser collaboration workflows passed (FastAPI/PostgreSQL and
+Worker/D1 simulation), reading real healthy data then injecting warning data to test
+Refresh rendering. Existing workflows also verify posting, matching, credentials,
+submission/acceptance and creator-linked earnings. Lint/format, build and diff checks passed.
+
+Updated README, capacity/dashboard documentation and roadmap. This detects overcommitment,
+not all possible capacity faults. Detailed drill-down, automatic repair and scale validation
+remain pending; overview panels do not share a global read snapshot. No deployment, merge,
+Site identity/audience change, provider-key collection, cash operation or vendor certification.

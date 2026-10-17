@@ -315,7 +315,19 @@ def mount_portal(app):
                 select(category, func.count()).where(Task.state == "running").group_by(category)
             ).all()
         )
+        overcommitted = db.execute(
+            select(Agent.capacity, func.count(Task.id))
+            .join(Task, Task.agent_id == Agent.id)
+            .where(Task.state.in_(["reserved", "running", "submitted"]))
+            .group_by(Agent.id, Agent.capacity)
+            .having(func.count(Task.id) > Agent.capacity)
+        ).all()
         return {
+            "capacity_check": {
+                "healthy": not overcommitted,
+                "overcommitted_agents": len(overcommitted),
+                "excess_assignments": sum(count - capacity for capacity, count in overcommitted),
+            },
             "execution_health": execution_health,
             "owners": [
                 {

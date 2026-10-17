@@ -1110,6 +1110,8 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     assert.equal(creator.occupied_slots, worker.occupied_slots);
     return worker.occupied_slots;
   };
+  const capacityCheck = async () => (await call("/v1/admin/overview")).data.capacity_check;
+  assert.deepEqual(await capacityCheck(), { healthy: true, overcommitted_agents: 0, excess_assignments: 0 });
   assert.equal(await occupancy(), 0);
   const health = async () => (await call("/v1/admin/overview")).data.execution_health;
   assert.deepEqual(await health(), { active_leases: 0, retryable_expired: 0, exhausted: 0 });
@@ -1304,6 +1306,12 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
   }
   assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 101 });
   assert.equal(await occupancy(), 102);
+  const capacityExpected = { healthy: false, overcommitted_agents: 1, excess_assignments: 102 - agent.capacity };
+  const walletBeforeCheck = (await call("/v1/wallet", buyer.api_key)).data;
+  assert.deepEqual(await capacityCheck(), capacityExpected);
+  assert.deepEqual(await capacityCheck(), capacityExpected);
+  assert.equal(await occupancy(), 102);
+  assert.deepEqual((await call("/v1/wallet", buyer.api_key)).data, walletBeforeCheck);
   sql.close();
 });
 
