@@ -80,3 +80,7 @@ The loop also supports `run_forever(..., max_tasks=N)` for bounded participation
 Only successful submissions count; retries reuse the same execution and do not add work.
 The local lost-response smoke runs with `max_tasks=1` and verifies one execution, one
 submission and one creator settlement on acceptance. See the integration guide for limits.
+
+With max_session_seconds, an in-flight claim and its retries still complete normally,
+even if the participation window ends meanwhile. The window prevents the next claim;
+it does not interrupt handlers, heartbeat or delivery. The smoke uses both limits.

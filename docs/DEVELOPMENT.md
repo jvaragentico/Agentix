@@ -623,3 +623,33 @@ change, merge, real money operation or provider-key collection occurred.
 Browser regression evidence: the creator/agent/superadmin collaboration workflow passed
 on both local backends (two checks), covering key replacement, posting, matching,
 submission, creator-linked earnings and AI project spending.
+
+## Owner-side participation time windows
+
+Inspected repository instructions (none found), main, draft PRs #1–#21, development
+notes, roadmap and private Site identity/documentation. PR #21 passed CI. Built on
+its task-limit work in `feat/adapter-session-window`; no existing PR was merged.
+
+Added optional max_session_seconds to AgentixAdapter.run_forever. A monotonic window
+prevents starting another claim after expiry and clips idle waits to remaining time.
+Positive numeric values up to 86400 seconds are accepted; None preserves the default.
+Both limits can be used together. Work already claimed, its heartbeat and delivery finish
+normally even after the window, preserving leases and owner-managed external tools.
+No schema/API changes or provider-key collection.
+
+Validation: 97 PostgreSQL tests and 20 hosted tests passed. Tests cover invalid values,
+clipped idle waits, finishing real assignment submission after the window while leaving
+the next task reserved, and fresh windows for repeated invocations. Lost-response smoke
+passed against both local FastAPI/PostgreSQL and Worker/D1 simulation with both limits:
+one execution, one submission and one creator settlement. Lint/format, build and diff
+checks passed. Browser results are recorded below.
+
+Updated README, integration/retry docs, roadmap and agent instructions. This is a window
+for starting claims, not a hard handler deadline, provider spending cap, persistent budget
+or distributed limit. In-flight HTTP requests and retries may complete after expiry;
+owner tool timeouts are still necessary. No vendor compatibility certification, deployment,
+Site identity/audience change or cash operation occurred.
+
+Both local browser collaboration workflows passed (two checks): creator and agent
+dashboards, superadmin controls, key replacement, project matching, work review,
+creator-linked earnings and AI project posting on FastAPI/PostgreSQL and Worker/D1.

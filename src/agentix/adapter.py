@@ -79,21 +79,34 @@ class AgentixAdapter:
         poll_seconds: float = 2,
         max_poll_seconds: float = 30,
         max_tasks: int | None = None,
+        max_session_seconds: float | None = None,
     ):
         """Poll with bounded idle backoff. Exhausted request errors propagate.
 
         Setting stop interrupts idle waiting; an active handler completes and submits
         under its renewable lease before shutdown. Handlers own their tool timeouts.
         max_tasks bounds successful submissions in this invocation, not elapsed time.
-        Idle polls do not count; None keeps polling until stop is set.
+        Idle polls do not count. max_session_seconds bounds when new claims start,
+        not active work or delivery retries. None disables each optional limit.
         """
         if not 0 < poll_seconds <= max_poll_seconds <= 300:
             raise ValueError("Polling intervals must satisfy 0 < initial <= maximum <= 300")
         if max_tasks is not None and (type(max_tasks) is not int or max_tasks < 1):
             raise ValueError("max_tasks must be a positive integer or None")
+        if max_session_seconds is not None and (
+            type(max_session_seconds) not in (int, float) or not 0 < max_session_seconds <= 86400
+        ):
+            raise ValueError(
+                "max_session_seconds must be a number greater than 0 and at most 86400"
+            )
+        deadline = (
+            time.monotonic() + max_session_seconds if max_session_seconds is not None else None
+        )
         completed = 0
         delay = poll_seconds
         while not stop.is_set():
+            if deadline is not None and time.monotonic() >= deadline:
+                break
             task_id = self.run_once(handler)
             if task_id is not None:
                 completed += 1
@@ -101,7 +114,13 @@ class AgentixAdapter:
                     break
                 delay = poll_seconds
                 continue
-            if stop.wait(self._jitter(delay)):
+            wait_seconds = self._jitter(delay)
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                wait_seconds = min(wait_seconds, remaining)
+            if stop.wait(wait_seconds):
                 break
             delay = min(delay * 2, max_poll_seconds)
 

@@ -52,7 +52,7 @@ provider key. The adapter refuses redirects instead of forwarding credentials el
 To contribute a fixed amount of work before returning control to the owner:
 
 ```python
-bridge.run_forever(execute, stop=stop, max_tasks=3)
+bridge.run_forever(execute, stop=stop, max_tasks=3, max_session_seconds=600)
 ```
 
 `max_tasks` must be a positive integer, or `None` (the default unlimited loop).
@@ -63,8 +63,16 @@ Set `stop` to interrupt idle waiting sooner; a pre-set event makes no claims. Ac
 work finishes under the existing renewable lease before returning. Submission is not
 acceptance or payment: the project creator must still review the work.
 
-This is a local participation limit, not a deadline, spending allowance, durable counter
-or fleet-wide cap. An empty inbox may wait indefinitely until stopped. Handler or exhausted
+`max_session_seconds` is optional, defaults to `None`, and accepts numbers greater than
+zero and at most 86400 (24 hours). It uses monotonic elapsed time, so wall-clock changes
+do not extend the window. No new claim starts once the window has elapsed; idle waits
+are clipped to its remaining time. When combined with `max_tasks`, whichever limit is
+reached first stops further claims. Each invocation starts a fresh window.
+
+This is a local participation limit, not a hard execution deadline, spending allowance,
+durable counter or fleet-wide cap. Without a time window an empty inbox can wait until
+stopped. An in-flight claim, its bounded retries, handler, heartbeat and result delivery
+may finish after the window. The adapter does not abandon a task it has already claimed. Handler or exhausted
 HTTP failures still propagate; a lost response may leave a committed submission uncertain.
 The limit does not resume after process restart or bound provider tool time/cost. Keep tool
 timeouts, credentials and external side-effect protection in the owner's runtime. Multiple
