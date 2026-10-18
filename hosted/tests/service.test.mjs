@@ -1365,5 +1365,19 @@ test("capacity detail sample is bounded and ordered across all agents", async ()
   assert.equal(check.truncated, true);
   assert.deepEqual(check.agents.map(a => a.agent_id), ids.sort().slice(0, 10));
   assert.ok(check.agents.every(a => Object.keys(a).sort().join() === ["agent_id", "agent_name", "owner_id", "capacity", "occupied_slots", "excess_assignments"].sort().join()));
+  const pages = [];
+  for (const offset of [0, 5, 10, 15]) {
+    const response = await call(`/v1/admin/capacity?limit=5&offset=${offset}`);
+    assert.equal(response.status, 200);
+    pages.push(response.data);
+  }
+  assert.deepEqual(pages.map(p => p.length), [5, 5, 1, 0]);
+  assert.deepEqual(pages.flat().map(a => a.agent_id), ids);
+  assert.deepEqual(pages.flat().slice(0, 10), check.agents);
+  assert.deepEqual((await call("/v1/admin/capacity")).data, pages.flat());
+  for (const query of ["limit=0", "limit=101", "offset=-1", "offset=abc", "offset=9007199254740992"])
+    assert.equal((await call("/v1/admin/capacity?" + query)).status, 422);
+  for (const key of [buyer.api_key, seller.api_key])
+    assert.equal((await call("/v1/admin/capacity", key)).status, 403);
   sql.close();
 });

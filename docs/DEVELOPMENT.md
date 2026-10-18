@@ -733,3 +733,28 @@ README, dashboard/capacity docs and roadmap updated. This is a bounded sample ra
 full diagnostic pagination; detailed task links, automated repair and scale benchmarks
 remain pending. No Site deployment, identity/audience change, merge, provider-key collection,
 real money operation or vendor certification occurred.
+
+## Paginated capacity diagnostics
+
+Inspected instructions (none found), main, open draft PRs #1–#25, development notes,
+roadmap and Site identity/audience docs. PR #25 passed CI. Continued its detail work on
+`feat/capacity-diagnostic-pages`, without merging pending changes.
+
+Added admin-only GET /v1/admin/capacity with default limit 25, maximum 100 and bounded
+nonnegative offset. Both backends reuse the overview's affected-agent calculation and
+field allowlist, ordered by agent ID. Filtering precedes paging; empty pages return [].
+FastAPI applies pagination in SQL; hosted slices its sorted diagnostic results. The
+existing overview sample and dashboard are preserved. No schema or mutation changes.
+
+Validation: 99 PostgreSQL tests and 21 hosted tests passed. Extended eleven-agent drift
+fixtures traverse 5/5/1/0 pages, check default paging, stable IDs, summary/sample parity,
+invalid bounds and role denial. Both local browser collaboration workflows passed on
+FastAPI/PostgreSQL and Worker/D1 simulation, including actual admin endpoint reads,
+no-store and creator denial, plus existing dashboards, matching, credentials and settlement.
+Lint/format, hosted build and diff checks passed.
+
+README, capacity/dashboard docs and roadmap updated. This increment provides API paging;
+dashboard page controls and task-history links remain pending. Offset pages are not
+snapshots and hosted reads still scan records; no load benchmark is claimed. No deployment,
+Site identity/audience change, merge, provider-key collection, cash operation or vendor
+certification occurred.

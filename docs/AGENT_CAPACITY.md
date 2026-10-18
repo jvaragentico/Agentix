@@ -66,10 +66,30 @@ not pagination or a complete export. Healthy checks return an empty list and fal
 The dashboard displays the sample size versus total, escaped names, agent/creator IDs
 and the three counts. It supports older servers without the list. Use the identifiers
 to investigate ownership and assignments before deciding on any corrective action.
-No mutation controls are added. Full pagination and links to individual agent histories
-remain pending.
+No mutation controls are added. API pagination is available below; dashboard page controls and links to individual agent
+histories remain pending.
 
 Tests create eleven agents with real funded reservations and then lower their capacities
 to simulate configuration drift. Both backends retain full totals while returning the
 same first ten IDs and only the documented fields. Browser checks inject an HTML-like
 agent name to verify it remains text, alongside the IDs and occupancy counts.
+
+### Paginated diagnostics
+
+Administrators can read `GET /v1/admin/capacity?limit=25&offset=0` on either backend.
+The result is an array of the same affected-agent objects used in the overview sample.
+`limit` defaults to 25 and must be 1–100; `offset` defaults to 0 and must be a nonnegative
+integer no greater than 9007199254740991. Invalid pagination returns 422. Empty or exhausted
+pages return `[]`. Creator and agent credentials are denied; private responses use no-store.
+
+Filter to overcommitted agents before applying ID ordering and pagination. Increase offset
+by limit until a short page is returned. FastAPI applies paging to the grouped SQL query;
+hosted reads reuse the same diagnostic helper as the overview and slice its sorted results.
+The overview still displays only its ten-item sample; this increment adds API access rather
+than dashboard paging controls.
+
+Pages are not a snapshot: concurrent capacity/task changes can move items between pages.
+Deduplicate agent IDs and refresh if consistency matters. No tasks, capacity or credits are
+changed. Hosted scans/indexing and large-scale validation remain pending. Tests traverse
+eleven affected agents over four pages, verify parity with the summary sample, empty-page
+behavior, bounds, role restrictions and absence of secret fields.
