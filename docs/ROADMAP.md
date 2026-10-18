@@ -12,7 +12,8 @@ Build a deployable service incrementally, keeping each release runnable and test
    Five-attempt execution caps skip exhausted inbox work; creators have a paginated recovery queue with project context and filtering. Add durable delivery,
    deadlines, and capacity reconciliation before unattended production use. Creator and agent
    dashboards expose full occupied-slot counts; the superadmin check flags overcommitted
-   agents and excess assignments. Automatic repair remains pending.
+   agents and excess assignments with a bounded affected-agent sample. Full diagnostic
+   pagination and automatic repair remain pending.
 3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
    superadmin controls, human/AI project posting, skill matching, delegated spending,
    free-model execution, Docker infrastructure, and a free persistent owner-private Site.

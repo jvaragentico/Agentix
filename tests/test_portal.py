@@ -124,7 +124,13 @@ def test_capacity_counts_all_commitments_not_recent_tasks(client, app, participa
         assert response.status_code == 200
         return response.json()["capacity_check"]
 
-    healthy = {"healthy": True, "overcommitted_agents": 0, "excess_assignments": 0}
+    healthy = {
+        "healthy": True,
+        "overcommitted_agents": 0,
+        "excess_assignments": 0,
+        "agents": [],
+        "truncated": False,
+    }
     assert capacity_check() == healthy
     assert occupancy() == 0
     task_id = reserve(client, p).json()["id"]
@@ -144,9 +150,81 @@ def test_capacity_counts_all_commitments_not_recent_tasks(client, app, participa
     assert len(client.get("/v1/agent/overview", headers=p["agent_auth"]).json()["tasks"]) == 100
     assert client.get("/v1/creator/overview", headers=p["outsider"]).json()["agents"] == []
 
-    expected = {"healthy": False, "overcommitted_agents": 1, "excess_assignments": 100}
+    expected = {
+        "healthy": False,
+        "overcommitted_agents": 1,
+        "excess_assignments": 100,
+        "agents": [
+            {
+                "agent_id": p["agent"]["id"],
+                "agent_name": p["agent"]["name"],
+                "owner_id": p["seller_id"],
+                "capacity": 1,
+                "occupied_slots": 101,
+                "excess_assignments": 100,
+            }
+        ],
+        "truncated": False,
+    }
     before = client.get("/v1/wallet", headers=p["seller"]).json()
     assert capacity_check() == expected
     assert capacity_check() == expected
     assert occupancy() == 101
     assert client.get("/v1/wallet", headers=p["seller"]).json() == before
+
+
+def test_capacity_detail_sample_is_bounded_and_ordered(client, app, participants):
+    from test_workflow import reserve
+
+    from agentix.models import Agent
+
+    p = participants
+    ids = []
+    for i in range(11):
+        agent = client.post(
+            "/v1/agents",
+            headers=p["seller"],
+            json={
+                "name": f"Sample {i}",
+                "framework": "owner-managed",
+                "capacity": 2,
+                "endpoint": "https://example.test/agent",
+            },
+        ).json()
+        client.patch(
+            f"/v1/agents/{agent['id']}/availability", headers=p["seller"], json={"available": True}
+        ).raise_for_status()
+        skill = client.post(
+            f"/v1/agents/{agent['id']}/skills",
+            headers=p["seller"],
+            json={
+                "slug": "review",
+                "version": "1",
+                "description": "Review work",
+            },
+        ).json()
+        for j in range(2):
+            reserve(
+                client, {**p, "agent": agent, "skill": skill}, key=f"sample-{i}-{j}", price=1
+            ).raise_for_status()
+        ids.append(agent["id"])
+    # Simulate configuration drift after valid, funded assignments.
+    with app.state.sessions.begin() as db:
+        for aid in ids:
+            db.get(Agent, aid).capacity = 1
+    check = client.get("/v1/admin/overview", headers=ADMIN).json()["capacity_check"]
+    assert check["overcommitted_agents"] == check["excess_assignments"] == 11
+    assert check["truncated"] is True
+    assert [a["agent_id"] for a in check["agents"]] == sorted(ids)[:10]
+    assert all(
+        set(a)
+        == {
+            "agent_id",
+            "agent_name",
+            "owner_id",
+            "capacity",
+            "occupied_slots",
+            "excess_assignments",
+        }
+        for a in check["agents"]
+    )

@@ -33,7 +33,7 @@ on both local backends. Hosted verification uses D1 simulation, not a production
 `GET /v1/admin/overview` includes administrator-only `capacity_check`:
 
 ```json
-{"healthy": true, "overcommitted_agents": 0, "excess_assignments": 0}
+{"healthy": true, "overcommitted_agents": 0, "excess_assignments": 0, "agents": [], "truncated": false}
 ```
 
 Every agent is checked, including paused agents and agents owned by suspended creators.
@@ -47,11 +47,29 @@ HAVING condition; hosted uses an in-memory task-count map.
 The superadmin panel displays healthy, review-required or unavailable (older server)
 text. Refresh reads the check again. It does not identify which particular assignments
 should be cancelled, modify capacity, cancel work, or move credits. Warnings need operator
-investigation with the existing agent/task records; detailed drill-down and automatic
-repair are not implemented. Counts can change after a read and are not a platform-wide
+investigation with the existing agent/task records; automatic repair is not implemented. Counts can change after a read and are not a platform-wide
 transaction snapshot shared with the other overview panels.
 
 Synthetic overcapacity fixtures verify counts beyond 100 tasks and that repeated reads
 leave work and balances unchanged. Browser checks read a real healthy result and inject
 warning data to verify display after Refresh. This is diagnostic coverage, not a load
 benchmark or proof that every source of capacity drift is detected.
+
+### Affected-agent sample
+
+`capacity_check.agents` includes at most ten overcommitted agents, ordered by agent ID.
+Each item contains `agent_id`, `agent_name`, `owner_id`, `capacity`, `occupied_slots` and
+`excess_assignments`. No credentials or provider keys are included. Totals still cover
+all agents; `truncated` is true when more than ten qualify. This is a bounded sample,
+not pagination or a complete export. Healthy checks return an empty list and false.
+
+The dashboard displays the sample size versus total, escaped names, agent/creator IDs
+and the three counts. It supports older servers without the list. Use the identifiers
+to investigate ownership and assignments before deciding on any corrective action.
+No mutation controls are added. Full pagination and links to individual agent histories
+remain pending.
+
+Tests create eleven agents with real funded reservations and then lower their capacities
+to simulate configuration drift. Both backends retain full totals while returning the
+same first ten IDs and only the documented fields. Browser checks inject an HTML-like
+agent name to verify it remains text, alongside the IDs and occupancy counts.
