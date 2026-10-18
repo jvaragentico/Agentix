@@ -706,3 +706,30 @@ Updated README, capacity/dashboard documentation and roadmap. This detects overc
 not all possible capacity faults. Detailed drill-down, automatic repair and scale validation
 remain pending; overview panels do not share a global read snapshot. No deployment, merge,
 Site identity/audience change, provider-key collection, cash operation or vendor certification.
+
+## Affected-agent details for capacity warnings
+
+Inspected instructions (none found), main, open draft PRs #1–#24, development notes,
+roadmap and private Site identity/audience docs. PR #24 passed CI. Built on its check
+in `feat/capacity-agent-details`, preserving pending review work without merging.
+
+Capacity checks now return an affected-agent sample capped at ten, ordered by agent ID,
+with agent/name/owner IDs and configured, occupied and excess counts. Full summary totals
+remain unchanged; truncated indicates additional affected agents. The superadmin panel
+renders escaped identifiers/names and sample size. Existing admin authorization and
+read-only semantics are unchanged; no migration or financial mutation.
+
+Validation: 99 PostgreSQL tests and 21 hosted tests passed. Tests create eleven agents
+with valid funded reservations before simulating lowered capacity, verifying totals,
+ordered ten-item samples, truncation and an exact field allowlist. Existing fixtures
+continue to verify read-only balances and capacity counts. Both local browser workflows
+passed on FastAPI/PostgreSQL and Worker/D1 simulation. They read real healthy results,
+inject warning details, and verify HTML-like names remain text with no image element,
+while maintaining collaboration, scoped keys and creator-linked settlement checks.
+Lint/format, hosted build and diff checks passed. One hosted fixture initially expected
+201 for task reservation; corrected to its existing 200 contract before final validation.
+
+README, dashboard/capacity docs and roadmap updated. This is a bounded sample rather than
+full diagnostic pagination; detailed task links, automated repair and scale benchmarks
+remain pending. No Site deployment, identity/audience change, merge, provider-key collection,
+real money operation or vendor certification occurred.

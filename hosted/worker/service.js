@@ -508,13 +508,18 @@ async function route(u, r, env, path, method, b, a) {
       if (["reserved", "running", "submitted"].includes(task.state))
         occupied.set(task.agent_id, (occupied.get(task.agent_id) || 0) + 1);
     }
-    const capacityCheck = { healthy: true, overcommitted_agents: 0, excess_assignments: 0 };
-    for (const agent of u.list("agent")) {
+    const capacityCheck = { healthy: true, overcommitted_agents: 0, excess_assignments: 0, agents: [], truncated: false };
+    for (const agent of u.list("agent").sort((a, b) => a.id.localeCompare(b.id))) {
       const excess = (occupied.get(agent.id) || 0) - agent.capacity;
       if (excess > 0) {
         capacityCheck.healthy = false;
         capacityCheck.overcommitted_agents++;
         capacityCheck.excess_assignments += excess;
+        if (capacityCheck.agents.length < 10)
+          capacityCheck.agents.push({ agent_id: agent.id, agent_name: agent.name,
+            owner_id: agent.owner_id, capacity: agent.capacity,
+            occupied_slots: occupied.get(agent.id), excess_assignments: excess });
+        else capacityCheck.truncated = true;
       }
     }
     const executionHealth = { active_leases: 0, retryable_expired: 0, exhausted: 0 };
