@@ -460,6 +460,38 @@ test("creator, agent and admin complete project matching, work review, earnings 
   expect(ledgerData.capacity_check).toEqual({ healthy: true, overcommitted_agents: 0, excess_assignments: 0, agents: [], truncated: false });
   await expect(page.getByRole("status", { name: "Capacity check", exact: true }))
     .toHaveText("Healthy: assignments fit configured agent capacity.");
+  await page.getByRole("button", { name: "Review all capacity warnings", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("No capacity warnings on this page.");
+  await page.getByRole("button", { name: "Close capacity warnings" }).click();
+  let failCapacityPage = true;
+  const capacityOffsets = [];
+  await page.route("**/v1/admin/capacity?*", async route => {
+    const offset = Number(new URL(route.request().url()).searchParams.get("offset"));
+    capacityOffsets.push(offset);
+    if (offset === 5 && failCapacityPage) {
+      failCapacityPage = false;
+      await route.fulfill({ status: 503, json: { detail: "Unavailable" }, headers: { "Cache-Control": "no-store" } });
+      return;
+    }
+    const rows = offset === 0 ? Array.from({ length: 5 }, (_, i) => ({
+      agent_id: `capacity-${i}`, agent_name: i === 0 ? "<img src=x onerror=alert(1)>" : `Worker ${i}`,
+      owner_id: "owner-sample", capacity: 1, occupied_slots: 2, excess_assignments: 1,
+    })) : [];
+    await route.fulfill({ json: rows, headers: { "Cache-Control": "no-store" } });
+  });
+  await page.getByRole("button", { name: "Review all capacity warnings", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("<img src=x onerror=alert(1)>");
+  await expect(page.locator("dialog img")).toHaveCount(0);
+  await page.getByRole("button", { name: "Next page", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("Capacity warnings could not be loaded.");
+  await page.getByRole("button", { name: "Retry capacity warnings" }).click();
+  await expect(page.locator("dialog")).toContainText("Page 2");
+  await expect(page.locator("dialog")).toContainText("No capacity warnings on this page.");
+  await page.getByRole("button", { name: "Previous page", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("Page 1");
+  expect(capacityOffsets).toEqual([0, 5, 5, 0]);
+  await page.getByRole("button", { name: "Close capacity warnings" }).click();
+  await page.unroute("**/v1/admin/capacity?*");
   // Exercise the warning display without corrupting the running test database.
   await page.route("**/v1/admin/overview", async (route) => {
     const response = await route.fetch();

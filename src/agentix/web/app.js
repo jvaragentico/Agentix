@@ -139,7 +139,7 @@ function render() {
       btn("+ Register agent", "register", "", "primary"),
     );
   else if (admin)
-    content = `<div class="stats">${stat("Creators", data.owners.length, "Accounts on the platform")}${stat("Registered agents", data.agents.length, "Across independent frameworks")}${stat("Projects", data.projects.length, "Human and AI posted")}${stat("Ledger balance", data.ledger_balance, "Must stay at zero")}</div>${panel("Ledger reconciliation", `<p role="status" aria-label="Ledger reconciliation">${data.ledger_check?.healthy === true ? "Healthy: account balances match journal entries." : data.ledger_check ? `Review required: ${e(data.ledger_check.mismatched_accounts)} account mismatches; ${e(data.ledger_check.invalid_journals)} invalid journals.` : "Reconciliation unavailable on this server."}</p><p>Read-only check. No credits are changed.</p>`)}${panel("Execution health", `<p role="status" aria-label="Execution health">${data.execution_health ? `${n(data.execution_health.active_leases)} active leases · ${n(data.execution_health.retryable_expired)} expired and retryable · ${n(data.execution_health.exhausted)} exhausted` : "Execution health unavailable on this server."}</p><p>All running assignments at read time. Exhausted work needs creator review. Refresh to update; no tasks or credits are changed.</p>`)}${panel("Capacity check", `<p role="status" aria-label="Capacity check">${data.capacity_check?.healthy === true ? "Healthy: assignments fit configured agent capacity." : data.capacity_check ? `Review required: ${n(data.capacity_check.overcommitted_agents)} overcommitted agents; ${n(data.capacity_check.excess_assignments)} excess assignments.` : "Capacity check unavailable on this server."}</p><p>Read-only check across all agents. No work is cancelled or credits moved.</p>${capacityDetails()}`)}${panel("Creator accounts", adminOwners(), btn("+ Create account", "owner", "", "primary"))}${panel("Platform assignments", taskTable())}`;
+    content = `<div class="stats">${stat("Creators", data.owners.length, "Accounts on the platform")}${stat("Registered agents", data.agents.length, "Across independent frameworks")}${stat("Projects", data.projects.length, "Human and AI posted")}${stat("Ledger balance", data.ledger_balance, "Must stay at zero")}</div>${panel("Ledger reconciliation", `<p role="status" aria-label="Ledger reconciliation">${data.ledger_check?.healthy === true ? "Healthy: account balances match journal entries." : data.ledger_check ? `Review required: ${e(data.ledger_check.mismatched_accounts)} account mismatches; ${e(data.ledger_check.invalid_journals)} invalid journals.` : "Reconciliation unavailable on this server."}</p><p>Read-only check. No credits are changed.</p>`)}${panel("Execution health", `<p role="status" aria-label="Execution health">${data.execution_health ? `${n(data.execution_health.active_leases)} active leases · ${n(data.execution_health.retryable_expired)} expired and retryable · ${n(data.execution_health.exhausted)} exhausted` : "Execution health unavailable on this server."}</p><p>All running assignments at read time. Exhausted work needs creator review. Refresh to update; no tasks or credits are changed.</p>`)}${panel("Capacity check", `<p role="status" aria-label="Capacity check">${data.capacity_check?.healthy === true ? "Healthy: assignments fit configured agent capacity." : data.capacity_check ? `Review required: ${n(data.capacity_check.overcommitted_agents)} overcommitted agents; ${n(data.capacity_check.excess_assignments)} excess assignments.` : "Capacity check unavailable on this server."}</p><p>Read-only check across all agents. No work is cancelled or credits moved.</p>${capacityDetails()}`, btn("Review all capacity warnings", "capacity-pages"))}${panel("Creator accounts", adminOwners(), btn("+ Create account", "owner", "", "primary"))}${panel("Platform assignments", taskTable())}`;
   else if (agent)
     content = `<div class="stats">${stat("Active assignments", data.agent.occupied_slots ?? data.tasks.filter((t) => ["reserved", "running", "submitted"].includes(t.state)).length, "Reserved, running or awaiting review")}${stat("Credits earned", data.earned, "Paid to your creator")}${stat("Project allowance", data.allowance_remaining, "Creator-approved spending")}${stat("Completed work", data.tasks.filter((t) => t.state === "accepted").length, "Deliverables accepted")}</div>${panel("Agent status", `<div class="panel-body row"><span class="badge ${data.agent.available ? "available" : ""}">${data.agent.available ? "Available" : "Paused"}</span><span class="muted">${e(data.agent.framework)} · ${data.agent.capacity} concurrent tasks · ${data.agent.occupied_slots === undefined ? "Occupancy unavailable" : `${n(data.agent.occupied_slots)} slots occupied`}</span>${btn(data.agent.available ? "Pause availability" : "Go available", "availability", `data-id="${data.agent.id}" data-available="${!data.agent.available}"`)}</div>`)}${panel("Work inbox", taskTable())}`;
   else
@@ -300,6 +300,27 @@ async function recoveryQueue(offset = 0, projectId = "") {
       );
   }
 }
+async function capacityPages(offset = 0) {
+  if (user.role !== "superadmin") return;
+  const requestKey = key, loadId = id();
+  modal.dataset.creditLoad = loadId;
+  const heading = `<div class="modal-head"><h2>Capacity warnings</h2>${btn("×", "close", 'aria-label="Close capacity warnings"', "ghost")}</div>`;
+  modal.innerHTML = heading + '<p role="status">Loading capacity warnings…</p>';
+  if (!modal.open) modal.showModal();
+  const current = () => modal.open && modal.dataset.creditLoad === loadId && key === requestKey;
+  try {
+    const agents = await api(`/v1/admin/capacity?limit=5&offset=${offset}`);
+    if (!current()) return;
+    modal.innerHTML = heading +
+      '<p>Read-only diagnostics. No work is cancelled or credits moved.</p>' +
+      (agents.length ? `<ul>${agents.map(a => `<li><strong>${e(a.agent_name)}</strong><p>Agent: ${e(a.agent_id)} · Creator: ${e(a.owner_id)}</p><p>${n(a.occupied_slots)} occupied / ${n(a.capacity)} capacity · ${n(a.excess_assignments)} excess</p></li>`).join("")}</ul>` : '<p>No capacity warnings on this page.</p>') +
+      `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "capacity-pages", `data-offset="${offset - 5}"`) : ""}${agents.length === 5 ? btn("Next page", "capacity-pages", `data-offset="${offset + 5}"`) : ""}</div>`;
+  } catch (error) {
+    if (!current()) return;
+    modal.innerHTML = heading + '<p role="alert">Capacity warnings could not be loaded.</p>' +
+      btn("Retry capacity warnings", "capacity-pages", `data-offset="${offset}"`);
+  }
+}
 async function creditHistory(offset = 0) {
   if (user.role !== "creator") return;
   const requestKey = key;
@@ -376,6 +397,10 @@ document.addEventListener("click", async (ev) => {
   if (!b) return;
   const action = b.dataset.action;
   try {
+    if (action === "capacity-pages") {
+      await capacityPages(Number(b.dataset.offset || 0));
+      return;
+    }
     if (action === "recovery") {
       await recoveryQueue(
         Number(b.dataset.offset || 0),
