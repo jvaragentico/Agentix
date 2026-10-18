@@ -439,6 +439,11 @@ test("creator, agent and admin complete project matching, work review, earnings 
   );
   const ledgerData = await ledger.json();
   expect(ledgerData.ledger_balance).toBe(0);
+  const capacityPage = await request.get("/v1/admin/capacity?limit=5&offset=0", { headers: auth(admin) });
+  expect(capacityPage.status()).toBe(200);
+  expect(capacityPage.headers()["cache-control"]).toBe("no-store");
+  expect(await capacityPage.json()).toEqual([]);
+  expect((await request.get("/v1/admin/capacity", { headers: auth(creator) })).status()).toBe(403);
   expect(ledgerData.ledger_check).toEqual({
     healthy: true,
     mismatched_accounts: 0,

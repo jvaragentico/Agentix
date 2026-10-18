@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This capacity-detail increment lives on `feat/capacity-agent-details`, stacked on the
-superadmin capacity check ([PR #24](https://github.com/jvaragentico/Agentix/pull/24)).
+This diagnostic-pagination increment lives on `feat/capacity-diagnostic-pages`, stacked on the
+affected-agent details ([PR #25](https://github.com/jvaragentico/Agentix/pull/25)).
 
 ```sh
-git clone --branch feat/capacity-agent-details https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/capacity-diagnostic-pages https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -218,3 +218,6 @@ counts assignments above configured capacity, without cancelling work or moving 
 
 The capacity check includes the first ten affected agents by ID, with creator IDs and
 occupied/configured/excess counts. A truncation indicator distinguishes the sample from totals.
+
+Administrators can retrieve affected agents beyond the overview sample using the
+[paginated capacity API](docs/AGENT_CAPACITY.md#paginated-diagnostics).

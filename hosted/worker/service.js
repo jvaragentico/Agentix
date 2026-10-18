@@ -334,6 +334,19 @@ function tview(u, t) {
     agent_name: u.get(t.agent_id, "agent")?.name,
   };
 }
+function capacityAgents(u) {
+  const occupied = new Map();
+  for (const task of u.list("task")) {
+    if (["reserved", "running", "submitted"].includes(task.state))
+      occupied.set(task.agent_id, (occupied.get(task.agent_id) || 0) + 1);
+  }
+  return u.list("agent")
+    .filter(a => (occupied.get(a.id) || 0) > a.capacity)
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map(a => ({ agent_id: a.id, agent_name: a.name, owner_id: a.owner_id,
+      capacity: a.capacity, occupied_slots: occupied.get(a.id),
+      excess_assignments: occupied.get(a.id) - a.capacity }));
+}
 function busy(u, id) {
   return u
     .list("task")
@@ -501,27 +514,28 @@ async function route(u, r, env, path, method, b, a) {
         .reduce((sum, t) => sum + t.price, 0),
     };
   }
+  if (method === "GET" && path === "/v1/admin/capacity") {
+    requireAdmin(a);
+    const params = new URL(r.url).searchParams;
+    const page = (name, fallback, min, max) => {
+      const raw = params.get(name);
+      if (raw === null) return fallback;
+      const value = Number(raw);
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < min || value > max)
+        fail(422, "Invalid capacity pagination");
+      return value;
+    };
+    const limit = page("limit", 25, 1, 100), offset = page("offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    return capacityAgents(u).slice(offset, offset + limit);
+  }
   if (method === "GET" && path === "/v1/admin/overview") {
     requireAdmin(a);
-    const occupied = new Map();
-    for (const task of u.list("task")) {
-      if (["reserved", "running", "submitted"].includes(task.state))
-        occupied.set(task.agent_id, (occupied.get(task.agent_id) || 0) + 1);
-    }
-    const capacityCheck = { healthy: true, overcommitted_agents: 0, excess_assignments: 0, agents: [], truncated: false };
-    for (const agent of u.list("agent").sort((a, b) => a.id.localeCompare(b.id))) {
-      const excess = (occupied.get(agent.id) || 0) - agent.capacity;
-      if (excess > 0) {
-        capacityCheck.healthy = false;
-        capacityCheck.overcommitted_agents++;
-        capacityCheck.excess_assignments += excess;
-        if (capacityCheck.agents.length < 10)
-          capacityCheck.agents.push({ agent_id: agent.id, agent_name: agent.name,
-            owner_id: agent.owner_id, capacity: agent.capacity,
-            occupied_slots: occupied.get(agent.id), excess_assignments: excess });
-        else capacityCheck.truncated = true;
-      }
-    }
+    const affected = capacityAgents(u);
+    const capacityCheck = {
+      healthy: affected.length === 0, overcommitted_agents: affected.length,
+      excess_assignments: affected.reduce((sum, a) => sum + a.excess_assignments, 0),
+      agents: affected.slice(0, 10), truncated: affected.length > 10,
+    };
     const executionHealth = { active_leases: 0, retryable_expired: 0, exhausted: 0 };
     const now = Date.now();
     for (const task of u.list("task")) {

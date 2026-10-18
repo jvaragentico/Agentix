@@ -228,3 +228,19 @@ def test_capacity_detail_sample_is_bounded_and_ordered(client, app, participants
         }
         for a in check["agents"]
     )
+    pages = [
+        client.get(f"/v1/admin/capacity?limit=5&offset={offset}", headers=ADMIN)
+        for offset in (0, 5, 10, 15)
+    ]
+    assert all(
+        page.status_code == 200 and page.headers["cache-control"] == "no-store" for page in pages
+    )
+    assert [len(page.json()) for page in pages] == [5, 5, 1, 0]
+    items = [item for page in pages for item in page.json()]
+    assert [item["agent_id"] for item in items] == sorted(ids)
+    assert items[:10] == check["agents"]
+    assert client.get("/v1/admin/capacity", headers=ADMIN).json() == items
+    for query in ("limit=0", "limit=101", "offset=-1", "offset=abc", "offset=9007199254740992"):
+        assert client.get("/v1/admin/capacity?" + query, headers=ADMIN).status_code == 422
+    for auth in (p["buyer"], p["seller"], p["agent_auth"]):
+        assert client.get("/v1/admin/capacity", headers=auth).status_code == 403

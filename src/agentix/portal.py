@@ -39,6 +39,29 @@ from agentix.ledger import reconcile
 from agentix.models import Account, Agent, Entry, Owner, Project, Skill, Task
 
 
+def capacity_query():
+    return (
+        select(Agent.id, Agent.name, Agent.owner_id, Agent.capacity, func.count(Task.id))
+        .join(Task, Task.agent_id == Agent.id)
+        .where(Task.state.in_(["reserved", "running", "submitted"]))
+        .group_by(Agent.id, Agent.name, Agent.owner_id, Agent.capacity)
+        .order_by(Agent.id)
+        .having(func.count(Task.id) > Agent.capacity)
+    )
+
+
+def capacity_item(row):
+    aid, name, oid, capacity, occupied = row
+    return {
+        "agent_id": aid,
+        "agent_name": name,
+        "owner_id": oid,
+        "capacity": capacity,
+        "occupied_slots": occupied,
+        "excess_assignments": occupied - capacity,
+    }
+
+
 def project_view(db, project):
     return {
         "id": project.id,
@@ -298,6 +321,16 @@ def mount_portal(app):
                 )
         return sorted(result, key=lambda a: len(a["matched_skills"]), reverse=True)
 
+    @app.get("/v1/admin/capacity", dependencies=[Depends(require_admin)])
+    def capacity_page(
+        db: DB,
+        limit: int = Query(default=25, ge=1, le=100),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
+    ):
+        return [
+            capacity_item(row) for row in db.execute(capacity_query().limit(limit).offset(offset))
+        ]
+
     @app.get("/v1/admin/overview", dependencies=[Depends(require_admin)])
     def admin_overview(db: DB):
         owners = db.scalars(select(Owner).order_by(Owner.created_at.desc()).limit(100))
@@ -315,30 +348,13 @@ def mount_portal(app):
                 select(category, func.count()).where(Task.state == "running").group_by(category)
             ).all()
         )
-        overcommitted = db.execute(
-            select(Agent.id, Agent.name, Agent.owner_id, Agent.capacity, func.count(Task.id))
-            .join(Task, Task.agent_id == Agent.id)
-            .where(Task.state.in_(["reserved", "running", "submitted"]))
-            .group_by(Agent.id, Agent.name, Agent.owner_id, Agent.capacity)
-            .order_by(Agent.id)
-            .having(func.count(Task.id) > Agent.capacity)
-        ).all()
+        overcommitted = db.execute(capacity_query()).all()
         return {
             "capacity_check": {
                 "healthy": not overcommitted,
                 "overcommitted_agents": len(overcommitted),
                 "excess_assignments": sum(row[4] - row[3] for row in overcommitted),
-                "agents": [
-                    {
-                        "agent_id": aid,
-                        "agent_name": name,
-                        "owner_id": oid,
-                        "capacity": cap,
-                        "occupied_slots": count,
-                        "excess_assignments": count - cap,
-                    }
-                    for aid, name, oid, cap, count in overcommitted[:10]
-                ],
+                "agents": [capacity_item(row) for row in overcommitted[:10]],
                 "truncated": len(overcommitted) > 10,
             },
             "execution_health": execution_health,
