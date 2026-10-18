@@ -181,9 +181,10 @@ def test_capacity_detail_sample_is_bounded_and_ordered(client, app, participants
     p = participants
     ids = []
     for i in range(11):
+        creator_auth = p["seller"] if i % 2 == 0 else p["buyer"]
         agent = client.post(
             "/v1/agents",
-            headers=p["seller"],
+            headers=creator_auth,
             json={
                 "name": f"Sample {i}",
                 "framework": "owner-managed",
@@ -192,11 +193,11 @@ def test_capacity_detail_sample_is_bounded_and_ordered(client, app, participants
             },
         ).json()
         client.patch(
-            f"/v1/agents/{agent['id']}/availability", headers=p["seller"], json={"available": True}
+            f"/v1/agents/{agent['id']}/availability", headers=creator_auth, json={"available": True}
         ).raise_for_status()
         skill = client.post(
             f"/v1/agents/{agent['id']}/skills",
-            headers=p["seller"],
+            headers=creator_auth,
             json={
                 "slug": "review",
                 "version": "1",
@@ -244,3 +245,12 @@ def test_capacity_detail_sample_is_bounded_and_ordered(client, app, participants
         assert client.get("/v1/admin/capacity?" + query, headers=ADMIN).status_code == 422
     for auth in (p["buyer"], p["seller"], p["agent_auth"]):
         assert client.get("/v1/admin/capacity", headers=auth).status_code == 403
+
+    filtered = [a for a in items if a["owner_id"] == p["seller_id"]]
+    assert len(filtered) == 6
+    url = "/v1/admin/capacity?owner_id=" + p["seller_id"]
+    assert client.get(url, headers=ADMIN).json() == filtered
+    assert client.get(url + "&limit=2&offset=1", headers=ADMIN).json() == filtered[1:3]
+    assert client.get("/v1/admin/capacity?owner_id=missing", headers=ADMIN).json() == []
+    assert client.get("/v1/admin/capacity?owner_id=" + "x" * 129, headers=ADMIN).status_code == 422
+    assert client.get(url, headers=p["seller"]).status_code == 403

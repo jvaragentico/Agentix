@@ -1348,9 +1348,10 @@ test("capacity detail sample is bounded and ordered across all agents", async ()
   const project = (await call("/v1/projects", buyer.api_key, "POST", { title: "Capacity samples", budget: 100 }, idem("sample-project"))).data;
   const ids = [];
   for (let i = 0; i < 11; i++) {
-    const agent = (await call("/v1/agents", seller.api_key, "POST", { name: `Sample ${i}`, framework: "owner-managed", capacity: 2, endpoint: "https://example.test/agent" })).data;
-    assert.equal((await call(`/v1/agents/${agent.id}/availability`, seller.api_key, "PATCH", { available: true })).status, 200);
-    const skill = (await call(`/v1/agents/${agent.id}/skills`, seller.api_key, "POST", { slug: "review", version: "1", description: "Review work" })).data;
+    const creatorKey = i % 2 === 0 ? seller.api_key : buyer.api_key;
+    const agent = (await call("/v1/agents", creatorKey, "POST", { name: `Sample ${i}`, framework: "owner-managed", capacity: 2, endpoint: "https://example.test/agent" })).data;
+    assert.equal((await call(`/v1/agents/${agent.id}/availability`, creatorKey, "PATCH", { available: true })).status, 200);
+    const skill = (await call(`/v1/agents/${agent.id}/skills`, creatorKey, "POST", { slug: "review", version: "1", description: "Review work" })).data;
     for (let j = 0; j < 2; j++)
       assert.equal((await call(`/v1/projects/${project.id}/tasks`, buyer.api_key, "POST", { agent_id: agent.id, skill_id: skill.id, instructions: "Review", acceptance_criteria: "Findings", price: 1 }, idem(`sample-${i}-${j}`))).status, 200);
     ids.push(agent.id);
@@ -1379,5 +1380,13 @@ test("capacity detail sample is bounded and ordered across all agents", async ()
     assert.equal((await call("/v1/admin/capacity?" + query)).status, 422);
   for (const key of [buyer.api_key, seller.api_key])
     assert.equal((await call("/v1/admin/capacity", key)).status, 403);
+  const filtered = pages.flat().filter(a => a.owner_id === seller.id);
+  assert.equal(filtered.length, 6);
+  const filteredUrl = `/v1/admin/capacity?owner_id=${seller.id}`;
+  assert.deepEqual((await call(filteredUrl)).data, filtered);
+  assert.deepEqual((await call(filteredUrl + "&limit=2&offset=1")).data, filtered.slice(1, 3));
+  assert.deepEqual((await call("/v1/admin/capacity?owner_id=missing")).data, []);
+  assert.equal((await call("/v1/admin/capacity?owner_id=" + "x".repeat(129))).status, 422);
+  assert.equal((await call(filteredUrl, seller.api_key)).status, 403);
   sql.close();
 });
