@@ -465,9 +465,11 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await page.getByRole("button", { name: "Close capacity warnings" }).click();
   let failCapacityPage = true;
   const capacityOffsets = [];
+  const capacityOwners = [];
   await page.route("**/v1/admin/capacity?*", async route => {
     const offset = Number(new URL(route.request().url()).searchParams.get("offset"));
     capacityOffsets.push(offset);
+    capacityOwners.push(new URL(route.request().url()).searchParams.get("owner_id"));
     if (offset === 5 && failCapacityPage) {
       failCapacityPage = false;
       await route.fulfill({ status: 503, json: { detail: "Unavailable" }, headers: { "Cache-Control": "no-store" } });
@@ -482,6 +484,8 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await page.getByRole("button", { name: "Review all capacity warnings", exact: true }).click();
   await expect(page.locator("dialog")).toContainText("<img src=x onerror=alert(1)>");
   await expect(page.locator("dialog img")).toHaveCount(0);
+  await page.getByRole("button", { name: "Only this creator", exact: true }).first().click();
+  await expect(page.getByRole("button", { name: "All creators", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next page", exact: true }).click();
   await expect(page.locator("dialog")).toContainText("Capacity warnings could not be loaded.");
   await page.getByRole("button", { name: "Retry capacity warnings" }).click();
@@ -489,7 +493,10 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(page.locator("dialog")).toContainText("No capacity warnings on this page.");
   await page.getByRole("button", { name: "Previous page", exact: true }).click();
   await expect(page.locator("dialog")).toContainText("Page 1");
-  expect(capacityOffsets).toEqual([0, 5, 5, 0]);
+  await page.getByRole("button", { name: "All creators", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Only this creator", exact: true }).first()).toBeVisible();
+  expect(capacityOffsets).toEqual([0, 0, 5, 5, 0, 0]);
+  expect(capacityOwners).toEqual([null, "owner-sample", "owner-sample", "owner-sample", "owner-sample", null]);
   await page.getByRole("button", { name: "Close capacity warnings" }).click();
   await page.unroute("**/v1/admin/capacity?*");
   // Exercise the warning display without corrupting the running test database.

@@ -526,7 +526,9 @@ async function route(u, r, env, path, method, b, a) {
       return value;
     };
     const limit = page("limit", 25, 1, 100), offset = page("offset", 0, 0, Number.MAX_SAFE_INTEGER);
-    return capacityAgents(u).slice(offset, offset + limit);
+    const ownerId = params.get("owner_id");
+    if (ownerId && ownerId.length > 128) fail(422, "Creator filter is too long");
+    return capacityAgents(u).filter(a => !ownerId || a.owner_id === ownerId).slice(offset, offset + limit);
   }
   if (method === "GET" && path === "/v1/admin/overview") {
     requireAdmin(a);

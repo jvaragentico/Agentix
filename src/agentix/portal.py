@@ -326,10 +326,12 @@ def mount_portal(app):
         db: DB,
         limit: int = Query(default=25, ge=1, le=100),
         offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
+        owner_id: str | None = Query(default=None, max_length=128),
     ):
-        return [
-            capacity_item(row) for row in db.execute(capacity_query().limit(limit).offset(offset))
-        ]
+        query = capacity_query()
+        if owner_id:
+            query = query.where(Agent.owner_id == owner_id)
+        return [capacity_item(row) for row in db.execute(query.limit(limit).offset(offset))]
 
     @app.get("/v1/admin/overview", dependencies=[Depends(require_admin)])
     def admin_overview(db: DB):

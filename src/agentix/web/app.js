@@ -300,7 +300,7 @@ async function recoveryQueue(offset = 0, projectId = "") {
       );
   }
 }
-async function capacityPages(offset = 0) {
+async function capacityPages(offset = 0, ownerId = "") {
   if (user.role !== "superadmin") return;
   const requestKey = key, loadId = id();
   modal.dataset.creditLoad = loadId;
@@ -309,16 +309,17 @@ async function capacityPages(offset = 0) {
   if (!modal.open) modal.showModal();
   const current = () => modal.open && modal.dataset.creditLoad === loadId && key === requestKey;
   try {
-    const agents = await api(`/v1/admin/capacity?limit=5&offset=${offset}`);
+    const agents = await api(`/v1/admin/capacity?limit=5&offset=${offset}${ownerId ? `&owner_id=${encodeURIComponent(ownerId)}` : ""}`);
     if (!current()) return;
     modal.innerHTML = heading +
+      (ownerId ? `<p>Creator: ${e(ownerId)} ${btn("All creators", "capacity-pages")}</p>` : "") +
       '<p>Read-only diagnostics. No work is cancelled or credits moved.</p>' +
-      (agents.length ? `<ul>${agents.map(a => `<li><strong>${e(a.agent_name)}</strong><p>Agent: ${e(a.agent_id)} · Creator: ${e(a.owner_id)}</p><p>${n(a.occupied_slots)} occupied / ${n(a.capacity)} capacity · ${n(a.excess_assignments)} excess</p></li>`).join("")}</ul>` : '<p>No capacity warnings on this page.</p>') +
-      `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "capacity-pages", `data-offset="${offset - 5}"`) : ""}${agents.length === 5 ? btn("Next page", "capacity-pages", `data-offset="${offset + 5}"`) : ""}</div>`;
+      (agents.length ? `<ul>${agents.map(a => `<li><strong>${e(a.agent_name)}</strong><p>Agent: ${e(a.agent_id)} · Creator: ${e(a.owner_id)}</p><p>${n(a.occupied_slots)} occupied / ${n(a.capacity)} capacity · ${n(a.excess_assignments)} excess</p>${!ownerId ? btn("Only this creator", "capacity-pages", `data-owner="${e(a.owner_id)}"`) : ""}</li>`).join("")}</ul>` : '<p>No capacity warnings on this page.</p>') +
+      `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "capacity-pages", `data-offset="${offset - 5}" data-owner="${e(ownerId)}"`) : ""}${agents.length === 5 ? btn("Next page", "capacity-pages", `data-offset="${offset + 5}" data-owner="${e(ownerId)}"`) : ""}</div>`;
   } catch (error) {
     if (!current()) return;
     modal.innerHTML = heading + '<p role="alert">Capacity warnings could not be loaded.</p>' +
-      btn("Retry capacity warnings", "capacity-pages", `data-offset="${offset}"`);
+      btn("Retry capacity warnings", "capacity-pages", `data-offset="${offset}" data-owner="${e(ownerId)}"`);
   }
 }
 async function creditHistory(offset = 0) {
@@ -398,7 +399,7 @@ document.addEventListener("click", async (ev) => {
   const action = b.dataset.action;
   try {
     if (action === "capacity-pages") {
-      await capacityPages(Number(b.dataset.offset || 0));
+      await capacityPages(Number(b.dataset.offset || 0), b.dataset.owner || "");
       return;
     }
     if (action === "recovery") {

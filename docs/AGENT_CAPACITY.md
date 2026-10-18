@@ -108,3 +108,21 @@ creator and agent dashboards do not offer this action. Backend paging tests cove
 real funded agents with simulated capacity drift. Browser checks use the real empty read
 and inject populated pages plus a 503 to verify navigation, retry offset and HTML-like
 labels. Hosted tests use local D1 simulation; changing data can still shift offset pages.
+
+### Filter by creator
+
+The admin endpoint accepts optional `owner_id` (maximum 128 characters). For example,
+`GET /v1/admin/capacity?owner_id=<creator-id>&limit=5&offset=0` returns only that creator's
+overcommitted agents. Filtering precedes pagination; unknown creator IDs return an empty
+array. Missing or empty owner_id retains the all-creator view. Overlong values return 422.
+This filter does not grant creator or agent credentials access to the admin endpoint.
+
+In the capacity warning dialog, **Only this creator** starts a filtered view at page one.
+The creator ID is shown and **All creators** resets the view to the first unfiltered page.
+Next/previous controls and failed-read retry retain the selected ID. Overview summary totals
+and its ten-item sample remain platform-wide. No task, credential or credit mutation occurs.
+
+Backend tests split eleven funded agents across two creators and verify filtered paging,
+missing IDs, input limits and role denial. Browser checks verify filter preservation through
+page changes and a simulated 503/retry, followed by reset to all creators. Offset pages are
+still not snapshots, and the API does not validate or reveal an owner record on an empty match.

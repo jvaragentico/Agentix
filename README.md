@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This dashboard-pagination increment lives on `feat/capacity-dashboard-pages`, stacked on the
-diagnostic API ([PR #26](https://github.com/jvaragentico/Agentix/pull/26)).
+This creator-filter increment lives on `feat/capacity-creator-filter`, stacked on the
+dashboard pagination ([PR #27](https://github.com/jvaragentico/Agentix/pull/27)).
 
 ```sh
-git clone --branch feat/capacity-dashboard-pages https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/capacity-creator-filter https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -224,3 +224,6 @@ Administrators can retrieve affected agents beyond the overview sample using the
 
 Superadmins can select **Review all capacity warnings** to browse five agents per page,
 move backward/forward, and retry a failed page read without changing work or credits.
+
+Capacity warning pages support **Only this creator** and **All creators**, preserving
+the chosen creator through navigation and retries.

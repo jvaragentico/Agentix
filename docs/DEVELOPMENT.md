@@ -785,3 +785,28 @@ repair are not added. No merge, deployment, Site identity/audience change, provi
 collection, cash operation or vendor certification occurred.
 
 Final PostgreSQL result: all 99 tests passed.
+
+## Creator filtering for capacity diagnostics
+
+Inspected instructions (none found), main, draft PRs #1–#27, development log, roadmap
+and private Site identity/audience docs. PR #27 passed CI. Built on its dashboard paging
+in `feat/capacity-creator-filter`, with no pending PR merges.
+
+The admin capacity API now accepts a bounded optional owner_id, filtering affected agents
+before pagination. Missing/empty filters retain all creators; unknown IDs return [].
+The warning dialog offers Only this creator and All creators, resets offset on filter
+changes, and preserves the selected ID through next/previous and failed-read retry.
+Admin authorization and read-only behavior remain unchanged. No schema migration.
+
+Validation: 99 PostgreSQL tests and 21 hosted tests passed. Eleven-agent diagnostic
+fixtures now span two owners, testing six matching agents, filtered slices, unknown IDs,
+overlong filters and creator denial. Both local browser collaboration workflows passed
+(FastAPI/PostgreSQL and Worker/D1 simulation), checking filter selection, page navigation,
+simulated 503/retry retaining the owner ID and reset to all creators, while maintaining
+posting, matching, scoped-key and settlement regression checks. Lint/format, build and
+diff checks passed.
+
+README, capacity/dashboard docs and roadmap updated. Overview totals stay platform-wide;
+only diagnostic pages are filtered. Offset pages are not snapshots and hosted reads still
+scan records. Task-history links, repair and scale testing remain pending. No deployment,
+Site identity/audience change, provider-key collection, vendor certification or cash action.
