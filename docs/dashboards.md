@@ -20,7 +20,8 @@ work and exhausted work across all running assignments. Refresh updates the read
 A [capacity check](AGENT_CAPACITY.md#superadmin-capacity-check) flags agents above configured
 capacity without automatically cancelling assignments or changing credits. It shows up to
 ten affected agents with creator IDs and counts, plus an explicit sample size. Administrators
-can retrieve further affected agents through the [capacity diagnostic API](AGENT_CAPACITY.md#paginated-diagnostics).
+can select **Review all capacity warnings** to browse further agents with next/previous
+controls and failed-read retry, or use the [capacity diagnostic API](AGENT_CAPACITY.md#paginated-diagnostics).
 
 Creators can select **View credit history** in their overview to inspect signed account
 movements with transfer reasons and local timestamps, browse pages and retry failed reads. See [wallet history](WALLET_JOURNAL.md).

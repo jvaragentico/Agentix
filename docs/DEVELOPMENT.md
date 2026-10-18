@@ -758,3 +758,30 @@ dashboard page controls and task-history links remain pending. Offset pages are 
 snapshots and hosted reads still scan records; no load benchmark is claimed. No deployment,
 Site identity/audience change, merge, provider-key collection, cash operation or vendor
 certification occurred.
+
+## Superadmin capacity dashboard pagination
+
+Inspected instructions (none found), main, open draft PRs #1–#26, development notes,
+roadmap and private Site identity/audience docs. PR #26 passed CI. Built on its API in
+`feat/capacity-dashboard-pages`, without merging any pending PR.
+
+The Capacity check panel now offers Review all capacity warnings. Its read-only dialog
+uses the existing paginated admin endpoint, five agents per page, with loading, empty,
+next/previous and retry states. Retry preserves offset; names/identifiers are escaped.
+Existing request identity and dialog load guards prevent stale responses from replacing
+closed or newer dialogs. No backend contract, schema, task or credit mutation changes.
+
+Validation: 21 hosted tests and both local browser collaboration workflows passed on
+FastAPI/PostgreSQL and Worker/D1 simulation. Browser checks read the actual empty endpoint,
+then inject five rows and a failed second-page read to verify offsets 0/5/5/0, retry,
+empty final page, previous navigation and HTML-like labels rendered as text. Existing
+backend pagination fixtures cover eleven funded agents with simulated capacity drift;
+existing browser flows continue verifying credentials, projects, matching and settlement.
+Lint/format, hosted build and diff checks passed. PostgreSQL final result recorded below.
+
+README, dashboard/capacity docs and roadmap updated. Offset pages remain non-snapshot
+reads and hosted indexing/load tests remain pending. Task-history links and automatic
+repair are not added. No merge, deployment, Site identity/audience change, provider-key
+collection, cash operation or vendor certification occurred.
+
+Final PostgreSQL result: all 99 tests passed.

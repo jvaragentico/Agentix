@@ -13,7 +13,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    deadlines, and capacity reconciliation before unattended production use. Creator and agent
    dashboards expose full occupied-slot counts; the superadmin check flags overcommitted
    agents and excess assignments with a bounded affected-agent sample and paginated admin
-   diagnostic API. Dashboard paging and automatic repair remain pending.
+   diagnostic API and dashboard page controls. Automatic repair remains pending.
 3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
    superadmin controls, human/AI project posting, skill matching, delegated spending,
    free-model execution, Docker infrastructure, and a free persistent owner-private Site.

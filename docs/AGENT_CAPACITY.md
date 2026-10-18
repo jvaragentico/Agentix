@@ -66,8 +66,8 @@ not pagination or a complete export. Healthy checks return an empty list and fal
 The dashboard displays the sample size versus total, escaped names, agent/creator IDs
 and the three counts. It supports older servers without the list. Use the identifiers
 to investigate ownership and assignments before deciding on any corrective action.
-No mutation controls are added. API pagination is available below; dashboard page controls and links to individual agent
-histories remain pending.
+No mutation controls are added. API and dashboard pagination are available below; links to individual agent histories
+remain pending.
 
 Tests create eleven agents with real funded reservations and then lower their capacities
 to simulate configuration drift. Both backends retain full totals while returning the
@@ -85,11 +85,26 @@ pages return `[]`. Creator and agent credentials are denied; private responses u
 Filter to overcommitted agents before applying ID ordering and pagination. Increase offset
 by limit until a short page is returned. FastAPI applies paging to the grouped SQL query;
 hosted reads reuse the same diagnostic helper as the overview and slice its sorted results.
-The overview still displays only its ten-item sample; this increment adds API access rather
-than dashboard paging controls.
+The overview still displays its ten-item sample. Select **Review all capacity warnings**
+to browse the same API in a read-only dialog, five agents per page.
 
 Pages are not a snapshot: concurrent capacity/task changes can move items between pages.
 Deduplicate agent IDs and refresh if consistency matters. No tasks, capacity or credits are
 changed. Hosted scans/indexing and large-scale validation remain pending. Tests traverse
 eleven affected agents over four pages, verify parity with the summary sample, empty-page
 behavior, bounds, role restrictions and absence of secret fields.
+
+### Dashboard paging
+
+Superadmins can open **Review all capacity warnings** from the Capacity check panel.
+The dialog has loading, empty and error states. Next page appears after a full five-item
+page; the next page can be empty when the total is an exact multiple of five. Previous
+page remains available so the operator can return. Retry preserves the failed offset.
+Names and identifiers are rendered as text. Closing the dialog or changing credentials
+prevents an outstanding response from updating it. Reopen to start again at page one.
+
+These are read-only pages, not repair controls. Existing API authorization still applies;
+creator and agent dashboards do not offer this action. Backend paging tests cover eleven
+real funded agents with simulated capacity drift. Browser checks use the real empty read
+and inject populated pages plus a 503 to verify navigation, retry offset and HTML-like
+labels. Hosted tests use local D1 simulation; changing data can still shift offset pages.
