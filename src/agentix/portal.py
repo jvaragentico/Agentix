@@ -32,6 +32,7 @@ from agentix.execution import (
     MAX_EXECUTION_ATTEMPTS,
     acquire,
     database_now,
+    event_history,
     expired,
     record_event,
     require_live_lease,
@@ -329,6 +330,17 @@ def mount_portal(app):
                     }
                 )
         return sorted(result, key=lambda a: len(a["matched_skills"]), reverse=True)
+
+    @app.get("/v1/admin/tasks/{task_id}/events", dependencies=[Depends(require_admin)])
+    def admin_task_events(
+        task_id: str,
+        db: DB,
+        limit: int = Query(default=50, ge=1, le=100),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
+    ):
+        if db.get(Task, task_id) is None:
+            raise HTTPException(404, "Task not found")
+        return event_history(db, task_id, limit, offset)
 
     @app.get("/v1/admin/agents/{agent_id}/assignments", dependencies=[Depends(require_admin)])
     def capacity_assignments(

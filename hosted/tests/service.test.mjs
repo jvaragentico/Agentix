@@ -634,6 +634,18 @@ test("expired execution tokens cannot recover a lease and history matches the RE
     history.map((e) => e.kind),
     ["reserved", "claimed", "lease_expired", "claimed", "submitted"],
   );
+  const adminPath = `/v1/admin/tasks/${task.id}/events`;
+  const fields = ["id", "kind", "attempt", "actor_owner_id", "actor_agent_id", "created_at"];
+  const projected = history.map(e => Object.fromEntries(fields.map(k => [k, e[k]])));
+  assert.deepEqual((await call(adminPath, "test-admin")).data, projected);
+  assert.deepEqual((await call(adminPath + "?limit=2&offset=2", "test-admin")).data, projected.slice(2, 4));
+  assert.deepEqual((await call(adminPath + "?offset=100", "test-admin")).data, []);
+  for (const suffix of ["?limit=0", "?limit=101", "?offset=-1", "?offset=9007199254740992"])
+    assert.equal((await call(adminPath + suffix, "test-admin")).status, 422);
+  for (const credential of [buyer.api_key, agent.api_key, "invalid"])
+    assert.ok([401, 403].includes((await call(adminPath, credential)).status));
+  assert.equal((await call("/v1/admin/tasks/missing/events", "test-admin")).status, 404);
+  assert.deepEqual((await call(`/v1/tasks/${task.id}/events`, buyer.api_key)).data, history);
   assert.equal(history[3].attempt, 2);
   assert.equal(history[3].actor_agent_id, agent.id);
   assert.equal(history[3].actor_owner_id, seller.id);

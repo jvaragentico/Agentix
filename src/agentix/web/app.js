@@ -344,12 +344,31 @@ async function capacityWork(agentId, offset = 0, returnOffset = 0, ownerId = "")
     const tasks = await api(`/v1/admin/agents/${encodeURIComponent(agentId)}/assignments?limit=5&offset=${offset}`);
     if (!current()) return;
     modal.innerHTML = heading + `<p>Agent: ${e(agentId)}</p><p>Read-only. Reserved, running and submitted work occupies capacity.</p>` +
-      (tasks.length ? `<ul>${tasks.map(t => `<li><strong>${e(t.project_title)}</strong><p>${e(t.instructions)}</p><p>Assignment: ${e(t.id)} · ${e(t.state)} · ${n(t.price)} credits · ${n(t.attempts)} attempts</p>${assignmentLeaseContext(t)}</li>`).join("")}</ul>` : '<p>No occupied assignments on this page.</p>') +
+      (tasks.length ? `<ul>${tasks.map(t => `<li><strong>${e(t.project_title)}</strong><p>${e(t.instructions)}</p><p>Assignment: ${e(t.id)} · ${e(t.state)} · ${n(t.price)} credits · ${n(t.attempts)} attempts</p>${assignmentLeaseContext(t)}${btn("Inspect execution history", "admin-history", `${attrs} data-task="${e(t.id)}" data-work-offset="${offset}"`)}</li>`).join("")}</ul>` : '<p>No occupied assignments on this page.</p>') +
       `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "capacity-work", `${attrs} data-offset="${offset - 5}"`) : ""}${tasks.length === 5 ? btn("Next page", "capacity-work", `${attrs} data-offset="${offset + 5}"`) : ""}${back}</div>`;
   } catch (error) {
     if (!current()) return;
     modal.innerHTML = heading + '<p role="alert">Occupied assignments could not be loaded.</p>' +
       btn("Retry assignments", "capacity-work", `${attrs} data-offset="${offset}"`) + back;
+  }
+}
+async function adminHistory(b) {
+  if (user.role !== "superadmin") return;
+  const d = b.dataset, offset = Number(d.offset || 0), requestKey = key, loadId = id();
+  const attrs = `data-id="${e(d.id)}" data-task="${e(d.task)}" data-return-offset="${e(d.returnOffset)}" data-work-offset="${e(d.workOffset)}" data-owner="${e(d.owner)}"`;
+  const heading = `<div class="modal-head"><h2>Assignment execution history</h2>${btn("×", "close", 'aria-label="Close execution history"', "ghost")}</div><p>Assignment: ${e(d.task)}</p><p>Read-only recorded events. Reading history does not recover work or move credits.</p>`;
+  const back = btn("Back to occupied assignments", "capacity-work", `data-id="${e(d.id)}" data-offset="${e(d.workOffset)}" data-return-offset="${e(d.returnOffset)}" data-owner="${e(d.owner)}"`);
+  modal.dataset.creditLoad = loadId;
+  modal.innerHTML = heading + '<p role="status">Loading execution history…</p>' + back;
+  const current = () => modal.open && modal.dataset.creditLoad === loadId && key === requestKey;
+  try {
+    const events = await api(`/v1/admin/tasks/${encodeURIComponent(d.task)}/events?limit=5&offset=${offset}`);
+    if (!current()) return;
+    modal.innerHTML = heading + (events.length ? `<ol class="task-history">${eventRows(events)}</ol>` : '<p>No events on this page.</p>') +
+      `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "admin-history", `${attrs} data-offset="${offset - 5}"`) : ""}${events.length === 5 ? btn("Next page", "admin-history", `${attrs} data-offset="${offset + 5}"`) : ""}${back}</div>`;
+  } catch (error) {
+    if (!current()) return;
+    modal.innerHTML = heading + '<p role="alert">Execution history could not be loaded.</p>' + btn("Retry execution history", "admin-history", `${attrs} data-offset="${offset}"`) + back;
   }
 }
 async function creditHistory(offset = 0) {
@@ -428,6 +447,10 @@ document.addEventListener("click", async (ev) => {
   if (!b) return;
   const action = b.dataset.action;
   try {
+    if (action === "admin-history") {
+      await adminHistory(b);
+      return;
+    }
     if (action === "capacity-work") {
       await capacityWork(b.dataset.id, Number(b.dataset.offset || 0), Number(b.dataset.returnOffset || 0), b.dataset.owner || "");
       return;

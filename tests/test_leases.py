@@ -135,3 +135,39 @@ def test_history_pagination_is_scoped_and_recovers_in_attempt_order(client, app,
         )
     assert client.get(f"/v1/tasks/{task_id}/events", headers=p["outsider"]).status_code == 404
     assert FIRST not in str(history) and SECOND not in str(history)
+
+
+def test_admin_history_is_read_only_bounded_and_admin_scoped(client, app, participants):
+    p = participants
+    task_id = reserve(client, p).json()["id"]
+    client.post("/v1/tasks/claim", headers=worker(p), json={}).raise_for_status()
+    expire(app, task_id)
+    client.post("/v1/tasks/claim", headers=worker(p, SECOND), json={}).raise_for_status()
+    endpoint = f"/v1/admin/tasks/{task_id}/events"
+    admin = {"Authorization": "Bearer test-admin"}
+    before = client.get(f"/v1/tasks/{task_id}", headers=p["buyer"]).json()
+    wallet = client.get("/v1/wallet", headers=p["buyer"]).json()
+    expected = client.get(f"/v1/tasks/{task_id}/events", headers=p["buyer"]).json()
+    response = client.get(endpoint, headers=admin)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json() == expected
+    assert set(expected[0]) == {
+        "id",
+        "kind",
+        "attempt",
+        "actor_owner_id",
+        "actor_agent_id",
+        "created_at",
+    }
+    assert client.get(endpoint + "?limit=2&offset=2", headers=admin).json() == expected[2:4]
+    assert client.get(endpoint + "?offset=100", headers=admin).json() == []
+    for suffix in ("?limit=0", "?limit=101", "?offset=-1", "?offset=9007199254740992"):
+        assert client.get(endpoint + suffix, headers=admin).status_code == 422
+    for auth in (p["buyer"], p["agent_auth"], p["outsider"], {}):
+        assert client.get(endpoint, headers=auth).status_code in (401, 403)
+        assert client.get("/v1/admin/tasks/missing/events", headers=auth).status_code in (401, 403)
+    assert client.get("/v1/admin/tasks/missing/events", headers=admin).status_code == 404
+    assert client.get(f"/v1/tasks/{task_id}", headers=p["buyer"]).json() == before
+    assert client.get("/v1/wallet", headers=p["buyer"]).json() == wallet
+    assert client.get(endpoint, headers=admin).json() == expected

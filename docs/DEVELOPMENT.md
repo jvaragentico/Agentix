@@ -866,3 +866,30 @@ README, dashboard/capacity docs and roadmap updated. Status reflects read time a
 become stale; actual execution endpoints remain authoritative. Full event history,
 automated recovery and scale validation remain pending. No deployment, Site identity/
 audience change, merge, provider-key collection, real cash action or vendor certification.
+
+## 19 October 2026 — administrator execution history
+
+Continued from PR #30 without merging the pending stack. Added administrator-only
+`GET /v1/admin/tasks/{task_id}/events` to both backends, sharing participant event ordering
+and projecting only event metadata. Added an execution-history dialog from occupied work
+with five-event pages, loading/error/retry, escaped text and preserved return navigation.
+The endpoint supports completed tasks too; the dashboard entry point remains occupied work.
+README and the capacity operations guide document the contract and limitations.
+
+Validation:
+
+- 100 PostgreSQL tests passed, including admin authorization, bounds, missing tasks,
+  deterministic recovery history, field allowlist, no-store and read-only balances/state.
+- 21 hosted integration tests passed using local D1 simulation, including admin history
+  parity, pagination, authorization and unchanged participant history.
+- Creator/agent/superadmin browser workflows exercised both local backends. Real history
+  API reads verified metadata and access controls; injected UI responses exercised retry,
+  five-event pagination, empty pages, escaping and return navigation. A fixture initially
+  omitted no-store headers; corrected it before the passing browser runs.
+- Ruff lint/format, hosted build and whitespace checks passed.
+
+No deployment, Site identity/audience change, merge, provider integration or cash flow was
+enabled. History records lifecycle operations, not live expiry detection; reads never
+recover work or move credits. Offset paging is not a snapshot. Global task search,
+automated recovery, provider certification and production-scale hosted validation remain
+pending. The test client still emits its upstream Starlette/httpx deprecation warning.

@@ -149,7 +149,7 @@ Backend tests check state inclusion/exclusion, missing agents, role restrictions
 pagination and ID ordering beyond 100 records. Browser tests inject assignment details and
 a 503 to exercise retry, HTML-like text and return navigation retaining the creator filter.
 The existing collaboration workflow remains real. Offset pages are not snapshots; this
-view does not include full event history or repair controls. Hosted checks use D1 simulation.
+view has no repair controls; event-history drill-down is described below. Hosted checks use D1 simulation.
 
 ### Lease context in assignment review
 
@@ -172,9 +172,34 @@ The UI does not infer execution authorization from the browser clock.
 These observations can become stale immediately. Reopen/reload to inspect current state;
 only the actual claim/heartbeat/submit endpoints authorize execution. No credential/token
 or artifact is exposed, and the view adds no cancellation or payment controls. This is not
-continuous monitoring, full event history or automated recovery.
+continuous monitoring or automated recovery; event-history drill-down is described below.
 
 Tests verify live attempts including the fifth, transition to expired retryable work,
 exhaustion and normalized expiry fields. Browser checks exercise submitted status with
 an absent lease and attempt limit alongside the assignment review flow. Hosted verification
 uses local D1 simulation; no vendor or production-scale claim is implied.
+
+### Administrator execution history
+
+From **View occupied work**, choose **Inspect execution history**. The read-only dialog
+shows five events per page, supports retry after a failed read, and preserves the assignment
+page, capacity page and creator filter on return. Event text is escaped. Closing the dialog
+or replacing the signed-in credential prevents a pending response from rendering.
+
+`GET /v1/admin/tasks/{task_id}/events?limit=50&offset=0` requires administrator
+credentials. It returns an array with only `id`, `kind`, `attempt`, `actor_owner_id`,
+`actor_agent_id` and `created_at`; it never includes artifacts or execution tokens/hashes.
+Known tasks with no events return `[]`; unknown tasks return 404 after authorization.
+Creators and agents cannot use this route, even for their own assignments; their existing
+participant history endpoint retains its scoped visibility. Responses forbid caching.
+
+Limits: 1–100 events, nonnegative offset up to 9007199254740991. Ordering uses recorded
+time, attempt, lifecycle rank, then event ID, shared with participant history. Reads do not
+expire leases, append events, cancel work or move credits. An expired lease is recorded
+as an event only when an execution operation records it; history is not a live lease clock.
+Offset pages are not a snapshot, so concurrent writes can change page boundaries.
+
+The API accepts any known task, including completed tasks, but this dashboard entry point
+is through occupied assignments. Global task search, automated repair and continuous
+monitoring remain pending. Tests use PostgreSQL and local D1 simulation; browser checks
+combine real history reads with injected paging/error/escaping scenarios.
