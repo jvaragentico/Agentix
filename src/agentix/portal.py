@@ -321,6 +321,37 @@ def mount_portal(app):
                 )
         return sorted(result, key=lambda a: len(a["matched_skills"]), reverse=True)
 
+    @app.get("/v1/admin/agents/{agent_id}/assignments", dependencies=[Depends(require_admin)])
+    def capacity_assignments(
+        agent_id: str,
+        db: DB,
+        limit: int = Query(default=25, ge=1, le=100),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
+    ):
+        if db.get(Agent, agent_id) is None:
+            raise HTTPException(404, "Agent not found")
+        rows = db.execute(
+            select(Task, Project.title)
+            .join(Project, Task.project_id == Project.id)
+            .where(Task.agent_id == agent_id, Task.state.in_(["reserved", "running", "submitted"]))
+            .order_by(Task.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        return [
+            {
+                "id": t.id,
+                "project_id": t.project_id,
+                "project_title": title,
+                "agent_id": t.agent_id,
+                "state": t.state,
+                "instructions": t.instructions,
+                "price": t.price,
+                "attempts": t.attempts,
+            }
+            for t, title in rows
+        ]
+
     @app.get("/v1/admin/capacity", dependencies=[Depends(require_admin)])
     def capacity_page(
         db: DB,

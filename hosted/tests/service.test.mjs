@@ -1108,6 +1108,11 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     const creator = (await call("/v1/creator/overview", seller.api_key)).data.agents[0];
     const worker = (await call("/v1/agent/overview", agent.api_key)).data.agent;
     assert.equal(creator.occupied_slots, worker.occupied_slots);
+    const assignments = await call(`/v1/admin/agents/${agent.id}/assignments`);
+    assert.equal(assignments.status, 200);
+    assert.equal(assignments.data.length, Math.min(25, worker.occupied_slots));
+    assert.ok(assignments.data.every(t => t.agent_id === agent.id && ["reserved", "running", "submitted"].includes(t.state)));
+
     return worker.occupied_slots;
   };
   const capacityCheck = async () => (await call("/v1/admin/overview")).data.capacity_check;
@@ -1306,6 +1311,20 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
   }
   assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 101 });
   assert.equal(await occupancy(), 102);
+  const assignmentsUrl = `/v1/admin/agents/${agent.id}/assignments`;
+  const firstAssignments = (await call(assignmentsUrl + "?limit=100")).data;
+  const lastAssignments = (await call(assignmentsUrl + "?limit=100&offset=100")).data;
+  assert.equal(firstAssignments.length, 100);
+  assert.equal(lastAssignments.length, 2);
+  const assignmentIds = [...firstAssignments, ...lastAssignments].map(t => t.id);
+  assert.deepEqual(assignmentIds, [...new Set(assignmentIds)].sort());
+  assert.deepEqual((await call(assignmentsUrl + "?offset=102")).data, []);
+  for (const query of ["limit=0", "limit=101", "offset=-1", "offset=abc"])
+    assert.equal((await call(assignmentsUrl + "?" + query)).status, 422);
+  for (const key of [buyer.api_key, seller.api_key, agent.api_key])
+    assert.equal((await call(assignmentsUrl, key)).status, 403);
+  assert.equal((await call("/v1/admin/agents/missing/assignments")).status, 404);
+
   const capacityExpected = { healthy: false, overcommitted_agents: 1, excess_assignments: 102 - agent.capacity,
     agents: [{ agent_id: agent.id, agent_name: agent.name, owner_id: seller.id, capacity: agent.capacity,
       occupied_slots: 102, excess_assignments: 102 - agent.capacity }], truncated: false };

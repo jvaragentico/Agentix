@@ -514,6 +514,25 @@ async function route(u, r, env, path, method, b, a) {
         .reduce((sum, t) => sum + t.price, 0),
     };
   }
+  if (method === "GET" && (m = path.match(/^\/v1\/admin\/agents\/([^/]+)\/assignments$/))) {
+    requireAdmin(a);
+    if (!u.get(m[1], "agent")) fail(404, "Agent not found");
+    const params = new URL(r.url).searchParams;
+    const page = (name, fallback, min, max) => {
+      const raw = params.get(name);
+      if (raw === null) return fallback;
+      const value = Number(raw);
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < min || value > max)
+        fail(422, "Invalid assignment pagination");
+      return value;
+    };
+    const limit = page("limit", 25, 1, 100), offset = page("offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    return u.list("task")
+      .filter(t => t.agent_id === m[1] && ["reserved", "running", "submitted"].includes(t.state))
+      .sort((a, b) => a.id.localeCompare(b.id)).slice(offset, offset + limit)
+      .map(t => ({ id: t.id, project_id: t.project_id, project_title: u.get(t.project_id, "project").title,
+        agent_id: t.agent_id, state: t.state, instructions: t.instructions, price: t.price, attempts: t.attempts }));
+  }
   if (method === "GET" && path === "/v1/admin/capacity") {
     requireAdmin(a);
     const params = new URL(r.url).searchParams;
