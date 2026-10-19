@@ -486,6 +486,23 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(page.locator("dialog img")).toHaveCount(0);
   await page.getByRole("button", { name: "Only this creator", exact: true }).first().click();
   await expect(page.getByRole("button", { name: "All creators", exact: true })).toBeVisible();
+  let assignmentFailure = true;
+  await page.route("**/v1/admin/agents/*/assignments?*", async route => {
+    if (assignmentFailure) {
+      assignmentFailure = false;
+      await route.fulfill({ status: 503, json: { detail: "Unavailable" }, headers: { "Cache-Control": "no-store" } });
+    } else await route.fulfill({ json: [{ id: "occupied-task", agent_id: "capacity-0", project_id: "project-example", project_title: "<img src=x onerror=alert(1)>", instructions: "Review implementation", state: "submitted", price: 20, attempts: 1 }], headers: { "Cache-Control": "no-store" } });
+  });
+  await page.getByRole("button", { name: "View occupied work", exact: true }).first().click();
+  await expect(page.locator("dialog")).toContainText("Occupied assignments could not be loaded.");
+  await page.getByRole("button", { name: "Retry assignments", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("occupied-task · submitted · 20 credits");
+  await expect(page.locator("dialog")).toContainText("<img src=x onerror=alert(1)>");
+  await expect(page.locator("dialog img")).toHaveCount(0);
+  await page.getByRole("button", { name: "Back to capacity warnings", exact: true }).click();
+  await expect(page.getByRole("button", { name: "All creators", exact: true })).toBeVisible();
+  await page.unroute("**/v1/admin/agents/*/assignments?*");
+
   await page.getByRole("button", { name: "Next page", exact: true }).click();
   await expect(page.locator("dialog")).toContainText("Capacity warnings could not be loaded.");
   await page.getByRole("button", { name: "Retry capacity warnings" }).click();
@@ -495,8 +512,8 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(page.locator("dialog")).toContainText("Page 1");
   await page.getByRole("button", { name: "All creators", exact: true }).click();
   await expect(page.getByRole("button", { name: "Only this creator", exact: true }).first()).toBeVisible();
-  expect(capacityOffsets).toEqual([0, 0, 5, 5, 0, 0]);
-  expect(capacityOwners).toEqual([null, "owner-sample", "owner-sample", "owner-sample", "owner-sample", null]);
+  expect(capacityOffsets).toEqual([0, 0, 0, 5, 5, 0, 0]);
+  expect(capacityOwners).toEqual([null, "owner-sample", "owner-sample", "owner-sample", "owner-sample", "owner-sample", null]);
   await page.getByRole("button", { name: "Close capacity warnings" }).click();
   await page.unroute("**/v1/admin/capacity?*");
   // Exercise the warning display without corrupting the running test database.

@@ -314,12 +314,34 @@ async function capacityPages(offset = 0, ownerId = "") {
     modal.innerHTML = heading +
       (ownerId ? `<p>Creator: ${e(ownerId)} ${btn("All creators", "capacity-pages")}</p>` : "") +
       '<p>Read-only diagnostics. No work is cancelled or credits moved.</p>' +
-      (agents.length ? `<ul>${agents.map(a => `<li><strong>${e(a.agent_name)}</strong><p>Agent: ${e(a.agent_id)} · Creator: ${e(a.owner_id)}</p><p>${n(a.occupied_slots)} occupied / ${n(a.capacity)} capacity · ${n(a.excess_assignments)} excess</p>${!ownerId ? btn("Only this creator", "capacity-pages", `data-owner="${e(a.owner_id)}"`) : ""}</li>`).join("")}</ul>` : '<p>No capacity warnings on this page.</p>') +
+      (agents.length ? `<ul>${agents.map(a => `<li><strong>${e(a.agent_name)}</strong><p>Agent: ${e(a.agent_id)} · Creator: ${e(a.owner_id)}</p><p>${n(a.occupied_slots)} occupied / ${n(a.capacity)} capacity · ${n(a.excess_assignments)} excess</p>${btn("View occupied work", "capacity-work", `data-id="${e(a.agent_id)}" data-return-offset="${offset}" data-owner="${e(ownerId)}"`)}${!ownerId ? btn("Only this creator", "capacity-pages", `data-owner="${e(a.owner_id)}"`) : ""}</li>`).join("")}</ul>` : '<p>No capacity warnings on this page.</p>') +
       `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "capacity-pages", `data-offset="${offset - 5}" data-owner="${e(ownerId)}"`) : ""}${agents.length === 5 ? btn("Next page", "capacity-pages", `data-offset="${offset + 5}" data-owner="${e(ownerId)}"`) : ""}</div>`;
   } catch (error) {
     if (!current()) return;
     modal.innerHTML = heading + '<p role="alert">Capacity warnings could not be loaded.</p>' +
       btn("Retry capacity warnings", "capacity-pages", `data-offset="${offset}" data-owner="${e(ownerId)}"`);
+  }
+}
+async function capacityWork(agentId, offset = 0, returnOffset = 0, ownerId = "") {
+  if (user.role !== "superadmin") return;
+  const requestKey = key, loadId = id();
+  modal.dataset.creditLoad = loadId;
+  const heading = `<div class="modal-head"><h2>Occupied assignments</h2>${btn("×", "close", 'aria-label="Close occupied assignments"', "ghost")}</div>`;
+  const back = btn("Back to capacity warnings", "capacity-pages", `data-offset="${returnOffset}" data-owner="${e(ownerId)}"`);
+  const attrs = `data-id="${e(agentId)}" data-return-offset="${returnOffset}" data-owner="${e(ownerId)}"`;
+  const current = () => modal.open && modal.dataset.creditLoad === loadId && key === requestKey;
+  modal.innerHTML = heading + '<p role="status">Loading assignments…</p>' + back;
+  if (!modal.open) modal.showModal();
+  try {
+    const tasks = await api(`/v1/admin/agents/${encodeURIComponent(agentId)}/assignments?limit=5&offset=${offset}`);
+    if (!current()) return;
+    modal.innerHTML = heading + `<p>Agent: ${e(agentId)}</p><p>Read-only. Reserved, running and submitted work occupies capacity.</p>` +
+      (tasks.length ? `<ul>${tasks.map(t => `<li><strong>${e(t.project_title)}</strong><p>${e(t.instructions)}</p><p>Assignment: ${e(t.id)} · ${e(t.state)} · ${n(t.price)} credits · ${n(t.attempts)} attempts</p></li>`).join("")}</ul>` : '<p>No occupied assignments on this page.</p>') +
+      `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "capacity-work", `${attrs} data-offset="${offset - 5}"`) : ""}${tasks.length === 5 ? btn("Next page", "capacity-work", `${attrs} data-offset="${offset + 5}"`) : ""}${back}</div>`;
+  } catch (error) {
+    if (!current()) return;
+    modal.innerHTML = heading + '<p role="alert">Occupied assignments could not be loaded.</p>' +
+      btn("Retry assignments", "capacity-work", `${attrs} data-offset="${offset}"`) + back;
   }
 }
 async function creditHistory(offset = 0) {
@@ -398,6 +420,10 @@ document.addEventListener("click", async (ev) => {
   if (!b) return;
   const action = b.dataset.action;
   try {
+    if (action === "capacity-work") {
+      await capacityWork(b.dataset.id, Number(b.dataset.offset || 0), Number(b.dataset.returnOffset || 0), b.dataset.owner || "");
+      return;
+    }
     if (action === "capacity-pages") {
       await capacityPages(Number(b.dataset.offset || 0), b.dataset.owner || "");
       return;

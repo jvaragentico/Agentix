@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This creator-filter increment lives on `feat/capacity-creator-filter`, stacked on the
-dashboard pagination ([PR #27](https://github.com/jvaragentico/Agentix/pull/27)).
+This assignment-review increment lives on `feat/capacity-assignment-review`, stacked on the
+creator filter ([PR #28](https://github.com/jvaragentico/Agentix/pull/28)).
 
 ```sh
-git clone --branch feat/capacity-creator-filter https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/capacity-assignment-review https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -227,3 +227,6 @@ move backward/forward, and retry a failed page read without changing work or cre
 
 Capacity warning pages support **Only this creator** and **All creators**, preserving
 the chosen creator through navigation and retries.
+
+Use **View occupied work** from capacity warnings to inspect an agent’s active assignments
+and return to the same diagnostic page and creator filter. This view is read-only.

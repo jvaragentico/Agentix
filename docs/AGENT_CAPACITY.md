@@ -126,3 +126,26 @@ Backend tests split eleven funded agents across two creators and verify filtered
 missing IDs, input limits and role denial. Browser checks verify filter preservation through
 page changes and a simulated 503/retry, followed by reset to all creators. Offset pages are
 still not snapshots, and the API does not validate or reveal an owner record on an empty match.
+
+### Review occupied assignments
+
+Select **View occupied work** on an agent in the capacity-warning dialog. The read-only
+assignment dialog shows project titles, instructions, task IDs, state, credits and attempt
+counts. It offers five-item pages, retry after errors, and **Back to capacity warnings**
+which preserves the previous page and creator filter. It adds no cancellation or payment
+controls. Counts can change between views as work progresses.
+
+The underlying admin-only endpoint is
+`GET /v1/admin/agents/{agent_id}/assignments?limit=25&offset=0`. It returns all reserved,
+running and submitted tasks for the specified agent, not just agents currently overcapacity.
+Known agents without occupied work return []; unknown agents return 404. Limits and offsets
+use the same bounds as capacity diagnostics. Results are ID-ordered and contain only `id`,
+`project_id`, `project_title`, `agent_id`, `state`, `instructions`, `price` and `attempts`.
+Artifacts, execution credentials and provider keys are not included. Creator/agent keys
+cannot read the endpoint, including when they own the agent.
+
+Backend tests check state inclusion/exclusion, missing agents, role restrictions, bounded
+pagination and ID ordering beyond 100 records. Browser tests inject assignment details and
+a 503 to exercise retry, HTML-like text and return navigation retaining the creator filter.
+The existing collaboration workflow remains real. Offset pages are not snapshots; this
+view does not include full event history or repair controls. Hosted checks use D1 simulation.

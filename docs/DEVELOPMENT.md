@@ -810,3 +810,33 @@ README, capacity/dashboard docs and roadmap updated. Overview totals stay platfo
 only diagnostic pages are filtered. Offset pages are not snapshots and hosted reads still
 scan records. Task-history links, repair and scale testing remain pending. No deployment,
 Site identity/audience change, provider-key collection, vendor certification or cash action.
+
+## Occupied-assignment review from capacity warnings
+
+Inspected instructions (none found), main, open draft PRs #1–#28, development notes,
+roadmap and private Site identity/audience docs. PR #28 passed CI. Built on its creator
+filter in `feat/capacity-assignment-review`, without merging pending work.
+
+Added admin-only GET /v1/admin/agents/{agent_id}/assignments with bounded ID-ordered
+pagination over reserved/running/submitted work. The explicit field allowlist includes
+project title, instructions, IDs, state, price and attempts, omitting artifacts and keys.
+Known empty agents return []; unknown agents return 404. Capacity warning rows now offer
+View occupied work, with read-only paging, retry and return to the previous creator filter
+and offset. Existing dialog/request guards prevent stale updates. No migration or mutations.
+
+Validation: 99 PostgreSQL tests and 21 hosted tests passed. Extended fixtures verify state
+inclusion/exclusion, agent isolation, role denial, unknown IDs, input bounds, ordered pages
+beyond 100 tasks and allowed fields. Initial PostgreSQL setup failed because the refreshed
+environment had stopped the local test container; restarted the existing test service and
+reran successfully. The temporary browser runner/cache also needed restoration. Lint/format,
+hosted build and diff checks passed. Final browser evidence is recorded below.
+
+README, capacity/dashboard docs and roadmap updated. This is occupied-work review, not
+full execution-event history or repair. Offset pages are not snapshots; hosted indexing
+and scale tests remain pending. No Site deployment, identity/audience change, provider-key
+collection, cash operation, vendor certification or merge occurred.
+
+Final browser evidence: both local collaboration workflows passed (two checks) on
+FastAPI/PostgreSQL and Worker/D1 simulation. Injected assignment details and a 503 verify
+retry, HTML-like titles rendered as text and return navigation preserving the creator
+filter; existing workflows continue checking actual collaboration and settlement.

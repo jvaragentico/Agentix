@@ -117,6 +117,29 @@ def test_capacity_counts_all_commitments_not_recent_tasks(client, app, participa
         creator = client.get("/v1/creator/overview", headers=p["seller"]).json()["agents"][0]
         agent = client.get("/v1/agent/overview", headers=p["agent_auth"]).json()["agent"]
         assert creator["occupied_slots"] == agent["occupied_slots"]
+        response = client.get(f"/v1/admin/agents/{p['agent']['id']}/assignments", headers=ADMIN)
+        assert response.status_code == 200
+        rows = response.json()
+        assert len(rows) == min(25, agent["occupied_slots"])
+        assert all(
+            t["agent_id"] == p["agent"]["id"] and t["state"] in ("reserved", "running", "submitted")
+            for t in rows
+        )
+        assert all(
+            set(t)
+            == {
+                "id",
+                "project_id",
+                "project_title",
+                "agent_id",
+                "state",
+                "instructions",
+                "price",
+                "attempts",
+            }
+            for t in rows
+        )
+
         return agent["occupied_slots"]
 
     def capacity_check():
@@ -147,6 +170,18 @@ def test_capacity_counts_all_commitments_not_recent_tasks(client, app, participa
         fields.update(state="reserved")
         db.add_all(Task(**fields) for _ in range(101))
     assert occupancy() == 101  # Never silently clamp drift to configured capacity.
+    path = f"/v1/admin/agents/{p['agent']['id']}/assignments"
+    first = client.get(path + "?limit=100", headers=ADMIN).json()
+    last = client.get(path + "?limit=100&offset=100", headers=ADMIN).json()
+    assert len(first) == 100 and len(last) == 1
+    assert [t["id"] for t in first + last] == sorted({t["id"] for t in first + last})
+    assert client.get(path + "?offset=101", headers=ADMIN).json() == []
+    for query in ("limit=0", "limit=101", "offset=-1", "offset=abc"):
+        assert client.get(path + "?" + query, headers=ADMIN).status_code == 422
+    for auth in (p["buyer"], p["seller"], p["agent_auth"]):
+        assert client.get(path, headers=auth).status_code == 403
+    assert client.get("/v1/admin/agents/missing/assignments", headers=ADMIN).status_code == 404
+
     assert len(client.get("/v1/agent/overview", headers=p["agent_auth"]).json()["tasks"]) == 100
     assert client.get("/v1/creator/overview", headers=p["outsider"]).json()["agents"] == []
 
