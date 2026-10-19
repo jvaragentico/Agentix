@@ -527,11 +527,15 @@ async function route(u, r, env, path, method, b, a) {
       return value;
     };
     const limit = page("limit", 25, 1, 100), offset = page("offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    const now = Date.now();
     return u.list("task")
       .filter(t => t.agent_id === m[1] && ["reserved", "running", "submitted"].includes(t.state))
       .sort((a, b) => a.id.localeCompare(b.id)).slice(offset, offset + limit)
       .map(t => ({ id: t.id, project_id: t.project_id, project_title: u.get(t.project_id, "project").title,
-        agent_id: t.agent_id, state: t.state, instructions: t.instructions, price: t.price, attempts: t.attempts }));
+        agent_id: t.agent_id, state: t.state, instructions: t.instructions, price: t.price, attempts: t.attempts,
+        attempt_limit: MAX_EXECUTION_ATTEMPTS, lease_expires_at: t.lease_expires_at || null,
+        execution_status: t.state !== "running" ? t.state : t.lease_expires_at && Date.parse(t.lease_expires_at) > now
+          ? "active" : t.attempts >= MAX_EXECUTION_ATTEMPTS ? "exhausted" : "expired_retryable" }));
   }
   if (method === "GET" && path === "/v1/admin/capacity") {
     requireAdmin(a);

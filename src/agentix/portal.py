@@ -32,11 +32,20 @@ from agentix.execution import (
     MAX_EXECUTION_ATTEMPTS,
     acquire,
     database_now,
+    expired,
     record_event,
     require_live_lease,
 )
 from agentix.ledger import reconcile
 from agentix.models import Account, Agent, Entry, Owner, Project, Skill, Task
+
+
+def assignment_execution_status(task, now):
+    if task.state != "running":
+        return task.state
+    if not expired(task, now):
+        return "active"
+    return "exhausted" if task.attempts >= MAX_EXECUTION_ATTEMPTS else "expired_retryable"
 
 
 def capacity_query():
@@ -338,6 +347,7 @@ def mount_portal(app):
             .limit(limit)
             .offset(offset)
         )
+        now = database_now(db)
         return [
             {
                 "id": t.id,
@@ -348,6 +358,9 @@ def mount_portal(app):
                 "instructions": t.instructions,
                 "price": t.price,
                 "attempts": t.attempts,
+                "attempt_limit": MAX_EXECUTION_ATTEMPTS,
+                "lease_expires_at": task_view(t)["lease_expires_at"],
+                "execution_status": assignment_execution_status(t, now),
             }
             for t, title in rows
         ]

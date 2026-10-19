@@ -1173,9 +1173,14 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     assert.equal(response.status, 200);
     assert.equal(response.data.attempts, attempt);
     assert.equal(response.data.attempt_limit, 5);
+    const diagnostic = (await call(`/v1/admin/agents/${agent.id}/assignments`)).data[0];
+    assert.equal(diagnostic.execution_status, "active");
+    assert.equal(diagnostic.attempt_limit, 5);
+    assert.equal(diagnostic.lease_expires_at, response.data.lease_expires_at);
     assert.deepEqual(await health(), { active_leases: 1, retryable_expired: 0, exhausted: 0 });
     if (attempt < 5) {
       expire();
+      assert.equal((await call(`/v1/admin/agents/${agent.id}/assignments`)).data[0].execution_status, "expired_retryable");
       assert.deepEqual(await health(), { active_leases: 0, retryable_expired: 1, exhausted: 0 });
     }
   }
@@ -1208,6 +1213,7 @@ test("attempt cap preserves live execution and skips exhausted work", async () =
     [],
   );
   expire();
+  assert.equal((await call(`/v1/admin/agents/${agent.id}/assignments`)).data[0].execution_status, "exhausted");
   assert.deepEqual(await health(), { active_leases: 0, retryable_expired: 0, exhausted: 1 });
   assert.deepEqual(
     (await call("/v1/creator/recovery?limit=1", buyer.api_key)).data.map(

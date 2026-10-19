@@ -26,15 +26,36 @@ def test_attempt_cap_preserves_live_lease_skips_exhausted_and_allows_refund(
         assert response.status_code == 200
         assert response.json()["attempts"] == attempt
         assert response.json()["attempt_limit"] == 5
+        diagnostic = client.get(
+            f"/v1/admin/agents/{p['agent']['id']}/assignments",
+            headers={"Authorization": "Bearer test-admin"},
+        ).json()[0]
+        assert diagnostic["execution_status"] == "active"
+        assert diagnostic["attempt_limit"] == 5
+        assert diagnostic["lease_expires_at"] == response.json()["lease_expires_at"]
         assert health() == {"active_leases": 1, "retryable_expired": 0, "exhausted": 0}
         if attempt < 5:
             expire(app, task)
+            assert (
+                client.get(
+                    f"/v1/admin/agents/{p['agent']['id']}/assignments",
+                    headers={"Authorization": "Bearer test-admin"},
+                ).json()[0]["execution_status"]
+                == "expired_retryable"
+            )
             assert health() == {"active_leases": 0, "retryable_expired": 1, "exhausted": 0}
     assert client.post(f"/v1/tasks/{task}/start", headers=headers, json={}).status_code == 200
     assert client.post(f"/v1/tasks/{task}/heartbeat", headers=headers, json={}).status_code == 200
     assert client.get("/v1/creator/recovery", headers=p["buyer"]).json() == []
     expire(app, task)
     assert health() == {"active_leases": 0, "retryable_expired": 0, "exhausted": 1}
+    assert (
+        client.get(
+            f"/v1/admin/agents/{p['agent']['id']}/assignments",
+            headers={"Authorization": "Bearer test-admin"},
+        ).json()[0]["execution_status"]
+        == "exhausted"
+    )
     queue = client.get("/v1/creator/recovery?limit=1", headers=p["buyer"]).json()
     assert [t["id"] for t in queue] == [task]
     assert queue[0]["project_title"] == "Build API"

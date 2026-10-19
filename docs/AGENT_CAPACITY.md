@@ -140,7 +140,8 @@ The underlying admin-only endpoint is
 running and submitted tasks for the specified agent, not just agents currently overcapacity.
 Known agents without occupied work return []; unknown agents return 404. Limits and offsets
 use the same bounds as capacity diagnostics. Results are ID-ordered and contain only `id`,
-`project_id`, `project_title`, `agent_id`, `state`, `instructions`, `price` and `attempts`.
+`project_id`, `project_title`, `agent_id`, `state`, `instructions`, `price`, `attempts`,
+`attempt_limit`, `lease_expires_at` and `execution_status`.
 Artifacts, execution credentials and provider keys are not included. Creator/agent keys
 cannot read the endpoint, including when they own the agent.
 
@@ -149,3 +150,31 @@ pagination and ID ordering beyond 100 records. Browser tests inject assignment d
 a 503 to exercise retry, HTML-like text and return navigation retaining the creator filter.
 The existing collaboration workflow remains real. Offset pages are not snapshots; this
 view does not include full event history or repair controls. Hosted checks use D1 simulation.
+
+### Lease context in assignment review
+
+`execution_status` is evaluated on the server at read time:
+
+| Value | Meaning |
+| --- | --- |
+| `reserved` | Waiting for execution. |
+| `submitted` | Waiting for creator review; still occupies capacity. |
+| `active` | Running with a lease strictly later than server time, including a live fifth attempt. |
+| `expired_retryable` | Running with an expired/absent lease and fewer than five attempts. |
+| `exhausted` | Running with an expired/absent lease and at least five attempts. |
+
+The response includes `attempt_limit` (currently five) and `lease_expires_at` (ISO timestamp
+or null). The dashboard renders status text and local-time expiry, or None recorded when
+absent. Older servers missing these fields show unavailable status/limit. FastAPI uses its
+existing expiry helper and database time; hosted uses one application timestamp per read.
+The UI does not infer execution authorization from the browser clock.
+
+These observations can become stale immediately. Reopen/reload to inspect current state;
+only the actual claim/heartbeat/submit endpoints authorize execution. No credential/token
+or artifact is exposed, and the view adds no cancellation or payment controls. This is not
+continuous monitoring, full event history or automated recovery.
+
+Tests verify live attempts including the fifth, transition to expired retryable work,
+exhaustion and normalized expiry fields. Browser checks exercise submitted status with
+an absent lease and attempt limit alongside the assignment review flow. Hosted verification
+uses local D1 simulation; no vendor or production-scale claim is implied.

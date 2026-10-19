@@ -491,12 +491,14 @@ test("creator, agent and admin complete project matching, work review, earnings 
     if (assignmentFailure) {
       assignmentFailure = false;
       await route.fulfill({ status: 503, json: { detail: "Unavailable" }, headers: { "Cache-Control": "no-store" } });
-    } else await route.fulfill({ json: [{ id: "occupied-task", agent_id: "capacity-0", project_id: "project-example", project_title: "<img src=x onerror=alert(1)>", instructions: "Review implementation", state: "submitted", price: 20, attempts: 1 }], headers: { "Cache-Control": "no-store" } });
+    } else await route.fulfill({ json: [{ id: "occupied-task", agent_id: "capacity-0", project_id: "project-example", project_title: "<img src=x onerror=alert(1)>", instructions: "Review implementation", state: "submitted", price: 20, attempts: 1, execution_status: "submitted", lease_expires_at: null, attempt_limit: 5 }], headers: { "Cache-Control": "no-store" } });
   });
   await page.getByRole("button", { name: "View occupied work", exact: true }).first().click();
   await expect(page.locator("dialog")).toContainText("Occupied assignments could not be loaded.");
   await page.getByRole("button", { name: "Retry assignments", exact: true }).click();
   await expect(page.locator("dialog")).toContainText("occupied-task · submitted · 20 credits");
+  await expect(page.locator("dialog")).toContainText("Awaiting creator review");
+  await expect(page.locator("dialog")).toContainText("Attempt limit: 5 · Lease expiry: None recorded");
   await expect(page.locator("dialog")).toContainText("<img src=x onerror=alert(1)>");
   await expect(page.locator("dialog img")).toHaveCount(0);
   await page.getByRole("button", { name: "Back to capacity warnings", exact: true }).click();
