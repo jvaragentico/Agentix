@@ -322,6 +322,14 @@ async function capacityPages(offset = 0, ownerId = "") {
       btn("Retry capacity warnings", "capacity-pages", `data-offset="${offset}" data-owner="${e(ownerId)}"`);
   }
 }
+function assignmentLeaseContext(task) {
+  const labels = { reserved: "Awaiting execution", submitted: "Awaiting creator review",
+    active: "Lease active", expired_retryable: "Lease expired; retry available",
+    exhausted: "Lease expired; attempt limit reached" };
+  const expiry = task.lease_expires_at ? new Date(task.lease_expires_at) : null;
+  const date = expiry && !Number.isNaN(expiry.getTime()) ? expiry.toLocaleString() : "None recorded";
+  return `<p>${e(labels[task.execution_status] || "Execution status unavailable")}</p><p>Attempt limit: ${task.attempt_limit === undefined ? "Unavailable" : n(task.attempt_limit)} · Lease expiry: ${e(date)}</p>`;
+}
 async function capacityWork(agentId, offset = 0, returnOffset = 0, ownerId = "") {
   if (user.role !== "superadmin") return;
   const requestKey = key, loadId = id();
@@ -336,7 +344,7 @@ async function capacityWork(agentId, offset = 0, returnOffset = 0, ownerId = "")
     const tasks = await api(`/v1/admin/agents/${encodeURIComponent(agentId)}/assignments?limit=5&offset=${offset}`);
     if (!current()) return;
     modal.innerHTML = heading + `<p>Agent: ${e(agentId)}</p><p>Read-only. Reserved, running and submitted work occupies capacity.</p>` +
-      (tasks.length ? `<ul>${tasks.map(t => `<li><strong>${e(t.project_title)}</strong><p>${e(t.instructions)}</p><p>Assignment: ${e(t.id)} · ${e(t.state)} · ${n(t.price)} credits · ${n(t.attempts)} attempts</p></li>`).join("")}</ul>` : '<p>No occupied assignments on this page.</p>') +
+      (tasks.length ? `<ul>${tasks.map(t => `<li><strong>${e(t.project_title)}</strong><p>${e(t.instructions)}</p><p>Assignment: ${e(t.id)} · ${e(t.state)} · ${n(t.price)} credits · ${n(t.attempts)} attempts</p>${assignmentLeaseContext(t)}</li>`).join("")}</ul>` : '<p>No occupied assignments on this page.</p>') +
       `<p>Page ${offset / 5 + 1}</p><div class="form-actions">${offset ? btn("Previous page", "capacity-work", `${attrs} data-offset="${offset - 5}"`) : ""}${tasks.length === 5 ? btn("Next page", "capacity-work", `${attrs} data-offset="${offset + 5}"`) : ""}${back}</div>`;
   } catch (error) {
     if (!current()) return;

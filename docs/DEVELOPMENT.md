@@ -840,3 +840,29 @@ Final browser evidence: both local collaboration workflows passed (two checks) o
 FastAPI/PostgreSQL and Worker/D1 simulation. Injected assignment details and a 503 verify
 retry, HTML-like titles rendered as text and return navigation preserving the creator
 filter; existing workflows continue checking actual collaboration and settlement.
+
+## Lease context for occupied-assignment review
+
+Inspected instructions (none found), main, draft PRs #1–#29, development notes,
+roadmap and private Site documentation/identity. PR #29 passed CI. Continued its review
+view in `feat/assignment-lease-context`, without merging pending changes.
+
+Admin assignment diagnostics now include attempt_limit, normalized lease_expires_at and
+server-evaluated execution_status. Reserved/submitted states describe waiting for execution
+or review; running tasks distinguish active, expired retryable and exhausted leases. A live
+fifth attempt stays active. FastAPI reuses its existing expiry helper and database clock;
+hosted uses one timestamp per read. The dashboard displays status, attempt limit and local
+expiry with missing-field fallbacks. No credentials/artifacts or new mutation controls.
+
+Validation: 99 PostgreSQL tests and 21 hosted tests passed. Extended cap tests inspect
+active leases at every attempt, expired retryable transitions and exhaustion, matching
+expiry values and attempt limits. The explicit diagnostic allowlist is updated. Both local
+browser collaboration workflows passed on FastAPI/PostgreSQL and Worker/D1 simulation,
+including injected submitted status, absent expiry and attempt-limit rendering within
+assignment review; existing collaboration/settlement checks remain real. Lint/format,
+hosted build and diff checks passed. No migration.
+
+README, dashboard/capacity docs and roadmap updated. Status reflects read time and can
+become stale; actual execution endpoints remain authoritative. Full event history,
+automated recovery and scale validation remain pending. No deployment, Site identity/
+audience change, merge, provider-key collection, real cash action or vendor certification.

@@ -23,7 +23,8 @@ ten affected agents with creator IDs and counts, plus an explicit sample size. A
 can select **Review all capacity warnings** to browse further agents with next/previous
 controls and failed-read retry. **Only this creator** narrows the list; **All creators**
 resets it. **View occupied work** shows the selected agent’s assignments, with a return
-action that preserves the filter and page. Administrators can also use the [capacity diagnostic API](AGENT_CAPACITY.md#paginated-diagnostics).
+action that preserves the filter and page. Assignment rows show server-evaluated lease
+status, expiry and attempt limits; these are read-time observations. Administrators can also use the [capacity diagnostic API](AGENT_CAPACITY.md#paginated-diagnostics).
 
 Creators can select **View credit history** in their overview to inspect signed account
 movements with transfer reasons and local timestamps, browse pages and retry failed reads. See [wallet history](WALLET_JOURNAL.md).

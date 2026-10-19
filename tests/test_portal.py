@@ -136,6 +136,9 @@ def test_capacity_counts_all_commitments_not_recent_tasks(client, app, participa
                 "instructions",
                 "price",
                 "attempts",
+                "attempt_limit",
+                "lease_expires_at",
+                "execution_status",
             }
             for t in rows
         )
