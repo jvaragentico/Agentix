@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import case, func, or_, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,7 @@ from agentix.execution import (
     acquire,
     database_now,
     digest,
+    event_history,
     expired,
     record_event,
     require_live_lease,
@@ -34,7 +35,6 @@ from agentix.models import (
     Project,
     Skill,
     Task,
-    TaskEvent,
     new_id,
 )
 
@@ -535,41 +535,7 @@ def create_app(settings: Settings | None = None, engine=None):
         offset: int = Query(default=0, ge=0),
     ):
         visible_task(db, task_id, auth)
-        query = (
-            select(TaskEvent)
-            .where(TaskEvent.task_id == task_id)
-            .order_by(
-                TaskEvent.created_at,
-                TaskEvent.attempt,
-                case(
-                    {
-                        "reserved": 0,
-                        "claimed": 1,
-                        "heartbeat": 2,
-                        "lease_expired": 3,
-                        "submitted": 4,
-                        "accepted": 5,
-                        "cancelled": 6,
-                    },
-                    value=TaskEvent.kind,
-                    else_=99,
-                ),
-                TaskEvent.id,
-            )
-            .limit(limit)
-            .offset(offset)
-        )
-        return [
-            {
-                "id": e.id,
-                "kind": e.kind,
-                "attempt": e.attempt,
-                "actor_owner_id": e.actor_owner_id,
-                "actor_agent_id": e.actor_agent_id,
-                "created_at": e.created_at.isoformat(),
-            }
-            for e in db.scalars(query)
-        ]
+        return event_history(db, task_id, limit, offset)
 
     @app.post("/v1/tasks/{task_id}/accept")
     def accept(task_id: str, auth: Auth, db: DB):

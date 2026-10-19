@@ -3,7 +3,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from agentix.models import Task, TaskEvent
@@ -76,3 +76,41 @@ def acquire(db: Session, task: Task, auth, token: str, lease_seconds: int):
     task.lease_token_hash = digest(token)
     task.lease_expires_at = now + timedelta(seconds=lease_seconds)
     record_event(db, task, auth, "claimed")
+
+
+def event_history(db: Session, task_id: str, limit: int, offset: int):
+    query = (
+        select(TaskEvent)
+        .where(TaskEvent.task_id == task_id)
+        .order_by(
+            TaskEvent.created_at,
+            TaskEvent.attempt,
+            case(
+                {
+                    "reserved": 0,
+                    "claimed": 1,
+                    "heartbeat": 2,
+                    "lease_expired": 3,
+                    "submitted": 4,
+                    "accepted": 5,
+                    "cancelled": 6,
+                },
+                value=TaskEvent.kind,
+                else_=99,
+            ),
+            TaskEvent.id,
+        )
+        .limit(limit)
+        .offset(offset)
+    )
+    return [
+        {
+            "id": e.id,
+            "kind": e.kind,
+            "attempt": e.attempt,
+            "actor_owner_id": e.actor_owner_id,
+            "actor_agent_id": e.actor_agent_id,
+            "created_at": e.created_at.isoformat(),
+        }
+        for e in db.scalars(query)
+    ]

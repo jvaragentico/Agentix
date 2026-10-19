@@ -439,6 +439,14 @@ test("creator, agent and admin complete project matching, work review, earnings 
   );
   const ledgerData = await ledger.json();
   expect(ledgerData.ledger_balance).toBe(0);
+  const adminEvents = await request.get(`/v1/admin/tasks/${activeTaskId}/events?limit=5`, { headers: auth(admin) });
+  expect(adminEvents.status()).toBe(200);
+  expect(adminEvents.headers()["cache-control"]).toBe("no-store");
+  const recordedEvents = await adminEvents.json();
+  expect(recordedEvents).toHaveLength(5);
+  expect(recordedEvents[0].kind).toBe("reserved");
+  expect(Object.keys(recordedEvents[0]).sort()).toEqual(["actor_agent_id", "actor_owner_id", "attempt", "created_at", "id", "kind"]);
+  expect((await request.get(`/v1/admin/tasks/${activeTaskId}/events`, { headers: auth(worker) })).status()).toBe(403);
   const capacityPage = await request.get("/v1/admin/capacity?limit=5&offset=0", { headers: auth(admin) });
   expect(capacityPage.status()).toBe(200);
   expect(capacityPage.headers()["cache-control"]).toBe("no-store");
@@ -501,6 +509,33 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(page.locator("dialog")).toContainText("Attempt limit: 5 · Lease expiry: None recorded");
   await expect(page.locator("dialog")).toContainText("<img src=x onerror=alert(1)>");
   await expect(page.locator("dialog img")).toHaveCount(0);
+  let historyFailure = true;
+  const historyOffsets = [];
+  await page.route("**/v1/admin/tasks/occupied-task/events?*", async route => {
+    const offset = Number(new URL(route.request().url()).searchParams.get("offset"));
+    historyOffsets.push(offset);
+    if (historyFailure) {
+      historyFailure = false;
+      await route.fulfill({ status: 503, headers: { "Cache-Control": "no-store" }, json: { detail: "Unavailable" } });
+    } else await route.fulfill({ headers: { "Cache-Control": "no-store" }, json: offset ? [] : Array.from({length: 5}, (_, i) => ({
+      id: `event-${i}`, kind: i ? "claimed" : "<img src=x onerror=alert(1)>", attempt: i,
+      created_at: "2026-10-19T12:00:00Z", actor_owner_id: "owner-sample", actor_agent_id: "capacity-0",
+    })) });
+  });
+  await page.getByRole("button", { name: "Inspect execution history", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("Execution history could not be loaded.");
+  await page.getByRole("button", { name: "Retry execution history", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("Work claimed");
+  await expect(page.locator("dialog")).toContainText("<img src=x onerror=alert(1)>");
+  await expect(page.locator("dialog img")).toHaveCount(0);
+  await page.getByRole("button", { name: "Next page", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("No events on this page.");
+  await page.getByRole("button", { name: "Previous page", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("Work claimed");
+  expect(historyOffsets).toEqual([0, 0, 5, 0]);
+  await page.getByRole("button", { name: "Back to occupied assignments", exact: true }).click();
+  await expect(page.locator("dialog")).toContainText("occupied-task · submitted · 20 credits");
+  await page.unroute("**/v1/admin/tasks/occupied-task/events?*");
   await page.getByRole("button", { name: "Back to capacity warnings", exact: true }).click();
   await expect(page.getByRole("button", { name: "All creators", exact: true })).toBeVisible();
   await page.unroute("**/v1/admin/agents/*/assignments?*");

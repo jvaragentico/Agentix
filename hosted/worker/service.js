@@ -334,6 +334,50 @@ function tview(u, t) {
     agent_name: u.get(t.agent_id, "agent")?.name,
   };
 }
+function eventHistory(u, taskId, r) {
+  const params = new URL(r.url).searchParams;
+  const pageInt = (name, fallback, max) => {
+    const value = params.get(name);
+    if (value === null) return fallback;
+    if (
+      !/^\d+$/.test(value) ||
+      !Number.isSafeInteger(Number(value)) ||
+      Number(value) > max
+    )
+      fail(422, "Invalid history pagination");
+    return Number(value);
+  };
+  const limit = pageInt("limit", 50, 100),
+    offset = pageInt("offset", 0, Number.MAX_SAFE_INTEGER);
+  if (!limit) fail(422, "History limit must be positive");
+  const rank = {
+    reserved: 0,
+    claimed: 1,
+    heartbeat: 2,
+    lease_expired: 3,
+    submitted: 4,
+    accepted: 5,
+    cancelled: 6,
+  };
+  return u
+    .list("event")
+    .filter((x) => x.task_id === taskId)
+    .sort(
+      (a, b) =>
+        a.created_at.localeCompare(b.created_at) ||
+        a.attempt - b.attempt ||
+        (rank[a.event] ?? 99) - (rank[b.event] ?? 99) ||
+        a.id.localeCompare(b.id),
+    )
+    .slice(offset, offset + limit)
+    .map(({ type, ...x }) => ({
+      ...x,
+      kind: x.event,
+      actor_owner_id: x.owner_id,
+      actor_agent_id: x.agent_id,
+    }));
+}
+
 function capacityAgents(u) {
   const occupied = new Map();
   for (const task of u.list("task")) {
@@ -513,6 +557,14 @@ async function route(u, r, env, path, method, b, a) {
         .filter((t) => t.agent_id === x.id && t.state === "accepted")
         .reduce((sum, t) => sum + t.price, 0),
     };
+  }
+  if (method === "GET" && (m = path.match(/^\/v1\/admin\/tasks\/([^/]+)\/events$/))) {
+    requireAdmin(a);
+    if (!u.get(m[1], "task")) fail(404, "Task not found");
+    return eventHistory(u, m[1], r).map(x => ({
+      id: x.id, kind: x.kind, attempt: x.attempt, created_at: x.created_at,
+      actor_owner_id: x.actor_owner_id, actor_agent_id: x.actor_agent_id,
+    }));
   }
   if (method === "GET" && (m = path.match(/^\/v1\/admin\/agents\/([^/]+)\/assignments$/))) {
     requireAdmin(a);
@@ -1035,47 +1087,7 @@ async function route(u, r, env, path, method, b, a) {
     const t = task(u, m[1], a);
     if (!m[2] && method === "GET") return safeTask(t);
     if (m[2] === "events" && method === "GET") {
-      const params = new URL(r.url).searchParams;
-      const pageInt = (name, fallback, max) => {
-        const value = params.get(name);
-        if (value === null) return fallback;
-        if (
-          !/^\d+$/.test(value) ||
-          !Number.isSafeInteger(Number(value)) ||
-          Number(value) > max
-        )
-          fail(422, "Invalid history pagination");
-        return Number(value);
-      };
-      const limit = pageInt("limit", 50, 100),
-        offset = pageInt("offset", 0, Number.MAX_SAFE_INTEGER);
-      if (!limit) fail(422, "History limit must be positive");
-      const rank = {
-        reserved: 0,
-        claimed: 1,
-        heartbeat: 2,
-        lease_expired: 3,
-        submitted: 4,
-        accepted: 5,
-        cancelled: 6,
-      };
-      return u
-        .list("event")
-        .filter((x) => x.task_id === t.id)
-        .sort(
-          (a, b) =>
-            a.created_at.localeCompare(b.created_at) ||
-            a.attempt - b.attempt ||
-            (rank[a.event] ?? 99) - (rank[b.event] ?? 99) ||
-            a.id.localeCompare(b.id),
-        )
-        .slice(offset, offset + limit)
-        .map(({ type, ...x }) => ({
-          ...x,
-          kind: x.event,
-          actor_owner_id: x.owner_id,
-          actor_agent_id: x.agent_id,
-        }));
+      return eventHistory(u, t.id, r);
     }
     if (["start", "heartbeat", "submit"].includes(m[2]) && method === "POST") {
       requireAgent(a);

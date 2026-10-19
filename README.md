@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This lease-context increment lives on `feat/assignment-lease-context`, stacked on the
-assignment review ([PR #29](https://github.com/jvaragentico/Agentix/pull/29)).
+This admin history increment lives on `feat/admin-execution-history`, stacked on the
+assignment lease context ([PR #30](https://github.com/jvaragentico/Agentix/pull/30)).
 
 ```sh
-git clone --branch feat/assignment-lease-context https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/admin-execution-history https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -233,3 +233,8 @@ and return to the same diagnostic page and creator filter. This view is read-onl
 
 Occupied-assignment review includes server-evaluated execution status, lease expiry and
 the attempt limit, while keeping execution credentials private.
+
+Choose **Inspect execution history** from occupied work to review recorded lifecycle events
+with pagination and retry. This administrator-only view exposes event metadata, preserves
+return navigation, and performs no recovery or financial mutations. See the
+[admin history contract and limitations](docs/AGENT_CAPACITY.md#administrator-execution-history).
