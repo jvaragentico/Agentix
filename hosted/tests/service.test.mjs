@@ -1427,3 +1427,42 @@ test("capacity detail sample is bounded and ordered across all agents", async ()
   assert.equal((await call(filteredUrl, seller.api_key)).status, 403);
   sql.close();
 });
+
+test("admin lookup includes completed assignments without exposing artifacts or changing state", async () => {
+  const {call, buyer, agent, skill, sql} = await participants();
+  const project = (await call("/v1/projects", buyer.api_key, "POST", {title: "Lookup project", budget: 100}, idem("lookup-project"))).data;
+  const reserve = async key => (await call(`/v1/projects/${project.id}/tasks`, buyer.api_key, "POST", {
+    agent_id: agent.id, skill_id: skill.id, instructions: "Review", acceptance_criteria: "Findings", price: 40,
+  }, idem(key))).data;
+  let task = await reserve("lookup-task");
+  const fields = ["id", "project_id", "project_title", "agent_id", "state", "instructions", "price", "attempts", "attempt_limit", "lease_expires_at", "execution_status"].sort();
+  async function check(state) {
+    const balances = sql.prepare("SELECT * FROM balances ORDER BY id").all();
+    const history = (await call(`/v1/admin/tasks/${task.id}/events`)).data;
+    const result = await call(`/v1/admin/tasks/${task.id}`);
+    assert.equal(result.status, 200);
+    assert.deepEqual(Object.keys(result.data).sort(), fields);
+    assert.equal(result.data.state, state);
+    assert.equal(result.data.execution_status, state === "running" ? "active" : state);
+    assert.equal(result.data.project_title, "Lookup project");
+    const occupied = (await call(`/v1/admin/agents/${agent.id}/assignments`)).data;
+    assert.equal(occupied.some(t => t.id === task.id), ["reserved", "running", "submitted"].includes(state));
+    assert.deepEqual(sql.prepare("SELECT * FROM balances ORDER BY id").all(), balances);
+    assert.deepEqual((await call(`/v1/admin/tasks/${task.id}/events`)).data, history);
+  }
+  await check("reserved");
+  const execution = {"X-Execution-Token": "lookup-worker-123456789012345678901234"};
+  assert.equal((await call(`/v1/tasks/${task.id}/start`, agent.api_key, "POST", {}, execution)).status, 200);
+  await check("running");
+  assert.equal((await call(`/v1/tasks/${task.id}/submit`, agent.api_key, "POST", {artifact: {text: "private"}}, execution)).status, 200);
+  await check("submitted");
+  assert.equal((await call(`/v1/tasks/${task.id}/accept`, buyer.api_key, "POST")).status, 200);
+  await check("accepted");
+  task = await reserve("lookup-cancel");
+  assert.equal((await call(`/v1/tasks/${task.id}/cancel`, buyer.api_key, "POST")).status, 200);
+  await check("cancelled");
+  for (const credential of [buyer.api_key, agent.api_key, "invalid"])
+    for (const id of [task.id, "missing"])
+      assert.ok([401, 403].includes((await call(`/v1/admin/tasks/${id}`, credential)).status));
+  assert.equal((await call("/v1/admin/tasks/missing")).status, 404);
+});

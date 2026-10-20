@@ -292,3 +292,65 @@ def test_capacity_detail_sample_is_bounded_and_ordered(client, app, participants
     assert client.get("/v1/admin/capacity?owner_id=missing", headers=ADMIN).json() == []
     assert client.get("/v1/admin/capacity?owner_id=" + "x" * 129, headers=ADMIN).status_code == 422
     assert client.get(url, headers=p["seller"]).status_code == 403
+
+
+def test_admin_lookup_includes_completed_work_without_mutation(client, participants):
+    from test_workflow import execution_headers, reserve
+
+    p = participants
+    task_id = reserve(client, p, price=40).json()["id"]
+    endpoint = f"/v1/admin/tasks/{task_id}"
+    fields = {
+        "id",
+        "project_id",
+        "project_title",
+        "agent_id",
+        "state",
+        "instructions",
+        "price",
+        "attempts",
+        "attempt_limit",
+        "lease_expires_at",
+        "execution_status",
+    }
+
+    def check(state):
+        before = client.get("/v1/wallet", headers=p["buyer"]).json()
+        history = client.get(f"{endpoint}/events", headers=ADMIN).json()
+        response = client.get(endpoint, headers=ADMIN)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        data = response.json()
+        assert set(data) == fields
+        assert data["state"] == state
+        assert data["execution_status"] == ("active" if state == "running" else state)
+        assert data["project_title"] == p["project"]["title"]
+        assert data["agent_id"] == p["agent"]["id"]
+        occupied = client.get(
+            f"/v1/admin/agents/{p['agent']['id']}/assignments", headers=ADMIN
+        ).json()
+        assert (data in occupied) == (state in {"reserved", "running", "submitted"})
+        assert client.get("/v1/wallet", headers=p["buyer"]).json() == before
+        assert client.get(f"{endpoint}/events", headers=ADMIN).json() == history
+
+    check("reserved")
+    client.post(
+        f"/v1/tasks/{task_id}/start", headers=execution_headers(p["agent_auth"]), json={}
+    ).raise_for_status()
+    check("running")
+    client.post(
+        f"/v1/tasks/{task_id}/submit",
+        headers=execution_headers(p["agent_auth"]),
+        json={"artifact": {"text": "private deliverable"}},
+    ).raise_for_status()
+    check("submitted")
+    client.post(f"/v1/tasks/{task_id}/accept", headers=p["buyer"]).raise_for_status()
+    check("accepted")
+    task_id = reserve(client, p, key="cancel-me", price=40).json()["id"]
+    endpoint = f"/v1/admin/tasks/{task_id}"
+    client.post(f"/v1/tasks/{task_id}/cancel", headers=p["buyer"]).raise_for_status()
+    check("cancelled")
+    for auth in (p["buyer"], p["agent_auth"], p["outsider"], {}):
+        for path in (endpoint, "/v1/admin/tasks/missing"):
+            assert client.get(path, headers=auth).status_code in (401, 403)
+    assert client.get("/v1/admin/tasks/missing", headers=ADMIN).status_code == 404
