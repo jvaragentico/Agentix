@@ -439,6 +439,34 @@ test("creator, agent and admin complete project matching, work review, earnings 
   );
   const ledgerData = await ledger.json();
   expect(ledgerData.ledger_balance).toBe(0);
+  let lookupFailure = true;
+  const lookupPath = `**/v1/admin/tasks/${activeTaskId}`;
+  await page.route(lookupPath, async route => {
+    if (lookupFailure) {
+      lookupFailure = false;
+      await route.fulfill({ status: 503, headers: { "Cache-Control": "no-store" }, json: {detail: "Unavailable"} });
+    } else await route.continue();
+  });
+  await page.getByRole("textbox", {name: "Assignment ID", exact: true}).fill(activeTaskId);
+  await page.getByRole("button", {name: "Look up assignment", exact: true}).click();
+  await expect(page.locator("dialog")).toContainText("Assignment could not be loaded: Unavailable");
+  await page.getByRole("button", {name: "Retry assignment lookup", exact: true}).click();
+  await expect(page.locator("dialog")).toContainText("Work accepted");
+  await expect(page.locator("dialog")).toContainText("accepted · 50 credits");
+  await expect(page.getByRole("button", {name: "Accept & pay credits", exact: true})).toHaveCount(0);
+  await expect(page.getByRole("button", {name: "Cancel assignment", exact: true})).toHaveCount(0);
+  await page.getByRole("button", {name: "Inspect execution history", exact: true}).click();
+  await expect(page.locator("dialog")).toContainText("Work reserved");
+  await page.getByRole("button", {name: "Next page", exact: true}).click();
+  await expect(page.locator("dialog")).toContainText("Page 2");
+  await page.getByRole("button", {name: "Back to assignment diagnostics", exact: true}).click();
+  await expect(page.locator("dialog")).toContainText("Work accepted");
+  await page.getByRole("button", {name: "Close assignment diagnostics", exact: true}).click();
+  await page.unroute(lookupPath);
+  await page.getByRole("textbox", {name: "Assignment ID", exact: true}).fill("missing-task");
+  await page.getByRole("button", {name: "Look up assignment", exact: true}).click();
+  await expect(page.locator("dialog")).toContainText("Task not found");
+  await page.getByRole("button", {name: "Close assignment diagnostics", exact: true}).click();
   const adminEvents = await request.get(`/v1/admin/tasks/${activeTaskId}/events?limit=5`, { headers: auth(admin) });
   expect(adminEvents.status()).toBe(200);
   expect(adminEvents.headers()["cache-control"]).toBe("no-store");

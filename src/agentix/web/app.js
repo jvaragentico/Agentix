@@ -139,12 +139,18 @@ function render() {
       btn("+ Register agent", "register", "", "primary"),
     );
   else if (admin)
-    content = `<div class="stats">${stat("Creators", data.owners.length, "Accounts on the platform")}${stat("Registered agents", data.agents.length, "Across independent frameworks")}${stat("Projects", data.projects.length, "Human and AI posted")}${stat("Ledger balance", data.ledger_balance, "Must stay at zero")}</div>${panel("Ledger reconciliation", `<p role="status" aria-label="Ledger reconciliation">${data.ledger_check?.healthy === true ? "Healthy: account balances match journal entries." : data.ledger_check ? `Review required: ${e(data.ledger_check.mismatched_accounts)} account mismatches; ${e(data.ledger_check.invalid_journals)} invalid journals.` : "Reconciliation unavailable on this server."}</p><p>Read-only check. No credits are changed.</p>`)}${panel("Execution health", `<p role="status" aria-label="Execution health">${data.execution_health ? `${n(data.execution_health.active_leases)} active leases · ${n(data.execution_health.retryable_expired)} expired and retryable · ${n(data.execution_health.exhausted)} exhausted` : "Execution health unavailable on this server."}</p><p>All running assignments at read time. Exhausted work needs creator review. Refresh to update; no tasks or credits are changed.</p>`)}${panel("Capacity check", `<p role="status" aria-label="Capacity check">${data.capacity_check?.healthy === true ? "Healthy: assignments fit configured agent capacity." : data.capacity_check ? `Review required: ${n(data.capacity_check.overcommitted_agents)} overcommitted agents; ${n(data.capacity_check.excess_assignments)} excess assignments.` : "Capacity check unavailable on this server."}</p><p>Read-only check across all agents. No work is cancelled or credits moved.</p>${capacityDetails()}`, btn("Review all capacity warnings", "capacity-pages"))}${panel("Creator accounts", adminOwners(), btn("+ Create account", "owner", "", "primary"))}${panel("Platform assignments", taskTable())}`;
+    content = `<div class="stats">${stat("Creators", data.owners.length, "Accounts on the platform")}${stat("Registered agents", data.agents.length, "Across independent frameworks")}${stat("Projects", data.projects.length, "Human and AI posted")}${stat("Ledger balance", data.ledger_balance, "Must stay at zero")}</div>${panel("Ledger reconciliation", `<p role="status" aria-label="Ledger reconciliation">${data.ledger_check?.healthy === true ? "Healthy: account balances match journal entries." : data.ledger_check ? `Review required: ${e(data.ledger_check.mismatched_accounts)} account mismatches; ${e(data.ledger_check.invalid_journals)} invalid journals.` : "Reconciliation unavailable on this server."}</p><p>Read-only check. No credits are changed.</p>`)}${panel("Execution health", `<p role="status" aria-label="Execution health">${data.execution_health ? `${n(data.execution_health.active_leases)} active leases · ${n(data.execution_health.retryable_expired)} expired and retryable · ${n(data.execution_health.exhausted)} exhausted` : "Execution health unavailable on this server."}</p><p>All running assignments at read time. Exhausted work needs creator review. Refresh to update; no tasks or credits are changed.</p>`)}${panel("Capacity check", `<p role="status" aria-label="Capacity check">${data.capacity_check?.healthy === true ? "Healthy: assignments fit configured agent capacity." : data.capacity_check ? `Review required: ${n(data.capacity_check.overcommitted_agents)} overcommitted agents; ${n(data.capacity_check.excess_assignments)} excess assignments.` : "Capacity check unavailable on this server."}</p><p>Read-only check across all agents. No work is cancelled or credits moved.</p>${capacityDetails()}`, btn("Review all capacity warnings", "capacity-pages"))}${panel("Creator accounts", adminOwners(), btn("+ Create account", "owner", "", "primary"))}${panel("Find assignment", `<form id="assignment-lookup" class="filters"><input name="task_id" aria-label="Assignment ID" placeholder="Exact assignment ID" required maxlength="128"><button class="button">Look up assignment</button></form><p>Read-only diagnostics for any assignment, including completed or cancelled work.</p>`)}${panel("Platform assignments", taskTable())}`;
   else if (agent)
     content = `<div class="stats">${stat("Active assignments", data.agent.occupied_slots ?? data.tasks.filter((t) => ["reserved", "running", "submitted"].includes(t.state)).length, "Reserved, running or awaiting review")}${stat("Credits earned", data.earned, "Paid to your creator")}${stat("Project allowance", data.allowance_remaining, "Creator-approved spending")}${stat("Completed work", data.tasks.filter((t) => t.state === "accepted").length, "Deliverables accepted")}</div>${panel("Agent status", `<div class="panel-body row"><span class="badge ${data.agent.available ? "available" : ""}">${data.agent.available ? "Available" : "Paused"}</span><span class="muted">${e(data.agent.framework)} · ${data.agent.capacity} concurrent tasks · ${data.agent.occupied_slots === undefined ? "Occupancy unavailable" : `${n(data.agent.occupied_slots)} slots occupied`}</span>${btn(data.agent.available ? "Pause availability" : "Go available", "availability", `data-id="${data.agent.id}" data-available="${!data.agent.available}"`)}</div>`)}${panel("Work inbox", taskTable())}`;
   else
     content = `<div class="stats">${stat("Your agents", data.agents.length, `${data.agents.filter((a) => a.available).length} available to collaborate`)}${stat("Spendable credits", data.spendable, "Available for your projects")}${stat("Agent earnings", data.earnings, "From accepted contributions")}${stat("Active assignments", data.tasks.filter((t) => ["reserved", "running", "submitted"].includes(t.state)).length, "Across your network")}</div><div class="content-grid"><div>${panel("Your projects", projectCards(data.projects.slice(0, 4), true), btn("View all", "nav", `data-view="projects"`, "small"))}${panel("Recent assignments", taskTable())}${panel("Execution recovery", "<p>Review expired assignments that reached their execution limit. Cancelling returns reserved credits to the project.</p>", btn("Review exhausted work", "recovery"))}${panel("Work-credit history", "<p>Inspect movements between your spendable, project, assignment and earnings accounts.</p>", btn("View credit history", "credit-history"))}</div><div>${panel("Your agents", agents(), btn("+ Add", "register", "", "small"))}<div class="notice">Your agents keep their own provider API keys. Approve a spending allowance to let them post AI projects.</div></div></div>`;
   app.innerHTML = `<div class="shell"><aside class="sidebar"><div class="logo"><span class="logo-mark">a</span>agentix</div><div class="workspace-label">${admin ? "Platform controls" : "Workspace"}</div><nav class="nav">${[["overview", "◈", "Overview"], ...(!admin ? [["projects", "▤", "Projects"], ["tasks", "✓", agent ? "Work inbox" : "Assignments"], ...(!agent ? [["agents", "✳", "My agents"]] : []), ["marketplace", "◎", "Marketplace"]] : [])].map(([v, icon, label]) => `<button data-action="nav" data-view="${v}" class="${view === v ? "active" : ""}"><span class="nav-icon" aria-hidden="true">${icon}</span>${label}</button>`).join("")}</nav><div class="sidebar-foot"><span class="online-dot"></span>Connected workspace<br><span class="role-pill">${e(user.role)}</span><br></div></aside><main class="main"><header class="topbar"><span class="breadcrumb">Workspace / ${e(titles[view])}</span><div class="identity">${btn("Refresh", "refresh", "", "small")}${btn("Sign out", "logout", "", "small")}<span class="identity-name">${e(user.name)}</span><span class="avatar">${e(user.name[0].toUpperCase())}</span></div></header><div class="page-head"><div><span class="eyebrow">${admin ? "Platform operations" : agent ? "Your skills. Shared outcomes." : "Build something together"}</span><h1>${e(titles[view])}</h1><p>${admin ? "Manage creators, access, and the work-credit ledger." : agent ? "Collaborate across frameworks and contribute your skills." : "Bring the right agents together for your next project."}</p></div>${!admin ? btn("+ Post project", "project", "", "primary") : ""}</div><div class="notice">Test credits are nonredeemable. Live money deposits and withdrawals are not enabled.</div>${content}<p class="footer-note">Agentix · Independent agents, connected skills.</p></main></div>`;
+  const lookup = document.querySelector("#assignment-lookup");
+  if (lookup) lookup.onsubmit = async ev => {
+    ev.preventDefault();
+    const taskId = new FormData(lookup).get("task_id").trim();
+    if (taskId) await adminAssignment(taskId);
+  };
   const filter = document.querySelector("#filter-form");
   if (filter)
     filter.onsubmit = async (ev) => {
@@ -324,6 +330,7 @@ async function capacityPages(offset = 0, ownerId = "") {
 }
 function assignmentLeaseContext(task) {
   const labels = { reserved: "Awaiting execution", submitted: "Awaiting creator review",
+    accepted: "Work accepted", cancelled: "Assignment cancelled",
     active: "Lease active", expired_retryable: "Lease expired; retry available",
     exhausted: "Lease expired; attempt limit reached" };
   const expiry = task.lease_expires_at ? new Date(task.lease_expires_at) : null;
@@ -352,12 +359,29 @@ async function capacityWork(agentId, offset = 0, returnOffset = 0, ownerId = "")
       btn("Retry assignments", "capacity-work", `${attrs} data-offset="${offset}"`) + back;
   }
 }
+async function adminAssignment(taskId) {
+  if (user.role !== "superadmin") return;
+  const requestKey = key, loadId = id();
+  modal.dataset.creditLoad = loadId;
+  const heading = `<div class="modal-head"><h2>Assignment diagnostics</h2>${btn("×", "close", 'aria-label="Close assignment diagnostics"', "ghost")}</div><p>Assignment: ${e(taskId)}</p>`;
+  modal.innerHTML = heading + '<p role="status">Loading assignment…</p>';
+  if (!modal.open) modal.showModal();
+  const current = () => modal.open && modal.dataset.creditLoad === loadId && key === requestKey;
+  try {
+    const t = await api(`/v1/admin/tasks/${encodeURIComponent(taskId)}`);
+    if (!current()) return;
+    modal.innerHTML = heading + `<h3>${e(t.project_title)}</h3><p>Project: ${e(t.project_id)}</p><p>Agent: ${e(t.agent_id)}</p><p>${e(t.instructions)}</p><p>${e(t.state)} · ${n(t.price)} credits · ${n(t.attempts)} attempts</p>${assignmentLeaseContext(t)}<p>Read-only diagnostics. No work or credits are changed.</p>` + btn("Inspect execution history", "admin-history", `data-task="${e(t.id)}" data-lookup="true"`);
+  } catch (error) {
+    if (!current()) return;
+    modal.innerHTML = heading + `<p role="alert">Assignment could not be loaded: ${e(error.message)}</p>` + btn("Retry assignment lookup", "admin-assignment", `data-task="${e(taskId)}"`);
+  }
+}
 async function adminHistory(b) {
   if (user.role !== "superadmin") return;
   const d = b.dataset, offset = Number(d.offset || 0), requestKey = key, loadId = id();
-  const attrs = `data-id="${e(d.id)}" data-task="${e(d.task)}" data-return-offset="${e(d.returnOffset)}" data-work-offset="${e(d.workOffset)}" data-owner="${e(d.owner)}"`;
+  const attrs = `data-lookup="${d.lookup === "true"}" data-id="${e(d.id)}" data-task="${e(d.task)}" data-return-offset="${e(d.returnOffset)}" data-work-offset="${e(d.workOffset)}" data-owner="${e(d.owner)}"`;
   const heading = `<div class="modal-head"><h2>Assignment execution history</h2>${btn("×", "close", 'aria-label="Close execution history"', "ghost")}</div><p>Assignment: ${e(d.task)}</p><p>Read-only recorded events. Reading history does not recover work or move credits.</p>`;
-  const back = btn("Back to occupied assignments", "capacity-work", `data-id="${e(d.id)}" data-offset="${e(d.workOffset)}" data-return-offset="${e(d.returnOffset)}" data-owner="${e(d.owner)}"`);
+  const back = d.lookup === "true" ? btn("Back to assignment diagnostics", "admin-assignment", `data-task="${e(d.task)}"`) : btn("Back to occupied assignments", "capacity-work", `data-id="${e(d.id)}" data-offset="${e(d.workOffset)}" data-return-offset="${e(d.returnOffset)}" data-owner="${e(d.owner)}"`);
   modal.dataset.creditLoad = loadId;
   modal.innerHTML = heading + '<p role="status">Loading execution history…</p>' + back;
   const current = () => modal.open && modal.dataset.creditLoad === loadId && key === requestKey;
@@ -447,6 +471,10 @@ document.addEventListener("click", async (ev) => {
   if (!b) return;
   const action = b.dataset.action;
   try {
+    if (action === "admin-assignment") {
+      await adminAssignment(b.dataset.task);
+      return;
+    }
     if (action === "admin-history") {
       await adminHistory(b);
       return;

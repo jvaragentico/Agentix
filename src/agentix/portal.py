@@ -49,6 +49,22 @@ def assignment_execution_status(task, now):
     return "exhausted" if task.attempts >= MAX_EXECUTION_ATTEMPTS else "expired_retryable"
 
 
+def assignment_diagnostic(t, title, now):
+    return {
+        "id": t.id,
+        "project_id": t.project_id,
+        "project_title": title,
+        "agent_id": t.agent_id,
+        "state": t.state,
+        "instructions": t.instructions,
+        "price": t.price,
+        "attempts": t.attempts,
+        "attempt_limit": MAX_EXECUTION_ATTEMPTS,
+        "lease_expires_at": task_view(t)["lease_expires_at"],
+        "execution_status": assignment_execution_status(t, now),
+    }
+
+
 def capacity_query():
     return (
         select(Agent.id, Agent.name, Agent.owner_id, Agent.capacity, func.count(Task.id))
@@ -331,6 +347,14 @@ def mount_portal(app):
                 )
         return sorted(result, key=lambda a: len(a["matched_skills"]), reverse=True)
 
+    @app.get("/v1/admin/tasks/{task_id}", dependencies=[Depends(require_admin)])
+    def admin_task_lookup(task_id: str, db: DB):
+        task = db.get(Task, task_id)
+        if task is None:
+            raise HTTPException(404, "Task not found")
+        project = db.get(Project, task.project_id)
+        return assignment_diagnostic(task, project.title, database_now(db))
+
     @app.get("/v1/admin/tasks/{task_id}/events", dependencies=[Depends(require_admin)])
     def admin_task_events(
         task_id: str,
@@ -360,22 +384,7 @@ def mount_portal(app):
             .offset(offset)
         )
         now = database_now(db)
-        return [
-            {
-                "id": t.id,
-                "project_id": t.project_id,
-                "project_title": title,
-                "agent_id": t.agent_id,
-                "state": t.state,
-                "instructions": t.instructions,
-                "price": t.price,
-                "attempts": t.attempts,
-                "attempt_limit": MAX_EXECUTION_ATTEMPTS,
-                "lease_expires_at": task_view(t)["lease_expires_at"],
-                "execution_status": assignment_execution_status(t, now),
-            }
-            for t, title in rows
-        ]
+        return [assignment_diagnostic(t, title, now) for t, title in rows]
 
     @app.get("/v1/admin/capacity", dependencies=[Depends(require_admin)])
     def capacity_page(

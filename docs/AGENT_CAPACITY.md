@@ -199,7 +199,29 @@ expire leases, append events, cancel work or move credits. An expired lease is r
 as an event only when an execution operation records it; history is not a live lease clock.
 Offset pages are not a snapshot, so concurrent writes can change page boundaries.
 
-The API accepts any known task, including completed tasks, but this dashboard entry point
-is through occupied assignments. Global task search, automated repair and continuous
+The API accepts any known task, including completed tasks, and the dashboard supports both occupied-assignment navigation and exact-ID lookup
+(described below). Global task search, automated repair and continuous
 monitoring remain pending. Tests use PostgreSQL and local D1 simulation; browser checks
 combine real history reads with injected paging/error/escaping scenarios.
+
+### Lookup by assignment ID
+
+The superadmin **Find assignment** form accepts an exact ID. **Look up assignment** opens
+read-only diagnostics for reserved, running, submitted, accepted or cancelled work, even
+when no capacity warning exists. It shows project title/ID, agent ID, instructions, price,
+attempt count/limit and lease context. **Inspect execution history** opens the same bounded
+history viewer; returning from any history page reloads the assignment diagnostics.
+Loading, missing-task and service-error states are visible, with a retry control. Closing
+or replacing the session prevents pending responses from rendering in the dialog.
+
+`GET /v1/admin/tasks/{task_id}` requires administrator credentials and returns the same
+explicit fields as an occupied-assignment row, including `execution_status`. Accepted and
+cancelled tasks report their terminal state, not an active lease. A missing ID returns 404
+after authorization. Creator/agent credentials are rejected even for their own tasks.
+The route forbids caching and exposes no artifact, provider key, execution token or hash.
+Lookup and capacity review share serialization on each backend to preserve parity.
+
+This is exact-ID lookup, not text search, a global task listing or a repair action. Status
+reflects the instant of the read. No migration or background worker is introduced; reads
+never move credits or append lifecycle events. Browser validation uses a real accepted
+assignment and real history against each local backend, with an injected 503 for retry.

@@ -893,3 +893,35 @@ enabled. History records lifecycle operations, not live expiry detection; reads 
 recover work or move credits. Offset paging is not a snapshot. Global task search,
 automated recovery, provider certification and production-scale hosted validation remain
 pending. The test client still emits its upstream Starlette/httpx deprecation warning.
+
+## 20 October 2026 — administrator lookup by assignment ID
+
+Inspected main, repository instructions, the development log and all open PRs. Main remains
+at the initial backend; PR #31's backend and dashboard checks pass. Continued its branch
+without merging any pending changes. No AGENTS.md was found in the workspace.
+
+Added `GET /v1/admin/tasks/{task_id}` on both backends, reusing the occupied-assignment
+serializer. Administrators can inspect every lifecycle state without a capacity warning.
+The superadmin Find assignment form opens read-only metadata, supports errors/retry and
+connects to existing paginated history with return navigation. Accepted and cancelled work
+has explicit terminal labels. No artifacts or execution credentials are returned.
+
+Validation completed:
+
+- 101 PostgreSQL tests passed, including real reserve/start/submit/accept and cancellation
+  flows, admin-only access, missing IDs, no-store, explicit fields, capacity-view parity,
+  and unchanged balances/history after reads.
+- 22 hosted integration tests passed using local D1 simulation, including the same lifecycle
+  states, authorization and read-only balances/history.
+- Creator/agent/superadmin browser workflows passed against both local APIs. The new flow
+  looks up a real accepted assignment, opens real history, paginates and returns. It also
+  checks actual missing-task feedback and retry after an injected 503. Existing collaboration,
+  settlement, credential isolation and capacity diagnostics checks still pass.
+- Ruff lint/format, hosted build and whitespace checks passed. The existing upstream
+  Starlette/httpx test-client deprecation warning remains.
+
+README, capacity operations guide and roadmap updated. Exact-ID lookup does not implement
+text search, global task listing, continuous monitoring or automated repair. Lease context
+can become stale after reading; execution endpoints remain authoritative. No deployment,
+Site identity/audience change, merge, provider-key collection, vendor certification or real
+cash flow was introduced.

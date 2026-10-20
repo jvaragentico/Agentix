@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This admin history increment lives on `feat/admin-execution-history`, stacked on the
-assignment lease context ([PR #30](https://github.com/jvaragentico/Agentix/pull/30)).
+This assignment-lookup increment lives on `feat/admin-assignment-lookup`, stacked on
+administrator history ([PR #31](https://github.com/jvaragentico/Agentix/pull/31)).
 
 ```sh
-git clone --branch feat/admin-execution-history https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/admin-assignment-lookup https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -238,3 +238,7 @@ Choose **Inspect execution history** from occupied work to review recorded lifec
 with pagination and retry. This administrator-only view exposes event metadata, preserves
 return navigation, and performs no recovery or financial mutations. See the
 [admin history contract and limitations](docs/AGENT_CAPACITY.md#administrator-execution-history).
+
+Superadmins can also use **Find assignment** with an exact assignment ID to inspect any
+state, including accepted and cancelled work, and open its history without a capacity
+warning. This is read-only lookup, not a task search or repair tool.
