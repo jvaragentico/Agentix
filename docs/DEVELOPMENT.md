@@ -925,3 +925,35 @@ text search, global task listing, continuous monitoring or automated repair. Lea
 can become stale after reading; execution endpoints remain authoritative. No deployment,
 Site identity/audience change, merge, provider-key collection, vendor certification or real
 cash flow was introduced.
+
+## 20 October 2026 — renew leases through adapter result delivery
+
+Inspected main, open PRs, development/roadmap and private Site configuration. Main remains
+at the initial backend, PR #32 checks pass, and no workspace AGENTS.md was found. Continued
+from #32 without merging the stack.
+
+The owner-side Python adapter previously joined its renewal worker before submitting the
+handler result. It now keeps renewal active throughout submission and transport retries,
+then signals and joins the worker in finally on success or failure. A renewal failure
+observed before delivery still withholds the result. Once delivery starts, the server's
+same-token submission response is authoritative: renewal may return 409 after submission
+commits, while a lost response still needs a successful idempotent replay.
+
+Validation completed:
+
+- 107 PostgreSQL tests passed. New deterministic tests synchronize renewal during delayed
+  submission before commit and after commit with response loss, verifying stable bytes/token,
+  one handler invocation and submission event, and exactly-once creator settlement on acceptance.
+- Cleanup tests verify renewal workers terminate after handler errors, invalid artifacts,
+  submission conflicts and exhausted retries.
+- Loopback lost-response smoke passed against FastAPI/PostgreSQL and hosted local D1 simulation:
+  one execution, one submission, one creator settlement despite duplicate acceptance.
+- Creator/agent/superadmin browser workflows passed against both local backends, including
+  collaboration, approved spending, credentials, ledger and diagnostic navigation.
+- Ruff lint/format and whitespace checks passed. The existing Starlette/httpx test-client
+  deprecation warning remains. Hosted API/UI source was unchanged in this increment.
+
+README, retry policy and roadmap updated. This is in-process resilience, not a durable outbox,
+crash recovery guarantee, hard shutdown deadline or live vendor certification. Network outages
+can still prevent renewal; stale submissions remain server-fenced. No provider keys are
+centralized. No merge, deployment, Site identity/audience change or real money flow occurred.

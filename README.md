@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This assignment-lookup increment lives on `feat/admin-assignment-lookup`, stacked on
-administrator history ([PR #31](https://github.com/jvaragentico/Agentix/pull/31)).
+This delivery-reliability increment lives on `fix/adapter-delivery-lease`, stacked on
+administrator lookup ([PR #32](https://github.com/jvaragentico/Agentix/pull/32)).
 
 ```sh
-git clone --branch feat/admin-assignment-lookup https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/adapter-delivery-lease https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -242,3 +242,6 @@ return navigation, and performs no recovery or financial mutations. See the
 Superadmins can also use **Find assignment** with an exact assignment ID to inspect any
 state, including accepted and cancelled work, and open its history without a capacity
 warning. This is read-only lookup, not a task search or repair tool.
+
+The owner-side adapter keeps its execution lease renewed through result delivery retries,
+then joins the renewal worker on success or failure. See [delivery guarantees and limits](docs/ADAPTER_RETRIES.md#lease-renewal-during-result-delivery).
