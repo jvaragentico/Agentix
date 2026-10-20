@@ -419,3 +419,120 @@ def test_idle_wait_is_clipped_to_session_window(monkeypatch):
         adapter.run_forever(lambda _: {}, stop=Stop(), max_session_seconds=3, poll_seconds=2)
     assert waits == [2, 1]
     assert len(requests) == 2
+
+
+@pytest.mark.parametrize("committed_first", [False, True])
+def test_adapter_keeps_renewal_alive_during_delivery_retry(
+    client, participants, monkeypatch, committed_first
+):
+    p = participants
+    task_id = reserve(client, p).json()["id"]
+    delivering, renewed = Event(), Event()
+    renewal_events = []
+    calls, submissions, heartbeats = [], [], []
+
+    class DeliveryWait(Event):
+        def __init__(self):
+            super().__init__()
+            renewal_events.append(self)
+            self.first = True
+
+        def wait(self, timeout=None):
+            if self.first:
+                self.first = False
+                assert delivering.wait(2), "Submission never began"
+                return self.is_set()
+            return super().wait(timeout)
+
+    monkeypatch.setattr("agentix.adapter.Event", DeliveryWait)
+    # Deterministic synchronization: a retry cannot proceed until renewal finishes.
+    monkeypatch.setattr("agentix.adapter.time.sleep", lambda _: renewed.wait(2))
+
+    def transport(request):
+        path = request.url.path
+        if path.endswith("/submit"):
+            submissions.append((request.content, request.headers["X-Execution-Token"]))
+            if len(submissions) == 1:
+                if committed_first:
+                    response = client.request(
+                        request.method,
+                        str(request.url),
+                        headers=dict(request.headers),
+                        content=request.content,
+                    )
+                    assert response.status_code == 200
+                delivering.set()
+                assert renewed.wait(2), "Lease was not renewed during delivery"
+                raise httpx.ReadTimeout("Lost delivery response", request=request)
+        response = client.request(
+            request.method, str(request.url), headers=dict(request.headers), content=request.content
+        )
+        if path.endswith("/heartbeat"):
+            heartbeats.append(response.status_code)
+            renewed.set()
+        return httpx.Response(response.status_code, content=response.content)
+
+    with AgentixAdapter(
+        "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
+    ) as adapter:
+
+        def handler(task):
+            calls.append(task["id"])
+            return {"text": "one local execution"}
+
+        assert adapter.run_once(handler) == task_id
+    assert calls == [task_id]
+    assert len(submissions) == 2 and submissions[0] == submissions[1]
+    assert heartbeats == ([409] if committed_first else [200])
+    assert all(event.is_set() for event in renewal_events)
+    history = client.get(f"/v1/tasks/{task_id}/events", headers=p["buyer"]).json()
+    assert sum(e["kind"] == "submitted" for e in history) == 1
+    assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 0
+    for _ in range(2):
+        client.post(f"/v1/tasks/{task_id}/accept", headers=p["buyer"]).raise_for_status()
+    assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 200
+
+
+@pytest.mark.parametrize("failure", ["handler", "artifact", "lease_rejected", "delivery_exhausted"])
+def test_adapter_joins_renewal_worker_on_every_failure(monkeypatch, failure):
+    from threading import Thread
+
+    workers = []
+
+    class TrackedThread(Thread):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            workers.append(self)
+
+    monkeypatch.setattr("agentix.adapter.Thread", TrackedThread)
+    monkeypatch.setattr("agentix.adapter.time.sleep", lambda _: None)
+    requests = []
+
+    def transport(request):
+        requests.append(request.url.path)
+        if request.url.path.endswith("/claim"):
+            return httpx.Response(200, json={"id": "task"})
+        return httpx.Response(409 if failure == "lease_rejected" else 503, json={"detail": failure})
+
+    def handler(_):
+        if failure == "handler":
+            raise RuntimeError("Local runtime failed")
+        return {} if failure == "artifact" else {"text": "result"}
+
+    expected = (
+        RuntimeError
+        if failure == "handler"
+        else ValueError
+        if failure == "artifact"
+        else httpx.HTTPStatusError
+    )
+    with AgentixAdapter(
+        "http://testserver", "key", transport=httpx.MockTransport(transport)
+    ) as adapter:
+        with pytest.raises(expected):
+            adapter.run_once(handler)
+    assert len(workers) == 1 and not workers[0].is_alive()
+    expected_submits = (
+        3 if failure == "delivery_exhausted" else 1 if failure == "lease_rejected" else 0
+    )
+    assert requests.count("/v1/tasks/task/submit") == expected_submits

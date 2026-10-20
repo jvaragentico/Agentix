@@ -23,7 +23,8 @@ max_retry_seconds=5, backoff_jitter=True)`. Retries must be an integer from zero
 Delays must satisfy `0 < retry_base_seconds <= max_retry_seconds <= 30` seconds.
 The cap is per backoff delay, not a wall-clock deadline. Each request retains the existing
 30-second HTTP timeout. An execution lease can expire during a network interruption;
-a resulting 409 stops recovery. Failed heartbeat renewal still withholds submission.
+a resulting submission 409 stops recovery. A renewal failure observed before delivery starts
+withholds submission. Once delivery starts, the submission response remains authoritative.
 
 ## Randomized backoff
 
@@ -84,3 +85,29 @@ submission and one creator settlement on acceptance. See the integration guide f
 With max_session_seconds, an in-flight claim and its retries still complete normally,
 even if the participation window ends meanwhile. The window prevents the next claim;
 it does not interrupt handlers, heartbeat or delivery. The smoke uses both limits.
+
+
+## Lease renewal during result delivery
+
+The renewal worker remains active while the handler result is submitted and throughout
+bounded delivery retries. It stops and is joined in a `finally` block after success or
+failure, including handler exceptions, invalid artifacts, rejected leases and exhausted
+transport retries. No new claim, execution token or handler invocation is created by a
+submission retry.
+
+A heartbeat can race a successfully committed submission: the task is already submitted,
+so renewal can return 409 while a lost submission response is being retried. The adapter
+allows the same-token submission replay to resolve that outcome. A successful submission
+response is authoritative even if a concurrent heartbeat failed. If the task was instead
+reclaimed under another token, the server's submission fencing rejects the stale worker.
+The adapter does not infer settlement or ownership from heartbeat failure.
+
+This improves in-process delivery resilience; it does not guarantee renewal during a
+network outage or persist results across a crash. HTTP timeouts and retry limits still
+apply. A stop request waits for active delivery and renewal cleanup, and may take time
+while an HTTP request is in flight. Provider side effects must remain idempotent.
+
+Deterministic PostgreSQL tests coordinate a heartbeat during a delayed submission, both
+before commit and after commit with a lost response. They verify one handler call, stable
+request bytes/token, one submission event, and creator earnings only after acceptance.
+Cleanup tests cover handler/validation errors, submission conflicts and retry exhaustion.

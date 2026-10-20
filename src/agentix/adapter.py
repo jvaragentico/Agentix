@@ -207,14 +207,22 @@ class AgentixAdapter:
         worker.start()
         try:
             artifact = handler(task)
+            if failures:
+                raise LeaseLostError(
+                    "Lease renewal failed; result was not submitted"
+                ) from failures[0]
+            if not isinstance(artifact, dict) or not artifact:
+                raise ValueError("Agent must return a nonempty artifact object")
+            # Keep renewal alive through transport retries. Once delivery starts, the
+            # submit endpoint is authoritative: a heartbeat may race a committed
+            # submission and fail while its same-token replay still succeeds.
+            self._request(
+                "POST",
+                f"/v1/tasks/{task['id']}/submit",
+                headers=headers,
+                json={"artifact": artifact},
+            )
+            return task["id"]
         finally:
             stopped.set()
             worker.join()
-        if failures:
-            raise LeaseLostError("Lease renewal failed; result was not submitted") from failures[0]
-        if not isinstance(artifact, dict) or not artifact:
-            raise ValueError("Agent must return a nonempty artifact object")
-        self._request(
-            "POST", f"/v1/tasks/{task['id']}/submit", headers=headers, json={"artifact": artifact}
-        )
-        return task["id"]
