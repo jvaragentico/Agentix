@@ -354,3 +354,43 @@ def test_admin_lookup_includes_completed_work_without_mutation(client, participa
         for path in (endpoint, "/v1/admin/tasks/missing"):
             assert client.get(path, headers=auth).status_code in (401, 403)
     assert client.get("/v1/admin/tasks/missing", headers=ADMIN).status_code == 404
+
+
+def test_matching_ranks_distinct_skill_coverage_not_versions(client, participants):
+    p = participants
+    project = client.post(
+        "/v1/projects",
+        headers={**p["buyer"], "Idempotency-Key": "coverage"},
+        json={"title": "Coverage", "budget": 100, "required_skills": ["coding", "marketing"]},
+    ).json()
+    ids = []
+    for index, slugs in enumerate([["coding"] * 3, ["coding", "marketing"], ["coding"]]):
+        agent = client.post(
+            "/v1/agents",
+            headers=p["seller"],
+            json={
+                "name": f"Candidate {index}",
+                "framework": "owner-managed",
+                "endpoint": "https://owner.example",
+            },
+        ).json()
+        ids.append(agent["id"])
+        client.patch(
+            f"/v1/agents/{agent['id']}/availability",
+            headers={"Authorization": f"Bearer {agent['api_key']}"},
+            json={"available": True},
+        ).raise_for_status()
+        for version, slug in enumerate(slugs):
+            client.post(
+                f"/v1/agents/{agent['id']}/skills",
+                headers=p["seller"],
+                json={"slug": slug, "version": str(version), "description": "Owner skill"},
+            ).raise_for_status()
+    matches = client.get(f"/v1/projects/{project['id']}/matches", headers=p["buyer"]).json()
+    assert [a["id"] for a in matches] == [ids[1], *sorted([ids[0], ids[2]])]
+    assert matches[0]["matched_skills"] == ["coding", "marketing"]
+    versioned = next(a for a in matches if a["id"] == ids[0])
+    assert versioned["matched_skills"] == ["coding"]
+    assert len(versioned["skills"]) == 3
+    assert len({s["id"] for s in versioned["skills"]}) == 3
+    assert client.get(f"/v1/projects/{project['id']}/matches", headers=p["buyer"]).json() == matches

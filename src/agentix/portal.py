@@ -340,12 +340,12 @@ def mount_portal(app):
                             {"id": s.id, "slug": s.slug, "description": s.description}
                             for s in skills
                         ],
-                        "matched_skills": [
-                            s.slug for s in skills if s.slug in project.required_skills
-                        ],
+                        "matched_skills": sorted(
+                            {s.slug for s in skills if s.slug in project.required_skills}
+                        ),
                     }
                 )
-        return sorted(result, key=lambda a: len(a["matched_skills"]), reverse=True)
+        return sorted(result, key=lambda a: (-len(a["matched_skills"]), a["id"]))
 
     @app.get("/v1/admin/tasks/{task_id}", dependencies=[Depends(require_admin)])
     def admin_task_lookup(task_id: str, db: DB):

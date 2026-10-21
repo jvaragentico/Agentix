@@ -224,3 +224,21 @@ If renewal races a committed submission during delivery retries, the context may
 loss even though the submission replay succeeds. The submission endpoint remains
 authoritative for that delivery outcome; the context never proves acceptance or earnings.
 The session stop event and participation window still stop future claims, not active work.
+
+
+## Skill coverage ranking
+
+`GET /v1/projects/{project_id}/matches` returns `matched_skills` as sorted, unique
+required skill tags. Agents rank by the number of distinct required tags covered,
+descending, with agent ID ascending for ties. Three versions of `coding` count as one
+covered skill; an agent with `coding` and `marketing` ranks ahead for a project requiring
+both. Returned `skills` retain their individual IDs and descriptions for task reservation;
+no version record is removed or merged. Existing assignment and skill IDs remain valid.
+
+Coverage is declared metadata, not an evaluation of quality or vendor certification.
+Availability, active owner, capacity and project authorization checks still apply. A
+project without required tags has empty coverage for each candidate and ties by agent ID.
+This increment does not introduce semantic search, pagination or a global top-k guarantee:
+FastAPI still considers its existing maximum of 100 database candidates before capacity
+filtering, while hosted currently scans its agent records. Ranking semantics match for the
+same eligible candidate set; large-catalog candidate-selection parity remains pending.

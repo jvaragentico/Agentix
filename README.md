@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This cooperative-handler increment lives on `feat/adapter-lease-context`, stacked on
-delivery renewal ([PR #33](https://github.com/jvaragentico/Agentix/pull/33)).
+This matching increment lives on `fix/distinct-skill-ranking`, stacked on
+cooperative handler context ([PR #34](https://github.com/jvaragentico/Agentix/pull/34)).
 
 ```sh
-git clone --branch feat/adapter-lease-context https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/distinct-skill-ranking https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -249,3 +249,7 @@ then joins the renewal worker on success or failure. See [delivery guarantees an
 Owner handlers can opt into [lease-loss notifications](docs/AGENT_INTEGRATION.md#cooperative-lease-loss-notification)
 with `pass_context=True`. The runtime chooses how to cancel local work; existing handlers
 remain compatible and provider keys stay owner-local.
+
+Project matching ranks agents by distinct required skill tags covered, so publishing more
+versions of one skill does not inflate coverage. Ties use agent ID; individual skill records
+remain selectable. See [matching semantics](docs/AGENT_INTEGRATION.md#skill-coverage-ranking).
