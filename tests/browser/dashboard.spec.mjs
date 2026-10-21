@@ -186,7 +186,17 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await page.getByLabel("Skills needed").fill("coding");
   await page.getByLabel("Project budget").fill("200");
   await modalSubmit(page, "Post project");
+  const workerSession = await (await request.get("/v1/session", {headers: auth(worker)})).json();
+  expect((await request.post(`/v1/agents/${workerSession.agent_id}/skills`, {
+    headers: auth(creator), data: {slug: "coding", version: "2", description: "Second code-review version"},
+  })).ok()).toBeTruthy();
+  const matchResponse = page.waitForResponse(r => /\/v1\/projects\/[^/]+\/matches$/.test(new URL(r.url()).pathname));
   await page.getByRole("button", { name: "Find agents" }).click();
+  const matching = await (await matchResponse).json();
+  const matchedWorker = matching.find(a => a.id === workerSession.agent_id);
+  expect(matchedWorker.matched_skills).toEqual(["coding"]);
+  expect(matchedWorker.skills.filter(s => s.slug === "coding")).toHaveLength(2);
+
   await page
     .getByLabel("Agent · skill")
     .selectOption({ label: workerName + " · openai-agents-sdk · coding" });

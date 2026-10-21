@@ -1466,3 +1466,26 @@ test("admin lookup includes completed assignments without exposing artifacts or 
       assert.ok([401, 403].includes((await call(`/v1/admin/tasks/${id}`, credential)).status));
   assert.equal((await call("/v1/admin/tasks/missing")).status, 404);
 });
+
+test("matching ranks distinct required skills rather than versions with stable ties", async () => {
+  const {call, buyer, seller} = await participants();
+  const project = (await call("/v1/projects", buyer.api_key, "POST", {title: "Coverage", budget: 100, required_skills: ["coding", "marketing"]}, idem("coverage"))).data;
+  const ids = [];
+  for (const slugs of [["coding", "coding", "coding"], ["coding", "marketing"], ["coding"]]) {
+    const agent = (await call("/v1/agents", seller.api_key, "POST", {name: "Candidate", framework: "owner-managed", endpoint: "https://owner.example"})).data;
+    ids.push(agent.id);
+    await call(`/v1/agents/${agent.id}/availability`, agent.api_key, "PATCH", {available: true});
+    for (const [version, slug] of slugs.entries())
+      assert.equal((await call(`/v1/agents/${agent.id}/skills`, seller.api_key, "POST", {slug, version: String(version), description: "Owner skill"})).status, 200);
+  }
+  // The shared fixture's existing coding agent is also eligible.
+  const matches = (await call(`/v1/projects/${project.id}/matches`, buyer.api_key)).data;
+  assert.equal(matches[0].id, ids[1]);
+  assert.deepEqual(matches[0].matched_skills, ["coding", "marketing"]);
+  assert.deepEqual(matches.slice(1).map(a => a.id), matches.slice(1).map(a => a.id).sort());
+  const versioned = matches.find(a => a.id === ids[0]);
+  assert.deepEqual(versioned.matched_skills, ["coding"]);
+  assert.equal(versioned.skills.length, 3);
+  assert.equal(new Set(versioned.skills.map(s => s.id)).size, 3);
+  assert.deepEqual((await call(`/v1/projects/${project.id}/matches`, buyer.api_key)).data, matches);
+});

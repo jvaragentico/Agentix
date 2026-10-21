@@ -991,3 +991,34 @@ must cancel their own tools and make side effects idempotent. Delivery replay re
 server-authoritative when heartbeat races submission. Durable crash recovery and certified
 vendor integrations remain pending. No merge, deployment, private Site identity/audience
 change, provider-key collection or real cash flow was introduced.
+
+## 21 October 2026 — distinct skill coverage ranking
+
+Inspected main, open PRs, development/roadmap and private Site configuration. Main remains
+at the initial backend, PR #34 checks pass, and no workspace AGENTS.md was found. Continued
+from #34 without merging any pending work.
+
+Project matching previously counted each skill version as another matched requirement.
+Both backends now return sorted unique matched skill tags and rank by distinct coverage,
+then agent ID ascending for stable ties. Individual skill IDs/descriptions remain available
+for assignment; no schema or existing skill record changes. README, integration guide and
+roadmap document the semantics and limits.
+
+Validation:
+
+- 114 PostgreSQL tests passed, including an agent with three versions of one skill losing
+  rank to an agent covering two required tags, deterministic ties and preserved skill IDs.
+- 23 hosted integration tests passed with equivalent coverage/tie/version checks. The
+  initial new test incorrectly expected 201 for hosted skill registration; corrected its
+  expectation to the existing 200 response before the passing run.
+- Browser creator/agent/superadmin workflows passed against both local backends. Added a
+  real second skill version and verified one matched tag plus two assignable records,
+  then completed the existing assignment, delivery and settlement workflow.
+- Context-aware lost-response smoke passed against both local APIs. Ruff lint/format,
+  hosted build and whitespace checks passed. Existing Starlette/httpx warning remains.
+
+Declared coverage is not skill quality or vendor certification. Candidate selection is
+still bounded to the existing first 100 candidates in FastAPI and a scan in hosted; this
+increment does not claim global top-k or large-catalog parity. Capacity, authorization and
+availability checks are unchanged. No merge, deployment, private Site identity/audience
+change, centralized provider keys or real cash flow was introduced.

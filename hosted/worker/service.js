@@ -979,15 +979,15 @@ async function route(u, r, env, path, method, b, a) {
               slug: s.slug,
               description: s.description,
             })),
-          matched_skills: u
+          matched_skills: [...new Set(u
             .list("skill")
             .filter(
               (s) => s.agent_id === x.id && p.required_skills.includes(s.slug),
             )
-            .map((s) => s.slug),
+            .map((s) => s.slug))].sort(),
         }))
         .filter((x) => !p.required_skills.length || x.matched_skills.length)
-        .sort((a, b) => b.matched_skills.length - a.matched_skills.length);
+        .sort((a, b) => b.matched_skills.length - a.matched_skills.length || a.id.localeCompare(b.id));
     if (m[2] === "tasks" && method === "POST") {
       exact(b, [
         "agent_id",
