@@ -88,12 +88,16 @@ with httpx.Client(base_url=base, timeout=30, follow_redirects=False) as client:
             response.status_code, content=response.content, headers=response.headers
         )
 
-    def handler(work):
+    def handler(work, context):
+        assert not context.wait_for_loss(0)
+        context.raise_if_lost()
         executions.append(work["id"])
         return {"text": "Executed once in an owner-managed runtime"}
 
     with AgentixAdapter(base, agent["api_key"], transport=httpx.MockTransport(transport)) as bridge:
-        bridge.run_forever(handler, stop=Event(), max_tasks=1, max_session_seconds=60)
+        bridge.run_forever(
+            handler, stop=Event(), max_tasks=1, max_session_seconds=60, pass_context=True
+        )
     assert executions == [task["id"]] and len(lost) == 2
     events = client.get(f"/v1/tasks/{task['id']}/events", headers=auth(buyer["api_key"])).json()
     assert sum(e["kind"] == "claimed" for e in events) == 1

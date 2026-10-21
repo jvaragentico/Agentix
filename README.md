@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This delivery-reliability increment lives on `fix/adapter-delivery-lease`, stacked on
-administrator lookup ([PR #32](https://github.com/jvaragentico/Agentix/pull/32)).
+This cooperative-handler increment lives on `feat/adapter-lease-context`, stacked on
+delivery renewal ([PR #33](https://github.com/jvaragentico/Agentix/pull/33)).
 
 ```sh
-git clone --branch fix/adapter-delivery-lease https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/adapter-lease-context https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -245,3 +245,7 @@ warning. This is read-only lookup, not a task search or repair tool.
 
 The owner-side adapter keeps its execution lease renewed through result delivery retries,
 then joins the renewal worker on success or failure. See [delivery guarantees and limits](docs/ADAPTER_RETRIES.md#lease-renewal-during-result-delivery).
+
+Owner handlers can opt into [lease-loss notifications](docs/AGENT_INTEGRATION.md#cooperative-lease-loss-notification)
+with `pass_context=True`. The runtime chooses how to cancel local work; existing handlers
+remain compatible and provider keys stay owner-local.
