@@ -536,3 +536,86 @@ def test_adapter_joins_renewal_worker_on_every_failure(monkeypatch, failure):
         3 if failure == "delivery_exhausted" else 1 if failure == "lease_rejected" else 0
     )
     assert requests.count("/v1/tasks/task/submit") == expected_submits
+
+
+@pytest.mark.parametrize("cooperate", [False, True])
+def test_handler_observes_renewal_loss_and_cannot_submit(
+    client, participants, monkeypatch, cooperate
+):
+    p = participants
+    task_id = reserve(client, p).json()["id"]
+    contexts, submitted = [], []
+
+    class ImmediateRenewal(Event):
+        def wait(self, timeout=None):
+            if timeout == 100:  # Default lease renewal interval, not the handler's wait.
+                return self.is_set()
+            return super().wait(timeout)
+
+    monkeypatch.setattr("agentix.adapter.Event", ImmediateRenewal)
+
+    def transport(request):
+        if request.url.path.endswith("/heartbeat"):
+            return httpx.Response(409, json={"detail": "Lease lost"})
+        if request.url.path.endswith("/submit"):
+            submitted.append(request)
+        response = client.request(
+            request.method, str(request.url), headers=dict(request.headers), content=request.content
+        )
+        return httpx.Response(response.status_code, content=response.content)
+
+    def handler(task, context):
+        contexts.append(context)
+        assert task["id"] == task_id
+        assert context.wait_for_loss(2)
+        assert context.lease_lost
+        if cooperate:
+            context.raise_if_lost()
+        return {"text": "ignored notification"}
+
+    with AgentixAdapter(
+        "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
+    ) as adapter:
+        with pytest.raises(LeaseLostError):
+            adapter.run_once(handler, pass_context=True)
+    assert len(contexts) == 1 and submitted == []
+    assert client.get(f"/v1/tasks/{task_id}", headers=p["buyer"]).json()["state"] == "running"
+    assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 0
+
+
+def test_context_is_fresh_for_each_bounded_session_task():
+    contexts, submissions = [], []
+    next_id = iter(["first", "second"])
+
+    def transport(request):
+        if request.url.path.endswith("/claim"):
+            return httpx.Response(200, json={"id": next(next_id)})
+        submissions.append(request.url.path)
+        return httpx.Response(200, json={"state": "submitted"})
+
+    def handler(task, context):
+        contexts.append(context)
+        assert not context.lease_lost
+        assert not context.wait_for_loss(0)
+        context.raise_if_lost()
+        return {"text": task["id"]}
+
+    with AgentixAdapter(
+        "http://testserver", "key", transport=httpx.MockTransport(transport)
+    ) as adapter:
+        adapter.run_forever(handler, stop=Event(), max_tasks=2, pass_context=True)
+    assert len(contexts) == 2 and contexts[0] is not contexts[1]
+    assert submissions == ["/v1/tasks/first/submit", "/v1/tasks/second/submit"]
+
+
+@pytest.mark.parametrize("value", [1, "true", None])
+def test_context_option_rejects_nonboolean_before_claim(value):
+    with AgentixAdapter(
+        "http://testserver",
+        "key",
+        transport=httpx.MockTransport(lambda _: pytest.fail("Unexpected request")),
+    ) as adapter:
+        with pytest.raises(ValueError, match="pass_context"):
+            adapter.run_once(lambda _: {}, pass_context=value)
+        with pytest.raises(ValueError, match="pass_context"):
+            adapter.run_forever(lambda _: {}, stop=Event(), pass_context=value)

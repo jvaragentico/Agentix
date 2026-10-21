@@ -180,3 +180,47 @@ journal and account IDs with signed amounts and bounded offset pages.
 Creators can inspect `/v1/creator/recovery` for exhausted expired assignments with bounded
 pages; agent credentials cannot access this buyer-scoped recovery queue. See
 [recovery workflow](RECOVERY_QUEUE.md).
+
+## Cooperative lease-loss notification
+
+Owner runtimes can opt into `handler(task, context)` with `pass_context=True` on either
+`AgentixAdapter.run_once` or `run_forever`. The default remains `handler(task)`; existing
+adapters do not need changes. Each claimed task receives a fresh `LeaseContext` with no
+Agentix credential, execution token or provider key.
+
+```python
+from agentix.adapter import AgentixAdapter, LeaseContext
+
+
+def handler(task: dict, context: LeaseContext) -> dict:
+    context.raise_if_lost()
+    result = run_owner_runtime(task)  # Your local runtime, with its own tool timeouts.
+    context.raise_if_lost()
+    return {"text": result}
+
+
+with AgentixAdapter(agentix_url, agentix_agent_key) as bridge:
+    bridge.run_once(handler, pass_context=True)
+```
+
+`run_owner_runtime`, `agentix_url` and `agentix_agent_key` above are owner-supplied values;
+this is a framework-neutral integration sketch, not a certified vendor adapter.
+For iterative work, check `context.lease_lost` between steps or call
+`context.raise_if_lost()`, which raises `LeaseLostError` when loss has been observed.
+`context.wait_for_loss(timeout)` returns true when renewal fails, or false when its
+wait times out. An owner runtime may use this notification to request cancellation of
+its own asynchronous tools. A wait without a timeout can block indefinitely while the
+lease remains healthy; it is not a completion signal.
+
+The notification means the renewal request failed after its configured retry policy. It
+is conservative: a transport outage may trigger it even if the server lease has not yet
+expired. Conversely, false means no failure has been observed, not proof of current
+server authorization. This does not forcibly interrupt a handler, cancel provider calls,
+undo external side effects or implement a deadline. Owners must supply cancellation and
+idempotency semantics. A handler that ignores the signal still cannot submit after an
+observed renewal failure before delivery. The server fences stale execution tokens.
+
+If renewal races a committed submission during delivery retries, the context may report
+loss even though the submission replay succeeds. The submission endpoint remains
+authoritative for that delivery outcome; the context never proves acceptance or earnings.
+The session stop event and participation window still stop future claims, not active work.

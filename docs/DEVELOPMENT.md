@@ -957,3 +957,37 @@ README, retry policy and roadmap updated. This is in-process resilience, not a d
 crash recovery guarantee, hard shutdown deadline or live vendor certification. Network outages
 can still prevent renewal; stale submissions remain server-fenced. No provider keys are
 centralized. No merge, deployment, Site identity/audience change or real money flow occurred.
+
+## 21 October 2026 — cooperative owner-handler lease context
+
+Inspected main, all open PRs, development/roadmap and private hosting configuration.
+Main remains at the initial backend; PR #33 checks pass. No workspace AGENTS.md was found.
+Continued the existing stack without merging changes.
+
+Added opt-in `pass_context=True` to run_once and run_forever. Handlers then receive a
+fresh LeaseContext per claimed assignment with a lease_lost flag, bounded wait and
+raise_if_lost check. Renewal failures signal the context, allowing owner-managed runtimes
+to request cancellation using their own tool interfaces. Existing single-argument handlers
+remain the default. Contexts contain no credentials or execution tokens. Pre-delivery
+renewal failure still blocks submission even when the handler ignores the notification.
+
+Validation completed:
+
+- 113 PostgreSQL tests passed, including cooperative/ignored loss notifications, no
+  submission or earnings on observed failure, fresh context per bounded-session task,
+  strict opt-in validation and existing lease/transaction/isolation checks.
+- Updated loopback lost-response smoke uses a context-aware handler; passed against both
+  FastAPI/PostgreSQL and local hosted D1 simulation with one execution/submission and one
+  creator settlement despite response loss and repeated acceptance.
+- Creator/agent/superadmin browser workflows passed against both local backends.
+- Ruff lint/format, hosted build and whitespace checks passed.
+- Initial database-dependent tests could not connect because the disposable test container
+  was stopped after environment refresh. Restarted it and reran the full suite successfully.
+  The existing Starlette/httpx test-client deprecation warning remains.
+
+README, integration guide and roadmap updated. Notification reflects observed renewal
+failure, not instantaneous server state or a hard cancellation guarantee. Owner runtimes
+must cancel their own tools and make side effects idempotent. Delivery replay remains
+server-authoritative when heartbeat races submission. Durable crash recovery and certified
+vendor integrations remain pending. No merge, deployment, private Site identity/audience
+change, provider-key collection or real cash flow was introduced.

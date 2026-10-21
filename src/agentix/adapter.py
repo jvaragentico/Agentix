@@ -17,6 +17,29 @@ class LeaseLostError(RuntimeError):
     """Execution stopped being authorized; its result must not be submitted."""
 
 
+class LeaseContext:
+    """Cooperative notification of observed renewal failure; contains no credentials.
+
+    The owner runtime decides how to stop its tools. A healthy flag is not proof
+    that the server lease is still valid, and this context cannot cancel a thread.
+    """
+
+    def __init__(self):
+        self._lost = Event()
+
+    @property
+    def lease_lost(self) -> bool:
+        return self._lost.is_set()
+
+    def wait_for_loss(self, timeout: float | None = None) -> bool:
+        """Wait up to timeout seconds; return True when renewal failure is observed."""
+        return self._lost.wait(timeout)
+
+    def raise_if_lost(self):
+        if self.lease_lost:
+            raise LeaseLostError("Lease renewal failed; stop local work")
+
+
 class AgentixAdapter:
     """Claim one task atomically and renew the execution lease during local work.
 
@@ -73,13 +96,14 @@ class AgentixAdapter:
 
     def run_forever(
         self,
-        handler: Callable[[dict], dict],
+        handler: Callable[..., dict],
         *,
         stop: Event,
         poll_seconds: float = 2,
         max_poll_seconds: float = 30,
         max_tasks: int | None = None,
         max_session_seconds: float | None = None,
+        pass_context: bool = False,
     ):
         """Poll with bounded idle backoff. Exhausted request errors propagate.
 
@@ -89,6 +113,8 @@ class AgentixAdapter:
         Idle polls do not count. max_session_seconds bounds when new claims start,
         not active work or delivery retries. None disables each optional limit.
         """
+        if type(pass_context) is not bool:
+            raise ValueError("pass_context must be a boolean")
         if not 0 < poll_seconds <= max_poll_seconds <= 300:
             raise ValueError("Polling intervals must satisfy 0 < initial <= maximum <= 300")
         if max_tasks is not None and (type(max_tasks) is not int or max_tasks < 1):
@@ -107,7 +133,11 @@ class AgentixAdapter:
         while not stop.is_set():
             if deadline is not None and time.monotonic() >= deadline:
                 break
-            task_id = self.run_once(handler)
+            task_id = (
+                self.run_once(handler, pass_context=True)
+                if pass_context
+                else self.run_once(handler)
+            )
             if task_id is not None:
                 completed += 1
                 if max_tasks is not None and completed >= max_tasks:
@@ -182,8 +212,14 @@ class AgentixAdapter:
             return response.json()
         raise AssertionError("Retry loop must return or raise")
 
-    def run_once(self, handler: Callable[[dict], dict]) -> str | None:
-        """Process one task. Handlers must make external side effects idempotent."""
+    def run_once(self, handler: Callable[..., dict], *, pass_context: bool = False) -> str | None:
+        """Process one task; pass_context opts into handler(task, LeaseContext).
+
+        Handlers must make external side effects idempotent and implement their own
+        cancellation. Renewal failure always withholds results before delivery.
+        """
+        if type(pass_context) is not bool:
+            raise ValueError("pass_context must be a boolean")
         token = secrets.token_urlsafe(32)
         headers = {"X-Execution-Token": token}
         lease = {"lease_seconds": self.lease_seconds}
@@ -191,6 +227,7 @@ class AgentixAdapter:
         if task is None:
             return None
         stopped = Event()
+        context = LeaseContext() if pass_context else None
         failures = []
 
         def renew():
@@ -201,12 +238,14 @@ class AgentixAdapter:
                     )
                 except Exception as exc:
                     failures.append(exc)
+                    if context is not None:
+                        context._lost.set()
                     return
 
         worker = Thread(target=renew, daemon=True)
         worker.start()
         try:
-            artifact = handler(task)
+            artifact = handler(task, context) if pass_context else handler(task)
             if failures:
                 raise LeaseLostError(
                     "Lease renewal failed; result was not submitted"
