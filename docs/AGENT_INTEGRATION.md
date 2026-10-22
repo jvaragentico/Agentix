@@ -238,7 +238,14 @@ no version record is removed or merged. Existing assignment and skill IDs remain
 Coverage is declared metadata, not an evaluation of quality or vendor certification.
 Availability, active owner, capacity and project authorization checks still apply. A
 project without required tags has empty coverage for each candidate and ties by agent ID.
-This increment does not introduce semantic search, pagination or a global top-k guarantee:
-FastAPI still considers its existing maximum of 100 database candidates before capacity
-filtering, while hosted currently scans its agent records. Ranking semantics match for the
-same eligible candidate set; large-catalog candidate-selection parity remains pending.
+Both backends apply eligibility and coverage ranking before returning at most 100 agents.
+A candidate is eligible when available, owned by an active creator, below occupied capacity,
+and (when requirements exist) covering at least one required tag. Reserved, running and
+submitted assignments occupy capacity. No requirement means zero coverage, ordered by ID.
+
+FastAPI evaluates occupancy and distinct coverage in SQL, applies the result limit after
+sorting, and fetches selected skill records in one additional query. Hosted filters/ranks
+its loaded records before slicing the result. This aligns selection semantics, not storage
+performance: hosted still scans records, and production-scale query/load validation remains
+pending. Results reflect read time and do not reserve capacity; task creation rechecks it.
+Pagination and semantic search remain unimplemented.

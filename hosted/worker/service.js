@@ -987,7 +987,8 @@ async function route(u, r, env, path, method, b, a) {
             .map((s) => s.slug))].sort(),
         }))
         .filter((x) => !p.required_skills.length || x.matched_skills.length)
-        .sort((a, b) => b.matched_skills.length - a.matched_skills.length || a.id.localeCompare(b.id));
+        .sort((a, b) => b.matched_skills.length - a.matched_skills.length || a.id.localeCompare(b.id))
+        .slice(0, 100);
     if (m[2] === "tasks" && method === "POST") {
       exact(b, [
         "agent_id",
