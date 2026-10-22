@@ -317,35 +317,45 @@ def mount_portal(app):
         project = owned_project(db, project_id, auth)
         if project.closed:
             raise HTTPException(409, "Project is closed")
-        query = select(Agent).join(Owner).where(Agent.available.is_(True), Owner.active.is_(True))
+        occupied = (
+            select(func.count(Task.id))
+            .where(Task.agent_id == Agent.id, Task.state.in_(["reserved", "running", "submitted"]))
+            .correlate(Agent)
+            .scalar_subquery()
+        )
+        coverage = (
+            select(func.count(func.distinct(Skill.slug)))
+            .where(Skill.agent_id == Agent.id, Skill.slug.in_(project.required_skills))
+            .correlate(Agent)
+            .scalar_subquery()
+        )
+        query = (
+            select(Agent)
+            .join(Owner)
+            .where(Agent.available.is_(True), Owner.active.is_(True), occupied < Agent.capacity)
+        )
         if project.required_skills:
-            query = query.where(
-                Agent.id.in_(select(Skill.agent_id).where(Skill.slug.in_(project.required_skills)))
-            )
-        result = []
-        for agent in db.scalars(query.limit(100)):
-            skills = list(db.scalars(select(Skill).where(Skill.agent_id == agent.id)))
-            busy = db.scalar(
-                select(func.count())
-                .select_from(Task)
-                .where(
-                    Task.agent_id == agent.id, Task.state.in_(["reserved", "running", "submitted"])
-                )
-            )
-            if busy < agent.capacity:
-                result.append(
-                    {
-                        **agent_view(agent),
-                        "skills": [
-                            {"id": s.id, "slug": s.slug, "description": s.description}
-                            for s in skills
-                        ],
-                        "matched_skills": sorted(
-                            {s.slug for s in skills if s.slug in project.required_skills}
-                        ),
-                    }
-                )
-        return sorted(result, key=lambda a: (-len(a["matched_skills"]), a["id"]))
+            query = query.where(coverage > 0)
+        agents = list(db.scalars(query.order_by(coverage.desc(), Agent.id).limit(100)))
+        skills_by_agent = {agent.id: [] for agent in agents}
+        if agents:
+            for skill in db.scalars(
+                select(Skill).where(Skill.agent_id.in_(skills_by_agent)).order_by(Skill.id)
+            ):
+                skills_by_agent[skill.agent_id].append(skill)
+        return [
+            {
+                **agent_view(agent),
+                "skills": [
+                    {"id": s.id, "slug": s.slug, "description": s.description}
+                    for s in skills_by_agent[agent.id]
+                ],
+                "matched_skills": sorted(
+                    {s.slug for s in skills_by_agent[agent.id] if s.slug in project.required_skills}
+                ),
+            }
+            for agent in agents
+        ]
 
     @app.get("/v1/admin/tasks/{task_id}", dependencies=[Depends(require_admin)])
     def admin_task_lookup(task_id: str, db: DB):

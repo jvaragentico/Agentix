@@ -1022,3 +1022,38 @@ still bounded to the existing first 100 candidates in FastAPI and a scan in host
 increment does not claim global top-k or large-catalog parity. Capacity, authorization and
 availability checks are unchanged. No merge, deployment, private Site identity/audience
 change, centralized provider keys or real cash flow was introduced.
+
+## 22 October 2026 — apply matching limit after eligibility and ranking
+
+Inspected main, all open PRs, development/roadmap and private Site configuration. Main
+remains at the initial backend; PR #35 checks pass. No workspace AGENTS.md was found.
+Continued its work without merging the pending stack.
+
+FastAPI previously selected its first 100 candidates before capacity checks and ranking,
+which could omit a stronger or available agent later in the catalog. It now computes
+occupied capacity and distinct required-skill coverage in SQL, filters eligibility, sorts
+by coverage descending/agent ID ascending, then limits to 100. Skills for those selected
+agents are loaded together instead of separate queries per candidate. Hosted applies the
+same 100-result limit after its existing eligibility/ranking pass.
+
+Validation completed:
+
+- 115 PostgreSQL tests passed. New fixture creates 103 candidates, occupies one agent's
+  capacity, and verifies that the strongest last-created candidate leads a bounded,
+  deterministically ordered result. Authorization remains scoped. An added no-requirement
+  assertion also passed in the focused rerun.
+- 24 hosted tests passed, including equivalent candidate/result-limit and no-requirement
+  cases. Corrected the new fixture's expected task-creation status to the hosted API's
+  existing HTTP 200 before its passing run.
+- Creator/agent/superadmin browser workflows passed against both local APIs, including
+  real matching of multiple skill versions, task creation and transactional settlement.
+- Ruff lint/format, hosted build and whitespace checks passed. Restarted the stopped
+  disposable PostgreSQL container before testing; the application database was separate.
+  Existing Starlette/httpx test-client warning remains.
+
+README, integration guide and roadmap updated. Selection reflects read time and does not
+reserve capacity; task creation still checks capacity transactionally. Pagination, semantic
+search and production-scale validation remain pending. Hosted still scans records; this
+change aligns selection semantics rather than storage performance. No merge, deployment,
+Site identity/audience change, provider-key collection, vendor certification or real money
+flow was introduced.

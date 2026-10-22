@@ -1489,3 +1489,30 @@ test("matching ranks distinct required skills rather than versions with stable t
   assert.equal(new Set(versioned.skills.map(s => s.id)).size, 3);
   assert.deepEqual((await call(`/v1/projects/${project.id}/matches`, buyer.api_key)).data, matches);
 });
+
+test("matches rank all eligible candidates before the 100-result limit", async () => {
+  const {call, sql, buyer, seller, agent: existing} = await participants();
+  await call(`/v1/agents/${existing.id}/availability`, existing.api_key, "PATCH", {available: false});
+  const project = (await call("/v1/projects", buyer.api_key, "POST", {title: "Rank all", budget: 100, required_skills: ["coding", "marketing"]}, idem("rank-all"))).data;
+  const ids = [], skills = [];
+  for (let i = 0; i < 103; i++) {
+    const agent = (await call("/v1/agents", seller.api_key, "POST", {name: `Candidate ${i}`, framework: "test", endpoint: "https://owner.example"})).data;
+    ids.push(agent.id);
+    await call(`/v1/agents/${agent.id}/availability`, agent.api_key, "PATCH", {available: true});
+    skills.push((await call(`/v1/agents/${agent.id}/skills`, seller.api_key, "POST", {slug: "coding", version: "1", description: "Code"})).data.id);
+  }
+  await call(`/v1/agents/${ids.at(-1)}/skills`, seller.api_key, "POST", {slug: "marketing", version: "1", description: "Market"});
+  assert.equal((await call(`/v1/projects/${project.id}/tasks`, buyer.api_key, "POST", {agent_id: ids[0], skill_id: skills[0], instructions: "Work", acceptance_criteria: "Review", price: 1}, idem("busy"))).status, 200);
+  const endpoint = `/v1/projects/${project.id}/matches`;
+  const matches = (await call(endpoint, buyer.api_key)).data;
+  assert.equal(matches.length, 100);
+  assert.deepEqual(matches.map(a => a.id), [ids.at(-1), ...ids.slice(1, -1).sort().slice(0, 99)]);
+  assert.deepEqual(matches[0].matched_skills, ["coding", "marketing"]);
+  assert.equal(matches[0].skills.length, 2);
+  assert.deepEqual((await call(endpoint, buyer.api_key)).data, matches);
+  const unconstrained = (await call("/v1/projects", buyer.api_key, "POST", {title: "Any skill", budget: 1}, idem("any-skill"))).data;
+  const all = (await call(`/v1/projects/${unconstrained.id}/matches`, buyer.api_key)).data;
+  assert.deepEqual(all.map(a => a.id), ids.slice(1).sort().slice(0, 100));
+  assert.ok(all.every(a => a.matched_skills.length === 0));
+  sql.close();
+});

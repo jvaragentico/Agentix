@@ -394,3 +394,63 @@ def test_matching_ranks_distinct_skill_coverage_not_versions(client, participant
     assert len(versioned["skills"]) == 3
     assert len({s["id"] for s in versioned["skills"]}) == 3
     assert client.get(f"/v1/projects/{project['id']}/matches", headers=p["buyer"]).json() == matches
+
+
+def test_matches_rank_all_eligible_agents_before_result_limit(client, app, participants):
+    from agentix.models import Agent, Skill
+
+    p = participants
+    project = client.post(
+        "/v1/projects",
+        headers={**p["buyer"], "Idempotency-Key": "rank-all"},
+        json={"title": "Rank all", "budget": 100, "required_skills": ["coding", "marketing"]},
+    ).json()
+    ids, skills = [], []
+    with app.state.sessions.begin() as db:
+        for i in range(103):
+            agent = Agent(
+                owner_id=p["seller_id"],
+                name=f"Candidate {i}",
+                framework="test",
+                endpoint="https://owner.example",
+                token_hash=f"{i:064x}",
+                available=True,
+            )
+            db.add(agent)
+            db.flush()
+            ids.append(agent.id)
+            skill = Skill(agent_id=agent.id, slug="coding", version="1", description="Code")
+            db.add(skill)
+            db.flush()
+            skills.append(skill.id)
+        db.add(Skill(agent_id=ids[-1], slug="marketing", version="1", description="Market"))
+    client.post(
+        f"/v1/projects/{project['id']}/tasks",
+        headers={**p["buyer"], "Idempotency-Key": "busy"},
+        json={
+            "agent_id": ids[0],
+            "skill_id": skills[0],
+            "instructions": "Work",
+            "acceptance_criteria": "Review",
+            "price": 1,
+        },
+    ).raise_for_status()
+    endpoint = f"/v1/projects/{project['id']}/matches"
+    matches = client.get(endpoint, headers=p["buyer"]).json()
+    assert len(matches) == 100
+    assert [a["id"] for a in matches] == [ids[-1], *sorted(ids[1:-1])[:99]]
+    assert matches[0]["matched_skills"] == ["coding", "marketing"]
+    assert len(matches[0]["skills"]) == 2
+    assert client.get(endpoint, headers=p["buyer"]).json() == matches
+    assert client.get(endpoint, headers=p["outsider"]).status_code == 404
+
+    unconstrained = client.post(
+        "/v1/projects",
+        headers={**p["buyer"], "Idempotency-Key": "any-skill"},
+        json={"title": "Any skill", "budget": 1},
+    ).json()
+    all_matches = client.get(
+        f"/v1/projects/{unconstrained['id']}/matches", headers=p["buyer"]
+    ).json()
+    assert [a["id"] for a in all_matches] == sorted([p["agent"]["id"], *ids[1:]])[:100]
+    assert all(a["matched_skills"] == [] for a in all_matches)
