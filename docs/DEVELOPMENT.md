@@ -1148,3 +1148,33 @@ aborting server work. Pages remain live; server authorization and reservation ch
 authoritative. Semantic search, scale testing and vendor certification remain pending.
 No merge, deployment, private Site identity/audience change, provider-key collection or
 real money flow was introduced.
+
+## 23 October 2026 — safe manual retries of dashboard reservations
+
+Inspected main, open PRs, development/roadmap and private Site configuration. Main remains
+at the initial backend; PR #39 checks pass. No workspace AGENTS.md was found. Continued
+its assignment dialog without merging pending work.
+
+The assignment form previously generated a new idempotency key for every submit, including
+manual retries after a committed reservation's response was lost. It now retains a key per
+serialized payload within the open dialog. Identical/reverted details reuse the key; changed
+details represent a new request. Existing server idempotency, authorization and transactional
+reservation logic remain authoritative and unchanged.
+
+Validation completed:
+
+- 14 PostgreSQL workflow/concurrency tests passed, including duplicate reservation,
+  settlement, budget and cross-owner isolation checks.
+- Creator/agent/superadmin browser workflows passed against both local backends. The test
+  lets the real API commit a reservation, replaces its response with a 503, then retries
+  unchanged details. It verifies identical request body/key, the same task ID, exactly one
+  assignment and a single 50-credit deduction from a 200-credit project. The workflow then
+  delivers and settles the real task normally.
+- Ruff lint/format, hosted build and whitespace checks passed. Existing Starlette/httpx
+  test-client warning remains. Backend source is unchanged.
+
+README, integration guide and roadmap updated. Keys are in-memory and scoped to the dialog;
+closing/reloading does not preserve them. Edited details are a new request and may reserve
+new work, so uncertain outcomes should be retried unchanged or inspected first. Durable
+browser recovery remains pending. No merge, deployment, private Site identity/audience
+change, provider-key collection, vendor certification or real cash flow was introduced.

@@ -290,3 +290,19 @@ A failed read displays **Retry matching search**, and an empty response displays
 current authorization and capacity. Successful results open the existing assignment form
 and retain the load-more behavior. Server permissions remain authoritative; the lifecycle
 guard controls browser rendering and is not an authorization mechanism.
+
+
+### Assignment reservation retries
+
+The dashboard keeps an idempotency key per serialized reservation payload for the lifetime
+of an assignment dialog. Retrying unchanged agent/skill, instructions, acceptance criteria
+and price reuses both the payload and key. If the server committed but the response was
+lost, its existing idempotency layer returns that reservation rather than charging the
+project again. Going back to previously submitted details in the same dialog reuses their
+key too. Loading additional matching pages does not discard these keys.
+
+Changing any payload field represents a different request and gets a different key. After
+an uncertain outcome, retry unchanged details or inspect assignments before requesting
+new work. This protection is in memory: closing/reopening, signing out or reloading loses
+the dialog keys. It is not a durable outbox or automatic retry loop. Creator acceptance
+still controls earnings, and all reservation authorization/budget checks remain server-side.

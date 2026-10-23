@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This matching-lifecycle increment lives on `fix/matching-request-lifecycle`, stacked on
-dashboard pagination ([PR #38](https://github.com/jvaragentico/Agentix/pull/38)).
+This reservation-retry increment lives on `fix/assignment-reservation-retry`, stacked on
+matching lifecycle ([PR #39](https://github.com/jvaragentico/Agentix/pull/39)).
 
 ```sh
-git clone --branch fix/matching-request-lifecycle https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/assignment-reservation-retry https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -266,3 +266,6 @@ selector. Failed reads can be retried while preserving the selected skill and al
 
 Initial matching searches show a closable loading dialog, retry after errors and refresh
 for empty results. Late responses cannot reopen a dismissed search or replace a newer draft.
+
+Retrying identical assignment details in the same open dialog reuses the reservation key,
+so a lost successful response does not create a second assignment or budget reservation.

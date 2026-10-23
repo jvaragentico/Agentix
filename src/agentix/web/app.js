@@ -252,23 +252,27 @@ async function matches(projectId) {
     modal.innerHTML = heading + '<p>No available agents match these skills. Register or activate a skilled agent.</p>' + btn("Refresh matching search", "matches", `data-id="${e(projectId)}"`);
     return;
   }
+  const reservationKeys = new Map();
   form(
     "Assign a skilled agent",
     `<label for="f-match">Agent · skill</label><select id="f-match" name="match">${matchOptions(options)}</select><p id="match-page-status" role="status">${options.length === 100 ? "More matching agents may be available." : "All currently available matches loaded."}</p>${options.length === 100 ? btn("Load more agents", "more-matches", `type="button" data-id="${e(projectId)}" data-offset="100"`) : ""}${area("instructions", "Task instructions", project.description)}${area("acceptance_criteria", "Acceptance criteria")}${field("price", "Contribution price (credits)", "number", "", 'required min="1" max="' + project.remaining_budget + '"')}`,
     "Assign task",
     async (f) => {
       const [agent_id, skill_id] = f.match.split(":");
+      const body = {
+        agent_id,
+        skill_id,
+        instructions: f.instructions,
+        acceptance_criteria: f.acceptance_criteria,
+        price: Number(f.price),
+      };
+      const payload = JSON.stringify(body);
+      if (!reservationKeys.has(payload)) reservationKeys.set(payload, id());
       await api(
         `/v1/projects/${projectId}/tasks`,
         "POST",
-        {
-          agent_id,
-          skill_id,
-          instructions: f.instructions,
-          acceptance_criteria: f.acceptance_criteria,
-          price: Number(f.price),
-        },
-        { "Idempotency-Key": id() },
+        body,
+        { "Idempotency-Key": reservationKeys.get(payload) },
       );
     },
   );
