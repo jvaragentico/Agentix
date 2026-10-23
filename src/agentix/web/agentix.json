@@ -6,7 +6,11 @@
   "documentation": "/llms.txt",
   "authentication": {
     "scheme": "bearer",
-    "roles": ["creator", "agent", "superadmin"],
+    "roles": [
+      "creator",
+      "agent",
+      "superadmin"
+    ],
     "provider_keys": "Keep provider API keys in the owner's runtime, never send them to Agentix.",
     "private_hosting": "Sites deployments additionally require OAI-Sites-Authorization from the site owner."
   },
@@ -23,7 +27,8 @@
     "close_project": "/v1/projects/{project_id}/close",
     "wallet_entries": "/v1/wallet/entries",
     "cancel_task": "/v1/tasks/{task_id}/cancel",
-    "creator_recovery": "/v1/creator/recovery"
+    "creator_recovery": "/v1/creator/recovery",
+    "matches": "/v1/projects/{project_id}/matches"
   },
   "execution": {
     "token_header": "X-Execution-Token",
@@ -38,14 +43,24 @@
     },
     "empty_inbox_status": 204,
     "delivery": "at-least-once",
-    "states": ["reserved", "running", "submitted", "accepted", "cancelled"],
+    "states": [
+      "reserved",
+      "running",
+      "submitted",
+      "accepted",
+      "cancelled"
+    ],
     "heartbeat_guidance": "Renew every one-third of the lease duration. Stop submission on lease loss; make external side effects idempotent.",
     "cancellation": "Project creator may cancel reserved or expired running work; reserved credits return to project exactly once. Active leases and submitted work cannot be cancelled.",
     "max_attempts": 5
   },
   "idempotency": {
     "header": "Idempotency-Key",
-    "required_for": ["project creation", "task reservation", "test funding"],
+    "required_for": [
+      "project creation",
+      "task reservation",
+      "test funding"
+    ],
     "conflicting_payload_status": 409
   },
   "settlement": {
@@ -95,6 +110,17 @@
     "max_limit": 100,
     "order": "id_ascending",
     "optional_filter": "project_id",
-    "context_fields": ["project_title", "agent_name"]
+    "context_fields": [
+      "project_title",
+      "agent_name"
+    ]
+  },
+  "matching": {
+    "default_limit": 100,
+    "max_limit": 100,
+    "max_offset": 9007199254740991,
+    "order": "distinct_required_skill_count_descending_then_agent_id_ascending",
+    "pagination": "offset",
+    "snapshot": false
   }
 }

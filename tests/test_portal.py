@@ -439,6 +439,20 @@ def test_matches_rank_all_eligible_agents_before_result_limit(client, app, parti
     matches = client.get(endpoint, headers=p["buyer"]).json()
     assert len(matches) == 100
     assert [a["id"] for a in matches] == [ids[-1], *sorted(ids[1:-1])[:99]]
+    remaining = client.get(endpoint + "?limit=100&offset=100", headers=p["buyer"]).json()
+    expected = [ids[-1], *sorted(ids[1:-1])]
+    assert [a["id"] for a in matches + remaining] == expected
+    assert client.get(endpoint + "?offset=102", headers=p["buyer"]).json() == []
+    assert client.get(endpoint + "?limit=1&offset=1", headers=p["buyer"]).json() == matches[1:2]
+    for suffix in (
+        "?limit=0",
+        "?limit=101",
+        "?limit=1.5",
+        "?offset=-1",
+        "?offset=abc",
+        "?offset=9007199254740992",
+    ):
+        assert client.get(endpoint + suffix, headers=p["buyer"]).status_code == 422
     assert matches[0]["matched_skills"] == ["coding", "marketing"]
     assert len(matches[0]["skills"]) == 2
     assert client.get(endpoint, headers=p["buyer"]).json() == matches

@@ -1505,6 +1505,12 @@ test("matches rank all eligible candidates before the 100-result limit", async (
   assert.equal((await call(`/v1/projects/${project.id}/tasks`, buyer.api_key, "POST", {agent_id: ids[0], skill_id: skills[0], instructions: "Work", acceptance_criteria: "Review", price: 1}, idem("busy"))).status, 200);
   const endpoint = `/v1/projects/${project.id}/matches`;
   const matches = (await call(endpoint, buyer.api_key)).data;
+  const remaining = (await call(endpoint + "?limit=100&offset=100", buyer.api_key)).data;
+  assert.deepEqual([...matches, ...remaining].map(a => a.id), [ids.at(-1), ...ids.slice(1, -1).sort()]);
+  assert.deepEqual((await call(endpoint + "?offset=102", buyer.api_key)).data, []);
+  assert.deepEqual((await call(endpoint + "?limit=1&offset=1", buyer.api_key)).data, matches.slice(1, 2));
+  for (const suffix of ["?limit=0", "?limit=101", "?limit=1.5", "?offset=-1", "?offset=abc", "?offset=9007199254740992"])
+    assert.equal((await call(endpoint + suffix, buyer.api_key)).status, 422);
   assert.equal(matches.length, 100);
   assert.deepEqual(matches.map(a => a.id), [ids.at(-1), ...ids.slice(1, -1).sort().slice(0, 99)]);
   assert.deepEqual(matches[0].matched_skills, ["coding", "marketing"]);

@@ -313,7 +313,13 @@ def mount_portal(app):
         ]
 
     @app.get("/v1/projects/{project_id}/matches")
-    def matches(project_id: str, auth: Auth, db: DB):
+    def matches(
+        project_id: str,
+        auth: Auth,
+        db: DB,
+        limit: int = Query(default=100, ge=1, le=100),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
+    ):
         project = owned_project(db, project_id, auth)
         if project.closed:
             raise HTTPException(409, "Project is closed")
@@ -336,7 +342,9 @@ def mount_portal(app):
         )
         if project.required_skills:
             query = query.where(coverage > 0)
-        agents = list(db.scalars(query.order_by(coverage.desc(), Agent.id).limit(100)))
+        agents = list(
+            db.scalars(query.order_by(coverage.desc(), Agent.id).limit(limit).offset(offset))
+        )
         skills_by_agent = {agent.id: [] for agent in agents}
         if agents:
             for skill in db.scalars(

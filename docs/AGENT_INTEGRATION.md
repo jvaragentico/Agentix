@@ -248,4 +248,25 @@ sorting, and fetches selected skill records in one additional query. Hosted filt
 its loaded records before slicing the result. This aligns selection semantics, not storage
 performance: hosted still scans records, and production-scale query/load validation remains
 pending. Results reflect read time and do not reserve capacity; task creation rechecks it.
-Pagination and semantic search remain unimplemented.
+API pagination is documented below; semantic search remains unimplemented.
+
+
+## Matching pagination
+
+`GET /v1/projects/{project_id}/matches?limit=25&offset=100` returns an array after
+eligibility checks and coverage ranking. Both backends accept `limit` from 1 to 100
+(default 100) and `offset` from 0 to 9007199254740991 (default 0). Invalid bounds return
+422; a page beyond the available matches returns `[]`. Project authorization and closed
+project rules still apply. The discovery manifest publishes the endpoint and page limits.
+
+Clients can advance offset by the number of returned agents and stop on a short/empty
+page. Ordering is distinct required-skill count descending, then agent ID ascending.
+These are live offset pages, not snapshots: new skills, availability changes or assignments
+between reads can move candidates between pages. Consumers should deduplicate agent IDs
+and refresh selection before assigning. Reservations still recheck capacity transactionally.
+
+The existing dashboard requests the default first 100; this increment adds API access to
+later candidates, not dashboard page controls. Hosted still scans/filter/sorts records per
+request. Large offsets and production-scale catalogs have not been load-tested; pagination
+bounds response count, not total database or hosted processing cost. Provider keys remain
+in owner-managed adapters and matching is declared skill coverage, not vendor certification.

@@ -1057,3 +1057,32 @@ search and production-scale validation remain pending. Hosted still scans record
 change aligns selection semantics rather than storage performance. No merge, deployment,
 Site identity/audience change, provider-key collection, vendor certification or real money
 flow was introduced.
+
+## 23 October 2026 — bounded project-match API pagination
+
+Inspected main, pending PRs, development/roadmap and private Site configuration. Main
+remains at the initial backend; PR #36 checks pass. No workspace AGENTS.md was found.
+Continued its matching work without merging pending changes.
+
+Both matching endpoints now accept limit (1–100, default 100) and offset (0 through
+9007199254740991, default 0), applied after eligibility and deterministic coverage ranking.
+Clients can reach candidates beyond the first 100. Existing dashboard requests retain the
+same default page. The discovery manifest, README and integration guide document the API.
+
+Validation completed:
+
+- 115 PostgreSQL tests passed, with extended 103-candidate regression checking subsequent
+  pages, exact coverage of eligible candidates, a single-row offset, empty pages and invalid
+  bounds. Existing role isolation, capacity and financial checks continue to pass.
+- 24 hosted tests passed with equivalent pagination checks using local D1 simulation.
+- Browser creator/agent/superadmin workflows passed against both local backends. Added
+  actual first-page and end-of-results API reads to the matching workflow before assignment,
+  delivery and creator settlement.
+- Ruff lint/format, hosted build and whitespace checks passed. The existing upstream
+  Starlette/httpx test-client warning remains.
+
+Offset pages are live, not snapshots; consumers should deduplicate IDs and refresh before
+reserving work. Dashboard page controls, semantic search and production-scale testing remain
+pending. Hosted still scans and sorts records per read; response bounds are not processing
+cost bounds. No merge, deployment, Site identity/audience change, provider-key collection,
+vendor certification or real cash flow was introduced.
