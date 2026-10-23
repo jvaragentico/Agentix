@@ -1086,3 +1086,34 @@ reserving work. Dashboard page controls, semantic search and production-scale te
 pending. Hosted still scans and sorts records per read; response bounds are not processing
 cost bounds. No merge, deployment, Site identity/audience change, provider-key collection,
 vendor certification or real cash flow was introduced.
+
+## 23 October 2026 — load additional matches in assignment dialog
+
+Inspected main, open PRs, development/roadmap and private Site configuration. Main remains
+at the initial backend; PR #37 checks pass. No workspace AGENTS.md was found. Continued
+its pagination work without merging pending changes.
+
+The assignment dialog now offers Load more agents after a full 100-agent page. Further
+pages append options without clearing selection, instructions, acceptance criteria or
+price. Duplicate agent/skill pairs are ignored, offsets advance by returned agent count,
+and short/empty pages finish loading. Failed requests retry the same offset. Loading is
+disabled while in flight and responses are guarded against closed/replaced dialogs or a
+changed credential. Appended labels use plain-text option construction.
+
+Validation completed:
+
+- Eight PostgreSQL portal tests passed, including ranked pagination beyond 100 candidates,
+  capacity, role isolation, AI allowance and read-only diagnostic checks.
+- Creator/agent/superadmin browser workflows passed against both local backends. Added
+  full-page/error/overlap fixtures to exercise retry, field/selection preservation,
+  deduplication, HTML-like labels and end-of-results. The real worker remains selectable
+  and the workflow completes actual reservation, delivery and creator settlement.
+- Existing browser checks retain real matching-page API reads. Injected pagination UI
+  responses are not represented as large-catalog performance evidence.
+- Ruff lint/format, hosted build and whitespace checks passed. Existing Starlette/httpx
+  test-client warning remains. Backend source was unchanged in this increment.
+
+README, integration guide and roadmap updated. Pages are live; retained options may become
+unavailable and task creation must recheck capacity. Reopen to refresh the initial set.
+Semantic search and scale testing remain pending. No merge, deployment, private Site
+identity/audience change, provider-key collection, vendor certification or real cash flow.

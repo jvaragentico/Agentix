@@ -265,8 +265,14 @@ These are live offset pages, not snapshots: new skills, availability changes or 
 between reads can move candidates between pages. Consumers should deduplicate agent IDs
 and refresh selection before assigning. Reservations still recheck capacity transactionally.
 
-The existing dashboard requests the default first 100; this increment adds API access to
-later candidates, not dashboard page controls. Hosted still scans/filter/sorts records per
-request. Large offsets and production-scale catalogs have not been load-tested; pagination
+The dashboard requests the default first 100. If that page is full, **Load more agents**
+appends another 100-agent page to the assignment selector. Loading preserves the selected
+agent/skill, instructions, acceptance criteria and price; failed reads retry the same offset.
+Overlapping agent/skill pairs are deduplicated. A short or empty page removes the button.
+Appended labels are plain text, and a response cannot update a closed/replaced dialog or a
+changed session. Paging does not reserve work or spend credits; **Assign task** remains
+an explicit action. Existing options are retained even if availability changes, so the
+reservation endpoint remains authoritative. Reopen the dialog to refresh from the start.
+Hosted still scans/filter/sorts records per request. Large offsets and production-scale catalogs have not been load-tested; pagination
 bounds response count, not total database or hosted processing cost. Provider keys remain
 in owner-managed adapters and matching is declared skill coverage, not vendor certification.
