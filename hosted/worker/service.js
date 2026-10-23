@@ -960,7 +960,17 @@ async function route(u, r, env, path, method, b, a) {
       };
     }
     if (m[2] === "matches" && p.closed) fail(409, "Project is closed");
-    if (m[2] === "matches" && method === "GET")
+    if (m[2] === "matches" && method === "GET") {
+      const params = new URL(r.url).searchParams;
+      const page = (name, fallback, min, max) => {
+        const raw = params.get(name);
+        if (raw === null) return fallback;
+        const value = Number(raw);
+        if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < min || value > max)
+          fail(422, "Invalid matching pagination");
+        return value;
+      };
+      const limit = page("limit", 100, 1, 100), offset = page("offset", 0, 0, Number.MAX_SAFE_INTEGER);
       return u
         .list("agent")
         .filter(
@@ -988,7 +998,8 @@ async function route(u, r, env, path, method, b, a) {
         }))
         .filter((x) => !p.required_skills.length || x.matched_skills.length)
         .sort((a, b) => b.matched_skills.length - a.matched_skills.length || a.id.localeCompare(b.id))
-        .slice(0, 100);
+        .slice(offset, offset + limit);
+    }
     if (m[2] === "tasks" && method === "POST") {
       exact(b, [
         "agent_id",

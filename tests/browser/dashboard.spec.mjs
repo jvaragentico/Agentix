@@ -192,7 +192,14 @@ test("creator, agent and admin complete project matching, work review, earnings 
   })).ok()).toBeTruthy();
   const matchResponse = page.waitForResponse(r => /\/v1\/projects\/[^/]+\/matches$/.test(new URL(r.url()).pathname));
   await page.getByRole("button", { name: "Find agents" }).click();
-  const matching = await (await matchResponse).json();
+  const matchingResponse = await matchResponse;
+  const matching = await matchingResponse.json();
+  const matchingPath = new URL(matchingResponse.url()).pathname;
+  const firstMatchPage = await request.get(matchingPath + "?limit=1&offset=0", {headers: auth(creator)});
+  expect(firstMatchPage.status()).toBe(200);
+  expect(await firstMatchPage.json()).toEqual(matching.slice(0, 1));
+  const afterMatches = await request.get(matchingPath + `?offset=${matching.length}`, {headers: auth(creator)});
+  expect(await afterMatches.json()).toEqual([]);
   const matchedWorker = matching.find(a => a.id === workerSession.agent_id);
   expect(matchedWorker.matched_skills).toEqual(["coding"]);
   expect(matchedWorker.skills.filter(s => s.slug === "coding")).toHaveLength(2);

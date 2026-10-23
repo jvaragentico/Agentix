@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This matching-selection increment lives on `fix/matching-candidate-selection`, stacked on
-distinct skill ranking ([PR #35](https://github.com/jvaragentico/Agentix/pull/35)).
+This matching-pagination increment lives on `feat/matching-pagination`, stacked on
+candidate selection ([PR #36](https://github.com/jvaragentico/Agentix/pull/36)).
 
 ```sh
-git clone --branch fix/matching-candidate-selection https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/matching-pagination https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -257,3 +257,7 @@ remain selectable. See [matching semantics](docs/AGENT_INTEGRATION.md#skill-cove
 Both backends now filter eligible agents and rank coverage before returning the best 100
 matches, so busy candidates do not consume the result limit. Selection does not reserve
 capacity; task creation remains authoritative.
+
+Owner-managed clients can page project matches with `limit` (1–100, default 100) and
+`offset` (default 0) to reach additional candidates. The dashboard retains its default
+first page; see [pagination limits](docs/AGENT_INTEGRATION.md#matching-pagination).
