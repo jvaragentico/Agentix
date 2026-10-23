@@ -197,6 +197,39 @@ function showKey(result, label) {
   modal.innerHTML = `<div class="modal-head"><h2>${label} created</h2>${btn("×", "close", "", "ghost")}</div><p>Save this access key now. It is shown only once.</p><div class="key-box">${e(result.api_key)}</div><p class="footer-note">This is an Agentix credential. Keep provider API keys in the agent’s environment.</p><div class="form-actions">${btn("Copy key", "copy", `data-key="${e(result.api_key)}"`)}${btn("Saved my key", "close", "", "primary")}</div>`;
   if (!modal.open) modal.showModal();
 }
+function matchOptions(agents) {
+  return agents.flatMap(a => a.skills.map(s => `<option value="${e(a.id)}:${e(s.id)}">${e(a.name)} · ${e(a.framework)} · ${e(s.slug)}</option>`)).join("");
+}
+async function moreMatches(b) {
+  const requestKey = key, select = modal.querySelector("#f-match");
+  const status = modal.querySelector("#match-page-status");
+  if (!select || b.disabled) return;
+  b.disabled = true;
+  status.textContent = "Loading more agents…";
+  const current = () => modal.open && modal.contains(select) && key === requestKey;
+  try {
+    const offset = Number(b.dataset.offset);
+    const agents = await api(`/v1/projects/${encodeURIComponent(b.dataset.id)}/matches?limit=100&offset=${offset}`);
+    if (!current()) return;
+    const known = new Set(Array.from(select.options, option => option.value));
+    for (const agent of agents) for (const skill of agent.skills) {
+      const value = `${agent.id}:${skill.id}`;
+      if (known.has(value)) continue;
+      select.add(new Option(`${agent.name} · ${agent.framework} · ${skill.slug}`, value));
+      known.add(value);
+    }
+    b.dataset.offset = String(offset + agents.length);
+    status.textContent = agents.length < 100 ? "All currently available matches loaded." : "More agents loaded.";
+    if (agents.length < 100) b.remove();
+    else b.textContent = "Load more agents";
+  } catch (error) {
+    if (!current()) return;
+    status.textContent = "More agents could not be loaded. Your assignment details are preserved.";
+    b.textContent = "Retry loading agents";
+  } finally {
+    if (current()) b.disabled = false;
+  }
+}
 async function matches(projectId) {
   const options = await api(`/v1/projects/${projectId}/matches`);
   if (!options.length) {
@@ -209,7 +242,7 @@ async function matches(projectId) {
   const project = data.projects.find((p) => p.id === projectId);
   form(
     "Assign a skilled agent",
-    `<label for="f-match">Agent · skill</label><select id="f-match" name="match">${options.flatMap((a) => a.skills.map((s) => `<option value="${a.id}:${s.id}">${e(a.name)} · ${e(a.framework)} · ${e(s.slug)}</option>`)).join("")}</select>${area("instructions", "Task instructions", project.description)}${area("acceptance_criteria", "Acceptance criteria")}${field("price", "Contribution price (credits)", "number", "", 'required min="1" max="' + project.remaining_budget + '"')}`,
+    `<label for="f-match">Agent · skill</label><select id="f-match" name="match">${matchOptions(options)}</select><p id="match-page-status" role="status">${options.length === 100 ? "More matching agents may be available." : "All currently available matches loaded."}</p>${options.length === 100 ? btn("Load more agents", "more-matches", `type="button" data-id="${e(projectId)}" data-offset="100"`) : ""}${area("instructions", "Task instructions", project.description)}${area("acceptance_criteria", "Acceptance criteria")}${field("price", "Contribution price (credits)", "number", "", 'required min="1" max="' + project.remaining_budget + '"')}`,
     "Assign task",
     async (f) => {
       const [agent_id, skill_id] = f.match.split(":");
@@ -729,6 +762,10 @@ document.addEventListener("click", async (ev) => {
             { "Idempotency-Key": id() },
           ),
       );
+      return;
+    }
+    if (action === "more-matches") {
+      await moreMatches(b);
       return;
     }
     if (action === "matches") {

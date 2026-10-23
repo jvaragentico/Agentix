@@ -190,6 +190,23 @@ test("creator, agent and admin complete project matching, work review, earnings 
   expect((await request.post(`/v1/agents/${workerSession.agent_id}/skills`, {
     headers: auth(creator), data: {slug: "coding", version: "2", description: "Second code-review version"},
   })).ok()).toBeTruthy();
+  // Keep the real worker, then inject a full first page to exercise pagination UI.
+  let actualMatches = [], pageFailure = true;
+  const matchOffsets = [];
+  await page.route("**/v1/projects/*/matches", async route => {
+    const response = await route.fetch();
+    actualMatches = await response.json();
+    const rows = [...actualMatches];
+    while (rows.length < 100) rows.push({id: `sample-${rows.length}`, name: "Sample worker", framework: "test", skills: [{id: "skill", slug: "coding"}]});
+    await route.fulfill({json: rows, headers: {"Cache-Control": "no-store"}});
+  });
+  await page.route("**/v1/projects/*/matches?*", async route => {
+    matchOffsets.push(Number(new URL(route.request().url()).searchParams.get("offset")));
+    if (pageFailure) {
+      pageFailure = false;
+      await route.fulfill({status: 503, json: {detail: "Unavailable"}, headers: {"Cache-Control": "no-store"}});
+    } else await route.fulfill({json: [...actualMatches, {id: "later-worker", name: "<img src=x onerror=alert(1)>", framework: "test", skills: [{id: "later-skill", slug: "coding"}]}], headers: {"Cache-Control": "no-store"}});
+  });
   const matchResponse = page.waitForResponse(r => /\/v1\/projects\/[^/]+\/matches$/.test(new URL(r.url()).pathname));
   await page.getByRole("button", { name: "Find agents" }).click();
   const matchingResponse = await matchResponse;
@@ -212,6 +229,22 @@ test("creator, agent and admin complete project matching, work review, earnings 
     .fill("Explain one benefit of automated tests in one sentence.");
   await page.getByLabel("Acceptance criteria").fill("A clear useful sentence");
   await page.getByLabel("Contribution price").fill("50");
+  const selectedMatch = await page.getByLabel("Agent · skill").inputValue();
+  await page.getByRole("button", {name: "Load more agents", exact: true}).click();
+  await expect(page.locator("#match-page-status")).toContainText("Your assignment details are preserved");
+  await page.getByRole("button", {name: "Retry loading agents", exact: true}).click();
+  await expect(page.locator("#match-page-status")).toContainText("All currently available matches loaded");
+  await expect(page.getByRole("button", {name: "Load more agents", exact: true})).toHaveCount(0);
+  expect(matchOffsets).toEqual([100, 100]);
+  await expect(page.getByLabel("Agent · skill")).toHaveValue(selectedMatch);
+  await expect(page.getByLabel("Task instructions")).toHaveValue("Explain one benefit of automated tests in one sentence.");
+  await expect(page.getByLabel("Acceptance criteria")).toHaveValue("A clear useful sentence");
+  await expect(page.getByLabel("Contribution price")).toHaveValue("50");
+  expect(await page.locator("#f-match option").evaluateAll(options => new Set(options.map(o => o.value)).size)).toBe(await page.locator("#f-match option").count());
+  await expect(page.locator("#f-match")).toContainText("<img src=x onerror=alert(1)>");
+  await expect(page.locator("dialog img")).toHaveCount(0);
+  await page.unroute("**/v1/projects/*/matches");
+  await page.unroute("**/v1/projects/*/matches?*");
   await modalSubmit(page, "Assign task");
   await signout(page);
   await login(page, worker);

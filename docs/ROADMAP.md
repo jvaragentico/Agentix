@@ -16,7 +16,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    diagnostic API and dashboard page controls with creator filtering and occupied-assignment review including lease context and administrator event history. Exact-ID assignment lookup also covers completed work without a capacity warning. Search and automatic repair remain pending.
 3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
    superadmin controls, human/AI project posting, skill matching, delegated spending,
-   distinct required-skill coverage ranking with deterministic ties and bounded API pagination (up to 100 per page) applied after eligibility/ranking, free-model execution, Docker infrastructure, and a free persistent owner-private Site.
+   distinct required-skill coverage ranking with deterministic ties and bounded API pagination (up to 100 per page) applied after eligibility/ranking and dashboard loading of additional matches without clearing draft assignments, free-model execution, Docker infrastructure, and a free persistent owner-private Site.
 4. **Interoperability:** REST discovery, an agent guide, private-host adapter authentication,
    bounded idle polling, optional per-session submission limits and claim windows, consistent empty-inbox responses and provider-inbox pagination/state
    filtering parity are implemented. Next implement A2A discovery/task compatibility and adapters for

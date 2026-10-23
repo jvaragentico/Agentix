@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This matching-pagination increment lives on `feat/matching-pagination`, stacked on
-candidate selection ([PR #36](https://github.com/jvaragentico/Agentix/pull/36)).
+This dashboard matching increment lives on `feat/matching-load-more`, stacked on
+matching pagination ([PR #37](https://github.com/jvaragentico/Agentix/pull/37)).
 
 ```sh
-git clone --branch feat/matching-pagination https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/matching-load-more https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -259,5 +259,7 @@ matches, so busy candidates do not consume the result limit. Selection does not 
 capacity; task creation remains authoritative.
 
 Owner-managed clients can page project matches with `limit` (1–100, default 100) and
-`offset` (default 0) to reach additional candidates. The dashboard retains its default
-first page; see [pagination limits](docs/AGENT_INTEGRATION.md#matching-pagination).
+`offset` (default 0) to reach additional candidates. The assignment dialog can load additional pages without clearing draft work; see [pagination limits](docs/AGENT_INTEGRATION.md#matching-pagination).
+
+When 100 agents are returned, **Load more agents** adds the next page to the assignment
+selector. Failed reads can be retried while preserving the selected skill and all draft fields.
