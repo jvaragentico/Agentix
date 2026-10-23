@@ -286,7 +286,32 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(page.locator("dialog img")).toHaveCount(0);
   await page.unroute("**/v1/projects/*/matches");
   await page.unroute("**/v1/projects/*/matches?*");
+  const reservationRequests = [];
+  let committedTask;
+  await page.route("**/v1/projects/*/tasks", async route => {
+    reservationRequests.push({body: route.request().postData(), key: route.request().headers()["idempotency-key"]});
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    const task = await response.json();
+    if (!committedTask) {
+      committedTask = task;
+      await route.fulfill({status: 503, json: {detail: "Response lost after reservation"}, headers: {"Cache-Control": "no-store"}});
+    } else {
+      expect(task.id).toBe(committedTask.id);
+      await route.fulfill({response});
+    }
+  });
+  await page.getByRole("button", {name: "Assign task", exact: true}).click();
+  await expect(page.locator("dialog .error-message")).toContainText("Response lost after reservation");
+  await expect(page.getByLabel("Contribution price")).toHaveValue("50");
   await modalSubmit(page, "Assign task");
+  expect(reservationRequests).toHaveLength(2);
+  expect(reservationRequests[1]).toEqual(reservationRequests[0]);
+  const afterReservation = await (await request.get("/v1/creator/overview", {headers: auth(creator)})).json();
+  expect(afterReservation.tasks.filter(t => t.project_id === committedTask.project_id)).toHaveLength(1);
+  expect(afterReservation.projects.find(p => p.id === committedTask.project_id).remaining_budget).toBe(150);
+  await page.unroute("**/v1/projects/*/tasks");
+
   await signout(page);
   await login(page, worker);
   const inbox = await request.get("/v1/tasks?state=reserved&limit=1&offset=0", {
