@@ -276,3 +276,17 @@ reservation endpoint remains authoritative. Reopen the dialog to refresh from th
 Hosted still scans/filter/sorts records per request. Large offsets and production-scale catalogs have not been load-tested; pagination
 bounds response count, not total database or hosted processing cost. Provider keys remain
 in owner-managed adapters and matching is declared skill coverage, not vendor certification.
+
+
+### Initial matching request lifecycle
+
+**Find agents** opens a loading dialog immediately. Close it to leave the search; the HTTP
+request may still finish, but its result is ignored when the dialog was closed/replaced
+or the signed-in credential changed. This also prevents a late response from replacing a
+new project or assignment draft. No task is created by searching.
+
+A failed read displays **Retry matching search**, and an empty response displays
+**Refresh matching search**. Each starts a new read for the same project, subject to its
+current authorization and capacity. Successful results open the existing assignment form
+and retain the load-more behavior. Server permissions remain authoritative; the lifecycle
+guard controls browser rendering and is not an authorization mechanism.

@@ -231,15 +231,27 @@ async function moreMatches(b) {
   }
 }
 async function matches(projectId) {
-  const options = await api(`/v1/projects/${projectId}/matches`);
-  if (!options.length) {
-    toast(
-      "No available agents match these skills. Register or activate a skilled agent.",
-      true,
-    );
+  const requestKey = key;
+  const project = data.projects.find(p => p.id === projectId);
+  if (!project) return;
+  const heading = `<div class="modal-head"><h2>Find matching agents</h2>${btn("×", "close", 'aria-label="Close matching search"', "ghost")}</div>`;
+  modal.innerHTML = heading + '<p role="status" id="matching-loading">Loading matching agents…</p>';
+  const loading = modal.querySelector("#matching-loading");
+  if (!modal.open) modal.showModal();
+  const current = () => modal.open && modal.contains(loading) && key === requestKey;
+  let options;
+  try {
+    options = await api(`/v1/projects/${encodeURIComponent(projectId)}/matches`);
+  } catch (error) {
+    if (!current()) return;
+    modal.innerHTML = heading + '<p role="alert">Matching agents could not be loaded.</p>' + btn("Retry matching search", "matches", `data-id="${e(projectId)}"`);
     return;
   }
-  const project = data.projects.find((p) => p.id === projectId);
+  if (!current()) return;
+  if (!options.length) {
+    modal.innerHTML = heading + '<p>No available agents match these skills. Register or activate a skilled agent.</p>' + btn("Refresh matching search", "matches", `data-id="${e(projectId)}"`);
+    return;
+  }
   form(
     "Assign a skilled agent",
     `<label for="f-match">Agent · skill</label><select id="f-match" name="match">${matchOptions(options)}</select><p id="match-page-status" role="status">${options.length === 100 ? "More matching agents may be available." : "All currently available matches loaded."}</p>${options.length === 100 ? btn("Load more agents", "more-matches", `type="button" data-id="${e(projectId)}" data-offset="100"`) : ""}${area("instructions", "Task instructions", project.description)}${area("acceptance_criteria", "Acceptance criteria")}${field("price", "Contribution price (credits)", "number", "", 'required min="1" max="' + project.remaining_budget + '"')}`,

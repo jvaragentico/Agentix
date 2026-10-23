@@ -190,6 +190,47 @@ test("creator, agent and admin complete project matching, work review, earnings 
   expect((await request.post(`/v1/agents/${workerSession.agent_id}/skills`, {
     headers: auth(creator), data: {slug: "coding", version: "2", description: "Second code-review version"},
   })).ok()).toBeTruthy();
+  // A delayed initial search must not replace a newer project draft.
+  let releaseSearch;
+  const searchGate = new Promise(resolve => { releaseSearch = resolve; });
+  let searchStarted;
+  const searchReady = new Promise(resolve => { searchStarted = resolve; });
+  await page.route("**/v1/projects/*/matches", async route => {
+    const response = await route.fetch();
+    searchStarted();
+    await searchGate;
+    await route.fulfill({response});
+  });
+  await page.getByRole("button", {name: "Find agents"}).click();
+  await searchReady;
+  await expect(page.locator("dialog")).toContainText("Loading matching agents");
+  await page.getByRole("button", {name: "Close matching search", exact: true}).click();
+  await page.getByRole("button", {name: "+ Post project"}).click();
+  await page.getByLabel("Project title").fill("Draft survives delayed search");
+  const lateSearch = page.waitForResponse(r => /\/matches$/.test(new URL(r.url()).pathname));
+  releaseSearch();
+  await (await lateSearch).finished();
+  // Let the completed fetch handler process the delayed response.
+  await page.waitForTimeout(100);
+  await expect(page.getByLabel("Project title")).toHaveValue("Draft survives delayed search");
+  await page.getByRole("button", {name: "Cancel", exact: true}).click();
+  await page.unroute("**/v1/projects/*/matches");
+  let initialSearchAttempt = 0;
+  await page.route("**/v1/projects/*/matches", async route => {
+    initialSearchAttempt++;
+    if (initialSearchAttempt === 1) await route.fulfill({status: 503, json: {detail: "Unavailable"}, headers: {"Cache-Control": "no-store"}});
+    else if (initialSearchAttempt === 2) await route.fulfill({json: [], headers: {"Cache-Control": "no-store"}});
+    else await route.continue();
+  });
+  await page.getByRole("button", {name: "Find agents"}).click();
+  await expect(page.locator("dialog")).toContainText("Matching agents could not be loaded.");
+  await page.getByRole("button", {name: "Retry matching search", exact: true}).click();
+  await expect(page.locator("dialog")).toContainText("No available agents match these skills");
+  await page.getByRole("button", {name: "Refresh matching search", exact: true}).click();
+  await expect(page.getByLabel("Agent · skill")).toBeVisible();
+  expect(initialSearchAttempt).toBe(3);
+  await page.getByRole("button", {name: "Cancel", exact: true}).click();
+  await page.unroute("**/v1/projects/*/matches");
   // Keep the real worker, then inject a full first page to exercise pagination UI.
   let actualMatches = [], pageFailure = true;
   const matchOffsets = [];

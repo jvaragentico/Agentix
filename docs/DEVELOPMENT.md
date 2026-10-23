@@ -1117,3 +1117,34 @@ README, integration guide and roadmap updated. Pages are live; retained options 
 unavailable and task creation must recheck capacity. Reopen to refresh the initial set.
 Semantic search and scale testing remain pending. No merge, deployment, private Site
 identity/audience change, provider-key collection, vendor certification or real cash flow.
+
+## 23 October 2026 — guard initial matching search lifecycle
+
+Inspected main, open PRs, development/roadmap and private Site configuration. Main remains
+at the initial backend; PR #38 checks pass. No workspace AGENTS.md was found. Reused its
+assignment pagination work without merging pending changes.
+
+The initial Find agents request previously awaited a response before opening a dialog,
+allowing a late response to open or overwrite a form after the user had moved on. It now
+opens a closable loading dialog and only renders results if that exact loading content
+is still present, the dialog remains open and the credential is unchanged. Failed reads
+show retry; empty results show refresh. Successful reads use the existing assignment form
+and load-more controls. Searching does not create tasks or reserve credits.
+
+Validation completed:
+
+- Eight PostgreSQL portal tests passed, covering matching pagination/capacity, role
+  isolation, AI allowances and diagnostic reads. Backend source is unchanged.
+- Creator/agent/superadmin browser workflows passed on both local backends. A delayed
+  matching response was released after closing search and opening a project draft; the
+  draft remained intact. Injected failure/empty responses exercised retry and refresh,
+  followed by a real matching read. Existing real assignment/delivery/settlement and
+  pagination checks continue to pass.
+- Ruff lint/format, hosted build and whitespace checks passed. Existing Starlette/httpx
+  warning remains.
+
+README, integration guide and roadmap updated. Closing suppresses rendering rather than
+aborting server work. Pages remain live; server authorization and reservation checks stay
+authoritative. Semantic search, scale testing and vendor certification remain pending.
+No merge, deployment, private Site identity/audience change, provider-key collection or
+real money flow was introduced.
