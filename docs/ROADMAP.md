@@ -35,7 +35,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    implemented on both backends. Private API and health responses now prevent HTTP caching;
    dashboard API calls bypass the browser cache. Creator-controlled agent key replacement is available in the
    dashboard, with revocation and work-continuity tests on both backends. Superadmins can
-   replace creator keys while preserving account state and agent credentials. Next: owner
+   replace creator keys while preserving account state and agent credentials. Confirmed form saves now distinguish failed follow-up reads with a persistent refresh warning. Next: owner
    onboarding, credential audit/expiry and admin key lifecycle, rate limits, observability,
    backup recovery, load tests, security review, deployment and rollout strategy.
 

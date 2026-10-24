@@ -5,7 +5,8 @@ let key = sessionStorage.getItem("agentix-key") || "",
   user,
   data,
   board = [],
-  view = "overview";
+  view = "overview",
+  refreshWarning = "";
 const e = (v) =>
   String(v ?? "").replace(
     /[&<>"']/g,
@@ -81,6 +82,7 @@ async function refresh() {
   board =
     user.role === "superadmin" ? [] : await api("/v1/marketplace/projects");
   history.replaceState(null, "", `/${user.role}`);
+  refreshWarning = "";
   render();
 }
 function projectCards(projects, own = false) {
@@ -144,7 +146,7 @@ function render() {
     content = `<div class="stats">${stat("Active assignments", data.agent.occupied_slots ?? data.tasks.filter((t) => ["reserved", "running", "submitted"].includes(t.state)).length, "Reserved, running or awaiting review")}${stat("Credits earned", data.earned, "Paid to your creator")}${stat("Project allowance", data.allowance_remaining, "Creator-approved spending")}${stat("Completed work", data.tasks.filter((t) => t.state === "accepted").length, "Deliverables accepted")}</div>${panel("Agent status", `<div class="panel-body row"><span class="badge ${data.agent.available ? "available" : ""}">${data.agent.available ? "Available" : "Paused"}</span><span class="muted">${e(data.agent.framework)} · ${data.agent.capacity} concurrent tasks · ${data.agent.occupied_slots === undefined ? "Occupancy unavailable" : `${n(data.agent.occupied_slots)} slots occupied`}</span>${btn(data.agent.available ? "Pause availability" : "Go available", "availability", `data-id="${data.agent.id}" data-available="${!data.agent.available}"`)}</div>`)}${panel("Work inbox", taskTable())}`;
   else
     content = `<div class="stats">${stat("Your agents", data.agents.length, `${data.agents.filter((a) => a.available).length} available to collaborate`)}${stat("Spendable credits", data.spendable, "Available for your projects")}${stat("Agent earnings", data.earnings, "From accepted contributions")}${stat("Active assignments", data.tasks.filter((t) => ["reserved", "running", "submitted"].includes(t.state)).length, "Across your network")}</div><div class="content-grid"><div>${panel("Your projects", projectCards(data.projects.slice(0, 4), true), btn("View all", "nav", `data-view="projects"`, "small"))}${panel("Recent assignments", taskTable())}${panel("Execution recovery", "<p>Review expired assignments that reached their execution limit. Cancelling returns reserved credits to the project.</p>", btn("Review exhausted work", "recovery"))}${panel("Work-credit history", "<p>Inspect movements between your spendable, project, assignment and earnings accounts.</p>", btn("View credit history", "credit-history"))}</div><div>${panel("Your agents", agents(), btn("+ Add", "register", "", "small"))}<div class="notice">Your agents keep their own provider API keys. Approve a spending allowance to let them post AI projects.</div></div></div>`;
-  app.innerHTML = `<div class="shell"><aside class="sidebar"><div class="logo"><span class="logo-mark">a</span>agentix</div><div class="workspace-label">${admin ? "Platform controls" : "Workspace"}</div><nav class="nav">${[["overview", "◈", "Overview"], ...(!admin ? [["projects", "▤", "Projects"], ["tasks", "✓", agent ? "Work inbox" : "Assignments"], ...(!agent ? [["agents", "✳", "My agents"]] : []), ["marketplace", "◎", "Marketplace"]] : [])].map(([v, icon, label]) => `<button data-action="nav" data-view="${v}" class="${view === v ? "active" : ""}"><span class="nav-icon" aria-hidden="true">${icon}</span>${label}</button>`).join("")}</nav><div class="sidebar-foot"><span class="online-dot"></span>Connected workspace<br><span class="role-pill">${e(user.role)}</span><br></div></aside><main class="main"><header class="topbar"><span class="breadcrumb">Workspace / ${e(titles[view])}</span><div class="identity">${btn("Refresh", "refresh", "", "small")}${btn("Sign out", "logout", "", "small")}<span class="identity-name">${e(user.name)}</span><span class="avatar">${e(user.name[0].toUpperCase())}</span></div></header><div class="page-head"><div><span class="eyebrow">${admin ? "Platform operations" : agent ? "Your skills. Shared outcomes." : "Build something together"}</span><h1>${e(titles[view])}</h1><p>${admin ? "Manage creators, access, and the work-credit ledger." : agent ? "Collaborate across frameworks and contribute your skills." : "Bring the right agents together for your next project."}</p></div>${!admin ? btn("+ Post project", "project", "", "primary") : ""}</div><div class="notice">Test credits are nonredeemable. Live money deposits and withdrawals are not enabled.</div>${content}<p class="footer-note">Agentix · Independent agents, connected skills.</p></main></div>`;
+  app.innerHTML = `<div class="shell"><aside class="sidebar"><div class="logo"><span class="logo-mark">a</span>agentix</div><div class="workspace-label">${admin ? "Platform controls" : "Workspace"}</div><nav class="nav">${[["overview", "◈", "Overview"], ...(!admin ? [["projects", "▤", "Projects"], ["tasks", "✓", agent ? "Work inbox" : "Assignments"], ...(!agent ? [["agents", "✳", "My agents"]] : []), ["marketplace", "◎", "Marketplace"]] : [])].map(([v, icon, label]) => `<button data-action="nav" data-view="${v}" class="${view === v ? "active" : ""}"><span class="nav-icon" aria-hidden="true">${icon}</span>${label}</button>`).join("")}</nav><div class="sidebar-foot"><span class="online-dot"></span>Connected workspace<br><span class="role-pill">${e(user.role)}</span><br></div></aside><main class="main">${refreshWarning ? `<p id="saved-refresh-error" class="notice" role="alert">${e(refreshWarning)}</p>` : ""}<header class="topbar"><span class="breadcrumb">Workspace / ${e(titles[view])}</span><div class="identity">${btn("Refresh", "refresh", "", "small")}${btn("Sign out", "logout", "", "small")}<span class="identity-name">${e(user.name)}</span><span class="avatar">${e(user.name[0].toUpperCase())}</span></div></header><div class="page-head"><div><span class="eyebrow">${admin ? "Platform operations" : agent ? "Your skills. Shared outcomes." : "Build something together"}</span><h1>${e(titles[view])}</h1><p>${admin ? "Manage creators, access, and the work-credit ledger." : agent ? "Collaborate across frameworks and contribute your skills." : "Bring the right agents together for your next project."}</p></div>${!admin ? btn("+ Post project", "project", "", "primary") : ""}</div><div class="notice">Test credits are nonredeemable. Live money deposits and withdrawals are not enabled.</div>${content}<p class="footer-note">Agentix · Independent agents, connected skills.</p></main></div>`;
   const lookup = document.querySelector("#assignment-lookup");
   if (lookup) lookup.onsubmit = async ev => {
     ev.preventDefault();
@@ -183,8 +185,22 @@ function form(title, body, submit, handler) {
       const keep = await handler(Object.fromEntries(new FormData(ev.target)));
       if (keep !== true) {
         modal.close();
-        await refresh();
-        toast("Saved");
+        try {
+          await refresh();
+          toast("Saved");
+        } catch (err) {
+          // The mutation succeeded. A failed read must not invite another save.
+          let notice = document.querySelector("#saved-refresh-error");
+          if (!notice) {
+            notice = document.createElement("p");
+            notice.id = "saved-refresh-error";
+            notice.className = "notice";
+            notice.setAttribute("role", "alert");
+            app.querySelector(".main").prepend(notice);
+          }
+          refreshWarning = `Saved successfully, but workspace refresh failed: ${err.message}. Displayed data may be outdated. Use Refresh to reload it; do not repeat the saved action.`;
+          notice.textContent = refreshWarning;
+        }
       }
     } catch (err) {
       ev.target.querySelector(".error-message").textContent = err.message;
@@ -553,6 +569,7 @@ document.addEventListener("click", async (ev) => {
       return;
     }
     if (action === "logout") {
+      refreshWarning = "";
       sessionStorage.clear();
       key = "";
       view = "overview";
