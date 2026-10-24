@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This test-credit retry increment lives on `fix/test-credit-retry`, stacked on
-project posting protection ([PR #41](https://github.com/jvaragentico/Agentix/pull/41)).
+This save/refresh feedback increment lives on `fix/saved-refresh-feedback`, stacked on
+test-credit retry protection ([PR #42](https://github.com/jvaragentico/Agentix/pull/42)).
 
 ```sh
-git clone --branch fix/test-credit-retry https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/saved-refresh-feedback https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -275,3 +275,6 @@ preventing duplicate project funding and duplicate AI allowance consumption afte
 
 Superadmin retries of the same test-credit amount in an open funding dialog also reuse
 the original key, preventing duplicate grants after a lost response. Credits remain nonredeemable.
+
+After a confirmed form save, failed workspace reads show a persistent warning. Use Refresh
+to reload current data without repeating the saved action.

@@ -129,7 +129,23 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await page.getByRole("button", {name: "Issue credits", exact: true}).click();
   await expect(page.locator("dialog .error-message")).toContainText("Response lost after credit grant");
   await expect(page.getByLabel("Test credit amount")).toHaveValue("1000");
+  await page.route("**/v1/admin/overview", route => route.fulfill({
+    status: 503, json: {detail: "Overview temporarily unavailable"},
+    headers: {"Cache-Control": "no-store"},
+  }));
   await modalSubmit(page, "Issue credits");
+  const refreshNotice = page.locator("#saved-refresh-error");
+  await expect(refreshNotice).toContainText("Saved successfully, but workspace refresh failed");
+  await expect(refreshNotice).toContainText("Overview temporarily unavailable");
+  await expect(refreshNotice).toContainText("do not repeat the saved action");
+  await page.getByRole("button", {name: "Refresh", exact: true}).click();
+  await expect(page.locator("#toast")).toContainText("Overview temporarily unavailable");
+  await expect(refreshNotice).toBeVisible();
+  await page.getByRole("button", {name: "Overview", exact: true}).click();
+  await expect(refreshNotice).toBeVisible();
+  await page.unroute("**/v1/admin/overview");
+  await page.getByRole("button", {name: "Refresh", exact: true}).click();
+  await expect(refreshNotice).toHaveCount(0);
   expect(fundingRequests).toHaveLength(2);
   expect(fundingRequests[1]).toEqual(fundingRequests[0]);
   await page.unroute("**/v1/admin/owners/*/test-funding");

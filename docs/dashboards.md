@@ -181,3 +181,17 @@ amount or inspect the creator's balance before issuing a different grant. Keys l
 in the open dialog; closing, reloading or signing out loses them. This does not implement
 durable recovery or automatic retries. Funding still requires administrator authorization
 and enabled test funding; all credits are nonredeemable and no cash flow is introduced.
+
+## Saved actions and failed refreshes
+
+When a standard form save succeeds but the following workspace refresh fails, the form
+closes and a persistent warning confirms that the action was saved. Displayed balances,
+projects and assignments may still be outdated. Use the existing **Refresh** button to
+retry the reads; do not submit the saved action again. The warning survives navigation
+and repeated refresh failures, and clears after a successful refresh or sign-out.
+
+This covers confirmed saves handled by the shared form completion path, including
+project posting, assignment reservations and test-credit grants. It does not resolve an
+unknown mutation outcome or change the one-time credential display flows. Dialog retry
+keys remain in memory only; reload recovery and comprehensive request cancellation remain
+pending. This is not an audit notification retained across browser reloads.

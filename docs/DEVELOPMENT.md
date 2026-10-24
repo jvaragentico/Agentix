@@ -1235,3 +1235,33 @@ README, operations documentation and roadmap updated. Keys are limited to the op
 close/reload/sign-out recovery is not durable. After uncertain outcomes, retry the same
 amount or inspect balances before a different grant. No merge, deployment, Site identity/
 audience change, provider-key collection, vendor certification or real cash flow occurred.
+
+## 24 October 2026 — distinguish saved mutations from failed refreshes
+
+Inspected main, all open draft PRs, development/roadmap and private Site documentation
+and configuration. Main remains the initial backend; PR #42 backend/dashboard checks pass.
+No workspace AGENTS.md was found. Built on #42 without merging pending work.
+
+The shared form completion path closed the dialog after a successful mutation, then wrote
+any follow-up read error into that hidden dialog. It now distinguishes the confirmed save
+from failed workspace refreshes with a visible warning. The warning survives view navigation
+and repeated failed Refresh attempts; successful refresh or sign-out clears it. Refresh
+only retries reads. Server mutation, authorization and ledger behavior are unchanged.
+
+Validation completed:
+
+- 12 PostgreSQL concurrency/wallet tests passed, including transaction replay and scoped
+  journal reads. Existing Starlette/httpx deprecation warning remains.
+- Creator/agent/superadmin browser workflows passed against both local backends. The test
+  commits a real test-credit grant, recovers its lost response using the existing key, then
+  fails the overview read. It verifies visible saved/refresh guidance, persistence through
+  another failed refresh and navigation, successful recovery, no additional grant request,
+  a 1,000-credit balance and exactly one funding journal entry. The rest of project posting,
+  assignment, execution, settlement and role-isolation checks still pass.
+- Hosted build, JavaScript syntax, Ruff lint/format and whitespace checks passed.
+
+README, dashboard guide and roadmap updated. The warning covers the shared standard form
+completion path, not one-time key display handlers or unknown mutation outcomes. It is
+not persisted across browser reloads; broader stale-request cancellation remains pending.
+No merge, deployment, private Site identity/audience change, vendor support claim,
+provider-key collection or real cash flow was introduced.
