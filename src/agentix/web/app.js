@@ -756,6 +756,7 @@ document.addEventListener("click", async (ev) => {
       return;
     }
     if (action === "fund") {
+      const fundingKeys = new Map();
       form(
         "Issue test credits",
         `<p>These credits cannot be redeemed for money.</p>` +
@@ -767,13 +768,16 @@ document.addEventListener("click", async (ev) => {
             'required min="1"',
           ),
         "Issue credits",
-        (f) =>
-          api(
+        (f) => {
+          const amount = Number(f.amount);
+          if (!fundingKeys.has(amount)) fundingKeys.set(amount, id());
+          return api(
             `/v1/admin/owners/${b.dataset.id}/test-funding`,
             "POST",
-            { amount: Number(f.amount) },
-            { "Idempotency-Key": id() },
-          ),
+            { amount },
+            { "Idempotency-Key": fundingKeys.get(amount) },
+          );
+        },
       );
       return;
     }

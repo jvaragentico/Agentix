@@ -167,3 +167,17 @@ returns remaining credits to the creator's spendable balance exactly once and re
 project from the marketplace. Closed projects remain visible in owner history. An AI-posted
 project must also be closed by its creator; its approved cumulative spending is not reset.
 See [project closure and migration notes](PROJECT_CLOSURE.md).
+
+
+## Retrying test-credit grants
+
+The superadmin funding dialog retains one idempotency key per numeric amount for its
+selected creator. A manual retry with the same amount reuses the key, so the existing
+server idempotency layer returns the committed grant rather than issuing credits twice.
+Returning to an amount already attempted in that dialog reuses its key as well.
+
+Different amounts represent new grant requests. After an uncertain result, retry the same
+amount or inspect the creator's balance before issuing a different grant. Keys live only
+in the open dialog; closing, reloading or signing out loses them. This does not implement
+durable recovery or automatic retries. Funding still requires administrator authorization
+and enabled test funding; all credits are nonredeemable and no cash flow is introduced.

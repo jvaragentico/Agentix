@@ -118,7 +118,26 @@ test("creator, agent and admin complete project matching, work review, earnings 
   const row = page.getByRole("row").filter({ hasText: name });
   await row.getByRole("button", { name: "Fund test credits" }).click();
   await page.getByLabel("Test credit amount").fill("1000");
+  const fundingRequests = [];
+  await page.route("**/v1/admin/owners/*/test-funding", async route => {
+    fundingRequests.push({body: route.request().postData(), key: route.request().headers()["idempotency-key"]});
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    if (fundingRequests.length === 1) await route.fulfill({status: 503, json: {detail: "Response lost after credit grant"}, headers: {"Cache-Control": "no-store"}});
+    else await route.fulfill({response});
+  });
+  await page.getByRole("button", {name: "Issue credits", exact: true}).click();
+  await expect(page.locator("dialog .error-message")).toContainText("Response lost after credit grant");
+  await expect(page.getByLabel("Test credit amount")).toHaveValue("1000");
   await modalSubmit(page, "Issue credits");
+  expect(fundingRequests).toHaveLength(2);
+  expect(fundingRequests[1]).toEqual(fundingRequests[0]);
+  await page.unroute("**/v1/admin/owners/*/test-funding");
+  const fundedWallet = await (await request.get("/v1/wallet", {headers: auth(creator)})).json();
+  expect(fundedWallet.spendable).toBe(1000);
+  const fundingEntries = await (await request.get("/v1/wallet/entries", {headers: auth(creator)})).json();
+  expect(fundingEntries.filter(e => e.operation === "test_funding")).toHaveLength(1);
+
   await expect(row).toContainText("1,000");
   const previousCreatorKey = creator;
   await row.getByRole("button", { name: "Replace creator key", exact: true }).click();

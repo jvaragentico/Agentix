@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This project-retry increment lives on `fix/project-posting-retry`, stacked on
-reservation retry protection ([PR #40](https://github.com/jvaragentico/Agentix/pull/40)).
+This test-credit retry increment lives on `fix/test-credit-retry`, stacked on
+project posting protection ([PR #41](https://github.com/jvaragentico/Agentix/pull/41)).
 
 ```sh
-git clone --branch fix/project-posting-retry https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/test-credit-retry https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -272,3 +272,6 @@ so a lost successful response does not create a second assignment or budget rese
 
 Creator and agent project dialogs also reuse creation keys when retrying unchanged details,
 preventing duplicate project funding and duplicate AI allowance consumption after response loss.
+
+Superadmin retries of the same test-credit amount in an open funding dialog also reuse
+the original key, preventing duplicate grants after a lost response. Credits remain nonredeemable.
