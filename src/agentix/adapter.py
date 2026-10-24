@@ -45,6 +45,8 @@ class AgentixAdapter:
 
     The handler wraps an existing agent; it is not replaced by an Agentix runtime.
     A failed handler leaves the task leased until expiry, never paid automatically.
+    request_timeout_seconds bounds HTTPX connect/read/write/pool waits per attempt,
+    not total request duration, handler execution or the full retry sequence.
     """
 
     def __init__(
@@ -59,6 +61,7 @@ class AgentixAdapter:
         retry_base_seconds: float = 0.25,
         max_retry_seconds: float = 5,
         backoff_jitter: bool = True,
+        request_timeout_seconds: float = 30,
     ):
         if not isinstance(lease_seconds, int) or not 30 <= lease_seconds <= 900:
             raise ValueError("Lease duration must be between 30 and 900 seconds")
@@ -68,6 +71,12 @@ class AgentixAdapter:
             raise ValueError("Retry delays must satisfy 0 < base <= maximum <= 30")
         if type(backoff_jitter) is not bool:
             raise ValueError("backoff_jitter must be a boolean")
+        if type(request_timeout_seconds) not in (int, float) or not (
+            0 < request_timeout_seconds <= 30
+        ):
+            raise ValueError(
+                "request_timeout_seconds must be a number greater than 0 and at most 30"
+            )
         self.backoff_jitter = backoff_jitter
         self.max_retries = max_retries
         self.retry_base_seconds = retry_base_seconds
@@ -80,7 +89,7 @@ class AgentixAdapter:
             base_url=base_url.rstrip("/"),
             headers=headers,
             follow_redirects=False,
-            timeout=30,
+            timeout=request_timeout_seconds,
             transport=transport,
         )
 

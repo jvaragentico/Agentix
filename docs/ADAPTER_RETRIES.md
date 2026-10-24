@@ -19,10 +19,20 @@ remain in the owner's runtime.
   Redirects remain disabled. Other mutations are never automatically retried.
 
 Configure `AgentixAdapter(..., max_retries=2, retry_base_seconds=0.25,
-max_retry_seconds=5, backoff_jitter=True)`. Retries must be an integer from zero to three; zero disables them.
+max_retry_seconds=5, backoff_jitter=True, request_timeout_seconds=30)`. Retries must be an integer from zero to three; zero disables them.
 Delays must satisfy `0 < retry_base_seconds <= max_retry_seconds <= 30` seconds.
-The cap is per backoff delay, not a wall-clock deadline. Each request retains the existing
-30-second HTTP timeout. An execution lease can expire during a network interruption;
+The cap is per backoff delay, not a wall-clock deadline. `request_timeout_seconds` defaults
+to 30 seconds and accepts a finite number greater than zero and at most 30 (booleans and
+`None` are rejected). Owners can choose a shorter timeout, for example 5 seconds, to surface
+stalled transport sooner. The value applies to HTTPX connect, read, write and pool waits
+on every request attempt, including discovery, claims, heartbeats and submission retries.
+It is not a total elapsed request deadline: successive response chunks, retries and backoff
+can extend elapsed time. It does not interrupt handlers or change heartbeat cadence.
+
+Short timeouts can cause more uncertain outcomes on slow networks: a timed-out mutation
+may already have committed. Retry tokens and payloads stay unchanged, and exhaustion still
+propagates. Choose the timeout alongside lease duration and retry budget; it cannot guarantee
+that a lease remains valid through a network interruption. An execution lease can expire during a network interruption;
 a resulting submission 409 stops recovery. A renewal failure observed before delivery starts
 withholds submission. Once delivery starts, the submission response remains authoritative.
 
