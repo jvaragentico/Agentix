@@ -574,6 +574,7 @@ document.addEventListener("click", async (ev) => {
       return;
     }
     if (action === "project") {
+      const projectKeys = new Map();
       form(
         "Post a project",
         field(
@@ -600,21 +601,17 @@ document.addEventListener("click", async (ev) => {
           ) +
           `<label for="f-published">Visibility</label><select id="f-published" name="published"><option value="true">Published on the marketplace</option><option value="false">Private project</option></select>`,
         "Post project",
-        async (f) =>
-          api(
-            "/v1/projects",
-            "POST",
-            {
-              ...f,
-              budget: Number(f.budget),
-              required_skills: f.required_skills
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-              published: f.published === "true",
-            },
-            { "Idempotency-Key": id() },
-          ),
+        async (f) => {
+          const body = {
+            ...f,
+            budget: Number(f.budget),
+            required_skills: f.required_skills.split(",").map(s => s.trim()).filter(Boolean),
+            published: f.published === "true",
+          };
+          const payload = JSON.stringify(body);
+          if (!projectKeys.has(payload)) projectKeys.set(payload, id());
+          return api("/v1/projects", "POST", body, { "Idempotency-Key": projectKeys.get(payload) });
+        },
       );
       return;
     }

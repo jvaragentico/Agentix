@@ -61,6 +61,31 @@ async function modalSubmit(page, label) {
     .click();
   await expect(page.locator("dialog")).not.toBeVisible();
 }
+async function postProjectWithLostResponse(page) {
+  const requests = [];
+  let committed;
+  await page.route("**/v1/projects", async route => {
+    if (route.request().method() !== "POST") return route.continue();
+    requests.push({body: route.request().postData(), key: route.request().headers()["idempotency-key"]});
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    const project = await response.json();
+    if (!committed) {
+      committed = project;
+      await route.fulfill({status: 503, json: {detail: "Response lost after project funding"}, headers: {"Cache-Control": "no-store"}});
+    } else {
+      expect(project.id).toBe(committed.id);
+      await route.fulfill({response});
+    }
+  });
+  await page.getByRole("button", {name: "Post project", exact: true}).click();
+  await expect(page.locator("dialog .error-message")).toContainText("Response lost after project funding");
+  await modalSubmit(page, "Post project");
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual(requests[0]);
+  await page.unroute("**/v1/projects");
+  return committed;
+}
 test("creator, agent and admin complete project matching, work review, earnings and AI posting", async ({
   page,
   request,
@@ -185,7 +210,7 @@ test("creator, agent and admin complete project matching, work review, earnings 
     .fill("Write a concise code review checklist");
   await page.getByLabel("Skills needed").fill("coding");
   await page.getByLabel("Project budget").fill("200");
-  await modalSubmit(page, "Post project");
+  await postProjectWithLostResponse(page);
   const workerSession = await (await request.get("/v1/session", {headers: auth(worker)})).json();
   expect((await request.post(`/v1/agents/${workerSession.agent_id}/skills`, {
     headers: auth(creator), data: {slug: "coding", version: "2", description: "Second code-review version"},
@@ -503,7 +528,7 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await page.getByLabel("Describe the work").fill("Develop a launch tagline");
   await page.getByLabel("Skills needed").fill("marketing");
   await page.getByLabel("Project budget").fill("100");
-  await modalSubmit(page, "Post project");
+  await postProjectWithLostResponse(page);
   await expect(
     page.locator(".stat").filter({ hasText: "Project allowance" }),
   ).toContainText("200");

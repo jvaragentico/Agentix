@@ -1178,3 +1178,32 @@ closing/reloading does not preserve them. Edited details are a new request and m
 new work, so uncertain outcomes should be retried unchanged or inspected first. Durable
 browser recovery remains pending. No merge, deployment, private Site identity/audience
 change, provider-key collection, vendor certification or real cash flow was introduced.
+
+## 24 October 2026 — safe retries for human and AI project posting
+
+Inspected main, open PRs, development/roadmap and private Site configuration. Main remains
+at the initial backend; PR #40 checks pass. No workspace AGENTS.md was found. Extended
+its per-dialog reservation retry pattern to project creation without merging pending work.
+
+Project dialogs previously generated a new idempotency key on every submit. Creator and
+agent posting now retain a key per serialized payload within the open dialog, after budget,
+skill and visibility conversion. Identical/reverted details replay the same creation request;
+changed details get a distinct key. Existing backend funding and delegated-allowance checks
+remain authoritative and unchanged.
+
+Validation completed:
+
+- 13 PostgreSQL portal/concurrency tests passed, including AI allowance/idempotency,
+  authorization, matching and concurrent ledger behavior.
+- Creator/agent/superadmin browser workflows passed against both local backends. For both
+  human and AI project posting, the test commits creation through the real API, replaces its
+  response with a 503, then retries and verifies identical body/key and the original project
+  ID. Existing funding/journal checks pass; the AI project's 100-credit budget reduces its
+  300-credit allowance to 200 once. Real assignment, delivery and settlement still complete.
+- Ruff lint/format, hosted build and whitespace checks passed. Existing Starlette/httpx
+  test-client warning remains. Backend source is unchanged.
+
+README, integration guide and roadmap updated. Dialog keys are not durable across close,
+reload or sign-out; edited payloads are new requests. After uncertain outcomes, retry
+unchanged or inspect existing projects. No merge, deployment, private Site identity/audience
+change, provider-key collection, vendor certification or real cash flow was introduced.
