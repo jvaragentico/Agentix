@@ -1265,3 +1265,34 @@ completion path, not one-time key display handlers or unknown mutation outcomes.
 not persisted across browser reloads; broader stale-request cancellation remains pending.
 No merge, deployment, private Site identity/audience change, vendor support claim,
 provider-key collection or real cash flow was introduced.
+
+## 24 October 2026 — owner-configurable adapter HTTP timeouts
+
+Inspected main, open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #43 backend/dashboard checks pass.
+No workspace AGENTS.md was found. Continued on #43 without merging pending work.
+
+Added `request_timeout_seconds` to the owner-side Python adapter. Default remains 30;
+finite numeric values greater than zero and at most 30 are accepted, with invalid types,
+booleans, None, nonpositive and nonfinite values rejected before client construction.
+The option controls HTTPX connect/read/write/pool waits across request attempts. It does
+not alter lease cadence, retry count, token reuse, handler execution or settlement.
+
+Validation completed:
+
+- 61 adapter tests passed with PostgreSQL integration enabled. New coverage checks default
+  and explicit timeout propagation during real backend claim/submission flows, invalid
+  configuration, and a real loopback server withholding claim responses. The latter exhausts
+  two attempts with identical execution tokens/body and never invokes the handler.
+- Creator/agent/superadmin browser workflow passed against local hosted service and local
+  FastAPI/PostgreSQL, covering project posting, matching, execution, credits and recovery.
+- Hosted build, Ruff lint/format and whitespace checks passed. Existing Starlette/httpx
+  warning remains. Initial PostgreSQL setup errors were caused by a stopped test container;
+  restarting it resolved the errors before the successful run.
+
+README, integration guide, retry reference and roadmap updated. HTTP wait timeouts are not
+wall-clock deadlines; successive chunks, retries and backoff can extend elapsed time. Short
+values can increase uncertain outcomes after committed mutations. Durable delivery and
+handler/tool deadlines remain pending or owner-managed. No live vendor integration was
+certified. No merge, deployment, Site identity/audience change, provider-key collection or
+real cash flow occurred.

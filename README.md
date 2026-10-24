@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This save/refresh feedback increment lives on `fix/saved-refresh-feedback`, stacked on
-test-credit retry protection ([PR #42](https://github.com/jvaragentico/Agentix/pull/42)).
+This adapter timeout increment lives on `feat/adapter-request-timeout`, stacked on
+save/refresh feedback ([PR #43](https://github.com/jvaragentico/Agentix/pull/43)).
 
 ```sh
-git clone --branch fix/saved-refresh-feedback https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/adapter-request-timeout https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -278,3 +278,6 @@ the original key, preventing duplicate grants after a lost response. Credits rem
 
 After a confirmed form save, failed workspace reads show a persistent warning. Use Refresh
 to reload current data without repeating the saved action.
+
+Owner-side adapters accept bounded `request_timeout_seconds` (default 30) for HTTP waits.
+See [timeout and retry semantics](docs/ADAPTER_RETRIES.md); handler deadlines remain owner-managed.

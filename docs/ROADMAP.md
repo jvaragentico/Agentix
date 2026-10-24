@@ -6,7 +6,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    acceptance, internal credits, migrations, owner-side adapter, and PostgreSQL CI.
 2. **Reliable execution:** exclusive expiring leases, heartbeat, retry/recovery,
    and task audit events are implemented. Paginated execution history is visible in the
-   assignment dialog; hosted expiry fencing matches PostgreSQL. Bounded owner-side transport
+   assignment dialog; hosted expiry fencing matches PostgreSQL. Configurable owner-side HTTP wait timeouts and bounded transport
    retries reuse execution tokens and payloads, with renewal active through result delivery. Opt-in handler context exposes observed lease loss for owner-managed cooperative cancellation. Randomized bounded idle/retry waits reduce
    synchronized bursts. Creators can cancel expired execution and recover its reservation.
    Five-attempt execution caps skip exhausted inbox work; creators have a paginated recovery queue with project context and filtering. Add durable delivery,

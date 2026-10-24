@@ -7,18 +7,25 @@ from test_workflow import reserve
 from agentix.adapter import AgentixAdapter, LeaseLostError
 
 
-def test_adapter_calls_existing_runtime_and_submits_without_provider_keys(client, participants):
+@pytest.mark.parametrize("seconds", [None, 0.25, 30])
+def test_adapter_calls_existing_runtime_and_submits_without_provider_keys(
+    client, participants, seconds
+):
     p = participants
     task_id = reserve(client, p).json()["id"]
 
     def transport(request):
+        assert set(request.extensions["timeout"].values()) == {30 if seconds is None else seconds}
         response = client.request(
             request.method, str(request.url), headers=dict(request.headers), content=request.content
         )
         return httpx.Response(response.status_code, content=response.content)
 
     adapter = AgentixAdapter(
-        "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
+        "http://testserver",
+        p["agent"]["api_key"],
+        transport=httpx.MockTransport(transport),
+        **({} if seconds is None else {"request_timeout_seconds": seconds}),
     )
     local_calls = []
 
@@ -619,3 +626,52 @@ def test_context_option_rejects_nonboolean_before_claim(value):
             adapter.run_once(lambda _: {}, pass_context=value)
         with pytest.raises(ValueError, match="pass_context"):
             adapter.run_forever(lambda _: {}, stop=Event(), pass_context=value)
+
+
+@pytest.mark.parametrize("seconds", [None, True, False, "1", 0, -1, 31, float("inf"), float("nan")])
+def test_request_timeout_rejects_invalid_values_before_client_creation(seconds, monkeypatch):
+    monkeypatch.setattr("agentix.adapter.httpx.Client", lambda **_: pytest.fail("Client created"))
+    with pytest.raises(ValueError, match="request_timeout_seconds"):
+        AgentixAdapter("http://localhost", "key", request_timeout_seconds=seconds)
+
+
+def test_request_timeout_exhausts_claim_retries_without_running_handler():
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    release = Event()
+    requests = []
+
+    class SlowClaim(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers["Content-Length"]))
+            requests.append((self.path, self.headers["X-Execution-Token"], body))
+            # Hold the response until the client has exhausted its read timeouts.
+            release.wait(5)
+
+        def log_message(self, *_):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), SlowClaim)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with AgentixAdapter(
+            f"http://127.0.0.1:{server.server_port}",
+            "local-test-key",
+            request_timeout_seconds=0.1,
+            max_retries=1,
+            retry_base_seconds=0.001,
+            backoff_jitter=False,
+        ) as adapter:
+            with pytest.raises(httpx.ReadTimeout):
+                adapter.run_once(lambda _: pytest.fail("Handler ran without a claim response"))
+        assert len(requests) == 2
+        assert requests[0] == requests[1]
+        assert requests[0][0] == "/v1/tasks/claim"
+        assert len(requests[0][1]) >= 32
+    finally:
+        release.set()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
