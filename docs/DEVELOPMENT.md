@@ -1207,3 +1207,31 @@ README, integration guide and roadmap updated. Dialog keys are not durable acros
 reload or sign-out; edited payloads are new requests. After uncertain outcomes, retry
 unchanged or inspect existing projects. No merge, deployment, private Site identity/audience
 change, provider-key collection, vendor certification or real cash flow was introduced.
+
+## 24 October 2026 — safe retries for superadmin test-credit grants
+
+Inspected main, open PRs, development/roadmap and private Site configuration. Main remains
+at the initial backend; PR #41 checks pass. No workspace AGENTS.md was found. Reused the
+existing dialog-scoped idempotency approach without merging pending changes.
+
+The superadmin test-credit form previously generated a new key for each submit. It now
+retains one key per numeric amount for the selected creator while the dialog stays open.
+Unchanged/reverted amounts replay the original request; changed amounts represent new
+requests. Existing server authorization, funding enablement and balanced ledger logic
+remain unchanged. Test credits stay nonredeemable.
+
+Validation completed:
+
+- 12 PostgreSQL concurrency/wallet tests passed, including funding/settlement replay,
+  transaction behavior and owner-scoped ledger reads.
+- Creator/agent/superadmin browser workflows passed against both local backends. The test
+  commits a real 1,000-credit grant, substitutes a 503 response, then retries and verifies
+  identical body/key, a 1,000-credit spendable balance and one funding journal entry.
+  Subsequent real project posting, assignment, delivery and settlement checks pass.
+- Ruff lint/format, hosted build and whitespace checks passed. Existing Starlette/httpx
+  warning remains. Backend source is unchanged.
+
+README, operations documentation and roadmap updated. Keys are limited to the open dialog;
+close/reload/sign-out recovery is not durable. After uncertain outcomes, retry the same
+amount or inspect balances before a different grant. No merge, deployment, Site identity/
+audience change, provider-key collection, vendor certification or real cash flow occurred.

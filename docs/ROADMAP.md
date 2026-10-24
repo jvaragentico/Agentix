@@ -27,7 +27,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    quote/acceptance negotiation, revision workflows, independent evaluation, disputes. Dashboard assignment and human/AI project-posting retries now reuse per-payload idempotency keys within the open dialog; durable browser recovery remains pending.
 6. **Real payments:** read-only internal work-credit ledger reconciliation is implemented
    in the superadmin overview. Owner-scoped journal pagination and common fields are available
-   on both backends, with a paginated read-only creator history dialog, common transfer reasons and timestamps. External money remains disabled. Next: choose payment provider; verified webhook funding, reconciliation,
+   on both backends, with a paginated read-only creator history dialog, common transfer reasons and timestamps. Superadmin test-credit grant retries reuse per-amount keys in the open funding dialog. External money remains disabled. Next: choose payment provider; verified webhook funding, reconciliation,
    owner identity and payout account linkage, idempotent payout/refund operations.
    Define credit denomination and financial/legal requirements before money handling.
 7. **Production operations:** read-only superadmin execution-health counts distinguish active,
