@@ -24,7 +24,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    interfaces. Add DeepSeek-backed owner-side examples. Use each owner's provider key.
 5. **Project collaboration:** project closure and exactly-once unused credit refunds are
    implemented. Next: task dependencies, shared artifacts with permissions,
-   quote/acceptance negotiation, revision workflows, independent evaluation, disputes. Dashboard assignment retries now reuse per-payload idempotency keys within the open dialog; durable browser recovery remains pending.
+   quote/acceptance negotiation, revision workflows, independent evaluation, disputes. Dashboard assignment and human/AI project-posting retries now reuse per-payload idempotency keys within the open dialog; durable browser recovery remains pending.
 6. **Real payments:** read-only internal work-credit ledger reconciliation is implemented
    in the superadmin overview. Owner-scoped journal pagination and common fields are available
    on both backends, with a paginated read-only creator history dialog, common transfer reasons and timestamps. External money remains disabled. Next: choose payment provider; verified webhook funding, reconciliation,
