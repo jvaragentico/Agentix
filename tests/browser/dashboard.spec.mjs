@@ -105,6 +105,58 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(
     page.getByRole("heading", { name: "Platform overview" }),
   ).toBeVisible();
+  // A delayed refresh must not revive a signed-out workspace or replace a newer one.
+  for (const scenario of ["signed-out", "same-key-login", "newer-refresh", "stale-error"]) {
+    let release, captured;
+    const held = new Promise(resolve => { release = resolve; });
+    const ready = new Promise(resolve => { captured = resolve; });
+    let first = true;
+    await page.route("**/v1/admin/overview", async route => {
+      if (!first) return route.continue();
+      first = false;
+      const response = await route.fetch();
+      const snapshot = await response.json();
+      captured();
+      await held;
+      if (scenario === "stale-error") {
+        await route.fulfill({status: 503, json: {detail: "Stale refresh error"}, headers: {"Cache-Control": "no-store"}});
+      } else {
+        await route.fulfill({response, json: {...snapshot, owners: [...snapshot.owners, {
+          id: "stale-owner", name: "Stale snapshot marker", active: true, spendable: 0, earnings: 0,
+        }]}});
+      }
+    });
+    await page.getByRole("button", {name: "Refresh", exact: true}).click();
+    await ready;
+    if (scenario === "signed-out" || scenario === "same-key-login") {
+      await signout(page);
+      if (scenario === "same-key-login") {
+        await page.getByLabel("Agentix access key").fill(admin);
+        await page.getByRole("button", {name: "Enter workspace"}).click();
+        await expect(page.locator("aside.sidebar")).toBeVisible();
+      }
+    } else {
+      // Navigation redraws the toolbar while the earlier refresh remains pending.
+      await page.getByRole("button", {name: "Overview", exact: true}).click();
+      await page.getByRole("button", {name: "Refresh", exact: true}).click();
+      await expect(page.getByRole("button", {name: "Refresh", exact: true})).toBeEnabled();
+    }
+    const completed = page.waitForResponse(r => r.url().endsWith("/v1/admin/overview"));
+    release();
+    await completed;
+    // Wait for fetch JSON processing and rendering after the held response arrives.
+    await page.waitForTimeout(100);
+    await expect(page.getByText("Stale snapshot marker", {exact: true})).toHaveCount(0);
+    await expect(page.locator("#toast")).not.toContainText("Stale refresh error");
+    if (scenario === "signed-out") {
+      await expect(page.getByLabel("Agentix access key")).toBeVisible();
+      await expect(page.locator("aside.sidebar")).toHaveCount(0);
+      await page.getByLabel("Agentix access key").fill(admin);
+      await page.getByRole("button", {name: "Enter workspace"}).click();
+      await expect(page.locator("aside.sidebar")).toBeVisible();
+    }
+    await page.unroute("**/v1/admin/overview");
+  }
   await page.getByRole("button", { name: "+ Create account" }).click();
   const name = "Browser creator " + Date.now();
   await page.getByLabel("Creator name").fill(name);
@@ -167,6 +219,22 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await expect(row).toContainText("1,000");
   await signout(page);
   await login(page, creator);
+  const spendableStat = page.locator(".stat").filter({hasText: "Spendable credits"});
+  await expect(spendableStat).toContainText("1,000");
+  await page.route("**/v1/creator/overview", async route => {
+    const response = await route.fetch();
+    await route.fulfill({response, json: {...await response.json(), spendable: 987654}});
+  });
+  await page.route("**/v1/marketplace/projects", route => route.fulfill({
+    status: 503, json: {detail: "Marketplace refresh failed"}, headers: {"Cache-Control": "no-store"},
+  }));
+  await page.getByRole("button", {name: "Refresh", exact: true}).click();
+  await expect(page.locator("#toast")).toContainText("Marketplace refresh failed");
+  await page.getByRole("button", {name: "Overview", exact: true}).click();
+  await expect(spendableStat).toContainText("1,000");
+  await expect(spendableStat).not.toContainText("987,654");
+  await page.unroute("**/v1/creator/overview");
+  await page.unroute("**/v1/marketplace/projects");
   await page.getByRole("button", { name: "Review exhausted work" }).click();
   await expect(page.locator("dialog")).toContainText(
     "No exhausted assignments on this page.",

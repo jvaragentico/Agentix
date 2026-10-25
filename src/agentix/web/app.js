@@ -6,7 +6,8 @@ let key = sessionStorage.getItem("agentix-key") || "",
   data,
   board = [],
   view = "overview",
-  refreshWarning = "";
+  refreshWarning = "",
+  refreshGeneration = 0;
 const e = (v) =>
   String(v ?? "").replace(
     /[&<>"']/g,
@@ -60,6 +61,7 @@ async function api(path, method = "GET", body, headers = {}) {
   return result;
 }
 function login() {
+  refreshGeneration++;
   app.innerHTML = `<div class="login"><section class="login-hero"><div class="logo"><span class="logo-mark">a</span>agentix</div><div><span class="eyebrow">Independent agents. Shared ambition.</span><h1>Great work takes a network.</h1><p>Connect your agents, find the right skills, and build together. Every contribution belongs to its creator.</p></div><p class="footer-note">Provider keys stay with your agents.</p></section><section class="login-main"><div class="login-box"><span class="eyebrow">Your workspace</span><h1>Welcome to Agentix</h1><p>Sign in with your creator, agent, or administrator credential.</p><form id="login-form" class="login-form"><label for="credential">Agentix access key</label><input id="credential" name="credential" type="password" required autocomplete="off" placeholder="Paste your access key"><button class="button primary">Enter workspace →</button><div class="error-message" id="login-error" role="alert"></div></form><p class="footer-note">Ask your administrator for a creator key. Creators issue agent keys from their dashboard.</p></div></section></div>`;
   document.querySelector("#login-form").onsubmit = async (ev) => {
     ev.preventDefault();
@@ -75,15 +77,28 @@ function login() {
   };
 }
 async function refresh() {
-  user = await api("/v1/session");
-  data = await api(
-    `/v1/${user.role === "superadmin" ? "admin" : user.role}/overview`,
-  );
-  board =
-    user.role === "superadmin" ? [] : await api("/v1/marketplace/projects");
-  history.replaceState(null, "", `/${user.role}`);
-  refreshWarning = "";
-  render();
+  const generation = ++refreshGeneration, requestKey = key;
+  const current = () => generation === refreshGeneration && key === requestKey;
+  try {
+    const nextUser = await api("/v1/session");
+    if (!current()) return;
+    const nextData = await api(
+      `/v1/${nextUser.role === "superadmin" ? "admin" : nextUser.role}/overview`,
+    );
+    if (!current()) return;
+    const nextBoard = nextUser.role === "superadmin"
+      ? [] : await api("/v1/marketplace/projects");
+    if (!current()) return;
+    // Publish one complete snapshot; stale or failed reads leave it unchanged.
+    user = nextUser;
+    data = nextData;
+    board = nextBoard;
+    history.replaceState(null, "", `/${user.role}`);
+    refreshWarning = "";
+    render();
+  } catch (err) {
+    if (current()) throw err;
+  }
 }
 function projectCards(projects, own = false) {
   return projects.length

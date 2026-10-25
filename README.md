@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This adapter payload preflight increment lives on `feat/adapter-payload-preflight`, stacked on
-adapter timeouts ([PR #44](https://github.com/jvaragentico/Agentix/pull/44)).
+This refresh isolation increment lives on `fix/refresh-session-isolation`, stacked on
+adapter payload preflight ([PR #45](https://github.com/jvaragentico/Agentix/pull/45)).
 
 ```sh
-git clone --branch feat/adapter-payload-preflight https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/refresh-session-isolation https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -284,3 +284,6 @@ See [timeout and retry semantics](docs/ADAPTER_RETRIES.md); handler deadlines re
 
 The Python adapter rejects encoded request bodies above 100,000 bytes before upload,
 using the same limit as the server and dashboard. See [payload handling](docs/REQUEST_LIMITS.md).
+
+Dashboard refreshes publish complete snapshots only. Late responses from older refreshes
+or a signed-out session cannot replace the current workspace.
