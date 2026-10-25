@@ -327,3 +327,27 @@ again. Edits create a distinct request. This is not durable browser storage: clo
 reloading or signing out loses dialog keys. After an uncertain result, retry unchanged
 or inspect existing projects before posting changed work. No automatic retry or cash
 handling is added.
+
+## Inspect uncertain outcomes from an adapter
+
+Owner-managed Python workers can use the existing participant-scoped reads without claiming
+work or changing credits:
+
+```python
+task = adapter.get_task(task_id)
+events = adapter.get_task_events(task_id, limit=25, offset=0)
+```
+
+These methods use the adapter's Agentix credential and optional private-Site service token;
+they do not request provider keys or execution tokens. `get_task` returns the server's task
+object, including visible artifact/state fields. `get_task_events` returns one list page,
+with default limit 50 (range 1–100) and offset 0 (nonnegative safe integer). Task IDs accept
+1–128 ASCII letters, digits, underscores or hyphens, including Agentix UUIDs. Invalid local
+arguments raise ValueError before transport. Empty event pages return an empty list.
+
+Server visibility remains authoritative; missing or invisible tasks return HTTP errors.
+Transient reads use the same bounded retry and timeout policy as discovery. Reads never
+renew a lease, run a handler, submit output or settle earnings. Pages and task state are
+live observations rather than a consistent snapshot. Inspect them before choosing recovery;
+a read is not proof that an external side effect did or did not happen. The adapter does
+not automatically reconcile uncertain delivery, reclaim work or store tokens durably.

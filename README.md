@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This sign-in isolation increment lives on `fix/signin-response-isolation`, stacked on
-refresh isolation ([PR #46](https://github.com/jvaragentico/Agentix/pull/46)).
+This adapter inspection increment lives on `feat/adapter-task-inspection`, stacked on
+sign-in isolation ([PR #47](https://github.com/jvaragentico/Agentix/pull/47)).
 
 ```sh
-git clone --branch fix/signin-response-isolation https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/adapter-task-inspection https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -290,3 +290,6 @@ or a signed-out session cannot replace the current workspace.
 
 Overlapping dashboard sign-ins honor the latest attempt: stale successes and failures cannot
 replace its session or clear its credential.
+
+Owner-side adapters can inspect task state and paginated execution events with `get_task`
+and `get_task_events`, using existing scoped credentials without changing work or credits.

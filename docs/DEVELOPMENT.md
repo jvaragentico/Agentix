@@ -1385,3 +1385,34 @@ live Sites automatic owner authentication was not exercised or redeployed. Reque
 sent are not cancelled, and unrelated dialog/mutation callback guards remain separate work.
 No merge, deployment, Site identity/audience change, provider-key collection, vendor support
 claim or real cash flow was introduced.
+
+## 25 October 2026 — read-only task inspection through owner adapters
+
+Inspected main, open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #47 checks pass. No workspace AGENTS.md
+was found. Built on #47 without merging pending work.
+
+Added get_task and get_task_events to the owner-side Python adapter. Both reuse existing
+participant-scoped GET endpoints, bounded retry/timeouts and configured credentials. History
+accepts bounded pagination with defaults matching the API. Invalid IDs and pagination fail
+before transport; IDs are constrained to safe ASCII path segments. No execution token,
+claim, renewal, submission or settlement is introduced by inspection.
+
+Validation completed:
+
+- 82 adapter tests passed with PostgreSQL integration enabled. New tests read reserved and
+  submitted tasks, page reservation/claim/submission events, check empty pages and unchanged
+  submitted state/zero earnings, and verify unrelated owners receive 404. Input validation
+  rejects unsafe paths and pagination before transport. Transient inspection failures retry
+  the same GET without an execution token. Initial new-test expectations were corrected to
+  account for the existing reservation event and invisible-task 404 behavior.
+- Creator/agent/superadmin browser workflows passed against both local backends, covering
+  existing collaboration, scoped dashboards, credits and recovery flows.
+- Hosted build, Ruff lint/format and whitespace checks passed. Existing Starlette/httpx
+  test-client warning remains.
+
+README, integration/retry guides and roadmap updated. Inspection returns live observations,
+not a cross-endpoint snapshot or proof of external side effects. Automatic reconciliation,
+durable tokens and delivery recovery remain pending. No live vendor compatibility was
+certified. No merge, deployment, private Site identity/audience change, centralized provider
+keys or real cash flow was introduced.

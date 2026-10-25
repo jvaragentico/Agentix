@@ -715,3 +715,104 @@ def test_adapter_preflights_encoded_artifact_bytes(client, participants, body_by
     events = client.get(f"/v1/tasks/{task_id}/events", headers=p["buyer"]).json()
     assert sum(e["kind"] == "submitted" for e in events) == int(body_bytes <= 100_000)
     assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 0
+
+
+def test_adapter_inspection_is_scoped_paginated_and_read_only(client, participants):
+    p = participants
+    task_id = reserve(client, p).json()["id"]
+    reads = []
+
+    def transport(request):
+        reads.append((request.method, request.url.path))
+        response = client.request(
+            request.method, str(request.url), headers=dict(request.headers), content=request.content
+        )
+        return httpx.Response(response.status_code, content=response.content)
+
+    with AgentixAdapter(
+        "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
+    ) as adapter:
+        before = adapter.get_task(task_id)
+        assert before["state"] == "reserved"
+        assert adapter.run_once(lambda _: {"review": "Ready for creator review"}) == task_id
+        reads.clear()
+        submitted = adapter.get_task(task_id)
+        assert submitted["state"] == "submitted"
+        events = adapter.get_task_events(task_id)
+        assert [e["kind"] for e in events] == ["reserved", "claimed", "submitted"]
+        assert adapter.get_task_events(task_id, limit=1) == events[:1]
+        assert adapter.get_task_events(task_id, limit=1, offset=1) == events[1:2]
+        assert adapter.get_task_events(task_id, offset=3) == []
+        assert adapter.get_task(task_id) == submitted
+        assert all(method == "GET" for method, _ in reads)
+        assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 0
+
+    with AgentixAdapter(
+        "http://testserver",
+        p["outsider"]["Authorization"].removeprefix("Bearer "),
+        transport=httpx.MockTransport(transport),
+    ) as outsider:
+        for inspect in [outsider.get_task, outsider.get_task_events]:
+            with pytest.raises(httpx.HTTPStatusError) as error:
+                inspect(task_id)
+            assert error.value.response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "task_id", [None, "", "../session", "id/events", "id?limit=1", "é", "x" * 129]
+)
+def test_adapter_inspection_rejects_unsafe_task_paths(task_id):
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(lambda _: pytest.fail("Invalid task ID reached transport")),
+    ) as adapter:
+        for inspect in [adapter.get_task, adapter.get_task_events]:
+            with pytest.raises(ValueError, match="task_id"):
+                inspect(task_id)
+
+
+@pytest.mark.parametrize(
+    "pagination",
+    [
+        {"limit": 0},
+        {"limit": 101},
+        {"limit": True},
+        {"limit": 1.5},
+        {"offset": -1},
+        {"offset": True},
+        {"offset": "1"},
+        {"offset": 9_007_199_254_740_992},
+    ],
+)
+def test_adapter_history_rejects_invalid_pagination(pagination):
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(
+            lambda _: pytest.fail("Invalid pagination reached transport")
+        ),
+    ) as adapter:
+        with pytest.raises(ValueError):
+            adapter.get_task_events("task-id", **pagination)
+
+
+@pytest.mark.parametrize("method", ["get_task", "get_task_events"])
+def test_adapter_inspection_retries_reads_without_execution_tokens(method, monkeypatch):
+    requests = []
+    monkeypatch.setattr("agentix.adapter.time.sleep", lambda _: None)
+    expected = {"id": "task-id", "state": "running"} if method == "get_task" else []
+
+    def transport(request):
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(503, json={"detail": "Temporary read failure"})
+        return httpx.Response(200, json=expected)
+
+    with AgentixAdapter(
+        "https://agentix.example", "key", transport=httpx.MockTransport(transport)
+    ) as adapter:
+        assert getattr(adapter, method)("task-id") == expected
+    assert len(requests) == 2
+    assert requests[0].url == requests[1].url
+    assert all(r.method == "GET" and "X-Execution-Token" not in r.headers for r in requests)
