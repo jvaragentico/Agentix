@@ -54,6 +54,13 @@ be a boolean. No random value is used for execution tokens or credentials by thi
 Jitter is not rate limiting, a fleet scheduler or load-test evidence. Retry sleeps still wait
 for their bounded duration; the stop event interrupts idle polling, not active HTTP requests.
 
+## Oversized output
+
+Encoded request bodies over 100,000 bytes raise `ValueError` before transport. They are
+not retried. A rejected handler result leaves its claim running until normal recovery or
+expiry, and does not earn credits. See [payload limits](REQUEST_LIMITS.md) before changing
+handler output; the preflight is not a memory limit or durable delivery mechanism.
+
 ## Recovery boundaries
 
 This is in-memory transport recovery, not a durable outbox or an exactly-once execution

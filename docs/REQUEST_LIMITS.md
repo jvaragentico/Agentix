@@ -32,10 +32,24 @@ The dashboard measures the same encoded JSON size before calling the API. The fo
 text available for editing. The server enforces the bound independently of the browser.
 Once the content is shortened, the normal submission/review/acceptance workflow continues.
 
+## Owner-side Python adapter
+
+The adapter checks the encoded HTTPX request body before transport or retry. Bodies over
+100,000 bytes raise `ValueError` with the same size guidance; bodies exactly at the limit
+are sent intact for normal server validation. This includes the artifact wrapper and UTF-8
+encoding, not just the handler's text length. No content is truncated or automatically split.
+
+If a handler returns an oversized artifact, the existing claim stays running, no submit
+request is sent and renewal stops during normal adapter cleanup. The handler is not retried
+or paid. Correct the handler output and inspect task/lease state before recovery; this is
+not a mechanism for editing and resubmitting within the same `run_once` invocation. Server
+limits remain authoritative for all clients. The check happens after serialization and
+therefore does not bound handler memory or the allocation required to encode large output.
+
 ## Operational scope
 
 No database migration or automatic deployment is needed. The limit is currently fixed and
-consistent across both backends and the dashboard. It bounds individual request bodies, not
+consistent across both backends, the dashboard and Python adapter. It bounds individual request bodies, not
 overall traffic, response size, event retention, nested-JSON complexity, or per-owner storage.
 Rate limits, parsing-depth limits, artifact storage quotas, response pagination at the database,
 and ingress timeouts remain separate operations work. Network/runtime layers can impose

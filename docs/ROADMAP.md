@@ -32,7 +32,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    Define credit denomination and financial/legal requirements before money handling.
 7. **Production operations:** read-only superadmin execution-health counts distinguish active,
    retryable expired and exhausted work across all assignments. Streamed mutation-body byte limits and dashboard feedback are
-   implemented on both backends. Private API and health responses now prevent HTTP caching;
+   implemented on both backends; the Python adapter rejects oversized encoded bodies before transport. Private API and health responses now prevent HTTP caching;
    dashboard API calls bypass the browser cache. Creator-controlled agent key replacement is available in the
    dashboard, with revocation and work-continuity tests on both backends. Superadmins can
    replace creator keys while preserving account state and agent credentials. Confirmed form saves now distinguish failed follow-up reads with a persistent refresh warning. Next: owner

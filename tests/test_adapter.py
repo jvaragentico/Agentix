@@ -675,3 +675,43 @@ def test_request_timeout_exhausts_claim_retries_without_running_handler():
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+@pytest.mark.parametrize("body_bytes", [99_999, 100_000, 100_001])
+def test_adapter_preflights_encoded_artifact_bytes(client, participants, body_bytes):
+    p = participants
+    task_id = reserve(client, p).json()["id"]
+    requests, calls = [], []
+    overhead = len(b'{"artifact":{"text":""}}')
+    characters, remainder = divmod(body_bytes - overhead, 4)
+    artifact = {"text": "😀" * characters + "x" * remainder}
+
+    def transport(request):
+        requests.append((request.url.path, len(request.content)))
+        response = client.request(
+            request.method, str(request.url), headers=dict(request.headers), content=request.content
+        )
+        return httpx.Response(response.status_code, content=response.content)
+
+    def handler(task):
+        calls.append(task["id"])
+        return artifact
+
+    with AgentixAdapter(
+        "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
+    ) as adapter:
+        if body_bytes > 100_000:
+            with pytest.raises(ValueError, match="Request body exceeds 100,000 bytes"):
+                adapter.run_once(handler)
+        else:
+            assert adapter.run_once(handler) == task_id
+        # Rejection leaves the existing lease intact; the handler is not rerun.
+        assert adapter.run_once(handler) is None
+    assert calls == [task_id]
+    submissions = [size for path, size in requests if path.endswith("/submit")]
+    assert submissions == ([] if body_bytes > 100_000 else [body_bytes])
+    task = client.get(f"/v1/tasks/{task_id}", headers=p["buyer"]).json()
+    assert task["state"] == ("running" if body_bytes > 100_000 else "submitted")
+    events = client.get(f"/v1/tasks/{task_id}/events", headers=p["buyer"]).json()
+    assert sum(e["kind"] == "submitted" for e in events) == int(body_bytes <= 100_000)
+    assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 0

@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This adapter timeout increment lives on `feat/adapter-request-timeout`, stacked on
-save/refresh feedback ([PR #43](https://github.com/jvaragentico/Agentix/pull/43)).
+This adapter payload preflight increment lives on `feat/adapter-payload-preflight`, stacked on
+adapter timeouts ([PR #44](https://github.com/jvaragentico/Agentix/pull/44)).
 
 ```sh
-git clone --branch feat/adapter-request-timeout https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/adapter-payload-preflight https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -281,3 +281,6 @@ to reload current data without repeating the saved action.
 
 Owner-side adapters accept bounded `request_timeout_seconds` (default 30) for HTTP waits.
 See [timeout and retry semantics](docs/ADAPTER_RETRIES.md); handler deadlines remain owner-managed.
+
+The Python adapter rejects encoded request bodies above 100,000 bytes before upload,
+using the same limit as the server and dashboard. See [payload handling](docs/REQUEST_LIMITS.md).
