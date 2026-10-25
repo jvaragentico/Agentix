@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This refresh isolation increment lives on `fix/refresh-session-isolation`, stacked on
-adapter payload preflight ([PR #45](https://github.com/jvaragentico/Agentix/pull/45)).
+This sign-in isolation increment lives on `fix/signin-response-isolation`, stacked on
+refresh isolation ([PR #46](https://github.com/jvaragentico/Agentix/pull/46)).
 
 ```sh
-git clone --branch fix/refresh-session-isolation https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/signin-response-isolation https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -287,3 +287,6 @@ using the same limit as the server and dashboard. See [payload handling](docs/RE
 
 Dashboard refreshes publish complete snapshots only. Late responses from older refreshes
 or a signed-out session cannot replace the current workspace.
+
+Overlapping dashboard sign-ins honor the latest attempt: stale successes and failures cannot
+replace its session or clear its credential.
