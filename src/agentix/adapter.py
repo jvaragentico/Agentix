@@ -12,6 +12,8 @@ from threading import Event, Thread
 
 import httpx
 
+from agentix.payload_limits import MAX_REQUEST_BYTES, SIZE_ERROR
+
 
 class LeaseLostError(RuntimeError):
     """Execution stopped being authorized; its result must not be submitted."""
@@ -192,6 +194,8 @@ class AgentixAdapter:
     def _request(self, method: str, path: str, **kwargs):
         # Serialize once so a retry sends the exact same token and JSON bytes.
         request = self.client.build_request(method, path, **kwargs)
+        if len(request.content) > MAX_REQUEST_BYTES:
+            raise ValueError(SIZE_ERROR)
         safe = method.upper() == "GET" or (
             method.upper() == "POST"
             and request.headers.get("X-Execution-Token")

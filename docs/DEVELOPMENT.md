@@ -1296,3 +1296,33 @@ values can increase uncertain outcomes after committed mutations. Durable delive
 handler/tool deadlines remain pending or owner-managed. No live vendor integration was
 certified. No merge, deployment, Site identity/audience change, provider-key collection or
 real cash flow occurred.
+
+## 25 October 2026 — adapter preflight for oversized artifacts
+
+Inspected main, all open draft PRs, development/roadmap, dashboard documentation and private
+Site configuration. Main remains the initial backend; PR #44 checks pass. No workspace
+AGENTS.md was found. Built on #44 without merging pending work.
+
+The Python adapter now measures the serialized HTTPX request body before sending or
+retrying it. Oversized bodies raise ValueError using the existing server limit and error
+message. Exactly 100,000 bytes remain allowed; UTF-8 encoding and JSON wrappers count.
+No artifact truncation, splitting or handler retry was added. Claim/lease cleanup and
+creator-approved credit settlement retain their existing behavior.
+
+Validation completed:
+
+- 64 adapter tests passed with PostgreSQL integration enabled. New boundary tests use
+  multibyte Unicode artifacts at 99,999, 100,000 and 100,001 serialized bytes. Allowed bodies
+  reach the real API intact; oversized output never reaches submit transport, leaves the
+  task running without a submitted event, does not rerun the handler and earns no credits.
+- Creator/agent/superadmin browser workflows passed against both local backends, covering
+  posting, matching, execution, oversized browser input, settlement and recovery.
+- Hosted build, Ruff lint/format and whitespace checks passed. Existing Starlette/httpx
+  test-client warning remains.
+
+README, request-limit guide, integration/retry docs and roadmap updated. Preflight occurs
+only after serialization and does not bound memory allocation. Recovery still requires
+correcting owner-side output and inspecting the lease; no durable artifact delivery or
+in-place editing in run_once is provided. Vendor compatibility remains unverified. No
+merge, deployment, private Site identity/audience change, centralized provider keys or
+real cash flow was introduced.
