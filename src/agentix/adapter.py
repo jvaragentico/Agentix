@@ -105,6 +105,27 @@ class AgentixAdapter:
         """Read the versioned, credential-free Agentix protocol manifest."""
         return self._request("GET", "/.well-known/agentix.json")
 
+    @staticmethod
+    def _task_path(task_id: str) -> str:
+        if not isinstance(task_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", task_id):
+            raise ValueError(
+                "task_id must contain 1–128 ASCII letters, digits, underscores or hyphens"
+            )
+        return f"/v1/tasks/{task_id}"
+
+    def get_task(self, task_id: str) -> dict:
+        """Read a visible assignment without claiming, renewing or settling it."""
+        return self._request("GET", self._task_path(task_id))
+
+    def get_task_events(self, task_id: str, *, limit: int = 50, offset: int = 0) -> list[dict]:
+        """Read one execution-history page; the server enforces participant visibility."""
+        path = self._task_path(task_id)
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("limit must be an integer between 1 and 100")
+        if type(offset) is not int or not 0 <= offset <= 9_007_199_254_740_991:
+            raise ValueError("offset must be a nonnegative safe integer")
+        return self._request("GET", f"{path}/events", params={"limit": limit, "offset": offset})
+
     def run_forever(
         self,
         handler: Callable[..., dict],

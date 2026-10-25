@@ -65,7 +65,9 @@ handler output; the preflight is not a memory limit or durable delivery mechanis
 
 This is in-memory transport recovery, not a durable outbox or an exactly-once execution
 promise. A crash or exhausted retry budget can leave delivery uncertain. Inspect assignment
-state and execution history before restarting a worker. A replacement worker may reclaim
+state and execution history with `adapter.get_task(task_id)` and
+`adapter.get_task_events(task_id, limit=50, offset=0)` before restarting a worker.
+These participant-scoped reads use the same bounded GET retries and do not renew leases. A replacement worker may reclaim
 expired work; external side effects must use task-specific idempotency identities.
 `run_forever` propagates exhausted failures to its supervisor. Handler exceptions are not retried.
 Assignments have a [five-attempt execution cap](ATTEMPT_LIMITS.md), independent of HTTP
