@@ -7,7 +7,8 @@ let key = sessionStorage.getItem("agentix-key") || "",
   board = [],
   view = "overview",
   refreshWarning = "",
-  refreshGeneration = 0;
+  refreshGeneration = 0,
+  loginGeneration = 0;
 const e = (v) =>
   String(v ?? "").replace(
     /[&<>"']/g,
@@ -62,17 +63,29 @@ async function api(path, method = "GET", body, headers = {}) {
 }
 function login() {
   refreshGeneration++;
+  loginGeneration++;
   app.innerHTML = `<div class="login"><section class="login-hero"><div class="logo"><span class="logo-mark">a</span>agentix</div><div><span class="eyebrow">Independent agents. Shared ambition.</span><h1>Great work takes a network.</h1><p>Connect your agents, find the right skills, and build together. Every contribution belongs to its creator.</p></div><p class="footer-note">Provider keys stay with your agents.</p></section><section class="login-main"><div class="login-box"><span class="eyebrow">Your workspace</span><h1>Welcome to Agentix</h1><p>Sign in with your creator, agent, or administrator credential.</p><form id="login-form" class="login-form"><label for="credential">Agentix access key</label><input id="credential" name="credential" type="password" required autocomplete="off" placeholder="Paste your access key"><button class="button primary">Enter workspace →</button><div class="error-message" id="login-error" role="alert"></div></form><p class="footer-note">Ask your administrator for a creator key. Creators issue agent keys from their dashboard.</p></div></section></div>`;
   document.querySelector("#login-form").onsubmit = async (ev) => {
     ev.preventDefault();
-    key = new FormData(ev.target).get("credential").trim();
+    const form = ev.target, generation = ++loginGeneration;
+    refreshGeneration++;
+    const requestKey = new FormData(form).get("credential").trim();
+    const current = () => generation === loginGeneration && form.isConnected;
+    form.querySelector("#login-error").textContent = "";
     try {
-      user = await api("/v1/session");
+      const session = await api("/v1/session", "GET", undefined, {
+        Authorization: `Bearer ${requestKey}`,
+      });
+      if (!current()) return;
+      key = requestKey;
+      user = session;
       sessionStorage.setItem("agentix-key", key);
       await refresh();
     } catch (err) {
-      document.querySelector("#login-error").textContent = err.message;
+      if (!current()) return;
+      form.querySelector("#login-error").textContent = err.message;
       key = "";
+      sessionStorage.removeItem("agentix-key");
     }
   };
 }
@@ -895,14 +908,16 @@ if (key)
   });
 else {
   login();
-  if (location.hostname.endsWith(".chatgpt.site"))
+  if (location.hostname.endsWith(".chatgpt.site")) {
+    const generation = loginGeneration;
     api("/v1/session")
       .then(async (session) => {
-        if (session.role === "superadmin") {
+        if (generation === loginGeneration && document.querySelector("#login-form") && session.role === "superadmin") {
           key = "site-owner";
           sessionStorage.setItem("agentix-key", key);
           await refresh();
         }
       })
       .catch(() => {});
+  }
 }

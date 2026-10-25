@@ -101,6 +101,50 @@ test("creator, agent and admin complete project matching, work review, earnings 
     }
   });
   page.on("pageerror", (err) => errors.push(err.message));
+  for (const [firstKey, latestKey] of [["invalid-stale-key", admin], [admin, admin], [admin, "invalid-latest-key"]]) {
+    await page.goto("/");
+    let release, captured, first = true, overviewReads = 0;
+    const held = new Promise(resolve => { release = resolve; });
+    const ready = new Promise(resolve => { captured = resolve; });
+    await page.route("**/v1/admin/overview", route => {
+      overviewReads++;
+      return route.continue();
+    });
+    await page.route("**/v1/session", async route => {
+      if (!first) return route.continue();
+      first = false;
+      const response = await route.fetch();
+      expect(response.status()).toBe(firstKey === admin ? 200 : 401);
+      captured();
+      await held;
+      await route.fulfill({response});
+    });
+    await page.getByLabel("Agentix access key").fill(firstKey);
+    await page.getByRole("button", {name: "Enter workspace"}).click();
+    await ready;
+    await page.getByLabel("Agentix access key").fill(latestKey);
+    await page.getByRole("button", {name: "Enter workspace"}).click();
+    if (latestKey === admin) await expect(page.locator("aside.sidebar")).toBeVisible();
+    else await expect(page.locator("#login-error")).not.toBeEmpty();
+    expect(overviewReads).toBe(latestKey === admin ? 1 : 0);
+    const completed = page.waitForResponse(r => r.url().endsWith("/v1/session"));
+    release();
+    await completed;
+    await page.waitForTimeout(100);
+    expect(overviewReads).toBe(latestKey === admin ? 1 : 0);
+    expect(await page.evaluate(() => sessionStorage.getItem("agentix-key"))).toBe(latestKey === admin ? admin : null);
+    await page.unroute("**/v1/session");
+    await page.unroute("**/v1/admin/overview");
+    if (latestKey === admin) {
+      await expect(page.locator("aside.sidebar")).toBeVisible();
+      await page.getByRole("button", {name: "Refresh", exact: true}).click();
+      await expect(page.getByRole("button", {name: "Refresh", exact: true})).toBeEnabled();
+      await signout(page);
+    } else {
+      await expect(page.getByLabel("Agentix access key")).toBeVisible();
+      await expect(page.locator("aside.sidebar")).toHaveCount(0);
+    }
+  }
   await login(page, admin);
   await expect(
     page.getByRole("heading", { name: "Platform overview" }),

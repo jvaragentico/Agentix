@@ -1355,3 +1355,33 @@ README, dashboard documentation and roadmap updated. This is a browser snapshot 
 not a cross-endpoint database snapshot or network cancellation. Other dialog/mutation and
 independent sign-in callbacks remain outside this increment. No merge, deployment, Site
 identity/audience change, provider-key collection, vendor certification or real cash flow.
+
+## 25 October 2026 — isolate overlapping sign-in responses
+
+Inspected main, open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #46 checks pass. No workspace AGENTS.md
+was found. Continued on #46 without merging pending work.
+
+Credential entry now captures the submitted key and an attempt generation, sends that
+key explicitly, and only commits success/errors for the latest connected sign-in form.
+New attempts invalidate pending workspace refreshes. Current failures clear stored keys;
+stale failures cannot clear newer credentials, and stale successes cannot override newer
+failures. The private-Site automatic owner callback also checks that no manual sign-in or
+new login screen superseded it. Owner identity binding and audience are unchanged.
+
+Validation completed:
+
+- 15 PostgreSQL portal/wallet tests passed, including role scoping, matching, delegated
+  posting and owner journal reads. Existing Starlette/httpx warning remains.
+- Creator/agent/superadmin browser workflows passed against both local backends. Held real
+  session responses cover older failure/newer success, older success/newer success, and
+  older success/newer failure. Tests verify credential persistence/clearing, no stale extra
+  overview read, correct signed-in/out state and continued refresh functionality. Existing
+  posting, matching, leases, settlement and refresh recovery checks pass.
+- Hosted build, JavaScript syntax, Ruff lint/format and whitespace checks passed.
+
+README, dashboard guide and roadmap updated. Tests use local credential authentication;
+live Sites automatic owner authentication was not exercised or redeployed. Requests already
+sent are not cancelled, and unrelated dialog/mutation callback guards remain separate work.
+No merge, deployment, Site identity/audience change, provider-key collection, vendor support
+claim or real cash flow was introduced.

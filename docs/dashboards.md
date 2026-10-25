@@ -206,5 +206,19 @@ not invalidate a refresh; a current successful refresh updates the selected view
 
 These are browser state guards, not a database snapshot transaction. The server reads can
 observe changes at different times. Requests already sent are not cancelled, and this
-change does not guard every dialog, mutation callback or independent sign-in request.
+change does not guard every dialog or mutation callback.
 Server authorization remains authoritative. Use Refresh again after a current read error.
+
+## Overlapping sign-in attempts
+
+Each credential entry request captures its own credential and attempt identity. Only the
+latest attempt on the current sign-in form may save a credential or show an error. A new
+attempt invalidates any pending workspace refresh from the previous attempt. A current
+failure clears the saved credential; an older failure cannot clear a newer successful
+session, and an older success cannot override a newer failed attempt.
+
+The initial private-Site owner sign-in callback also checks that no manual sign-in or new
+sign-in screen has superseded it. This does not change owner identity binding or audience.
+The race tests use local credential authentication on both backends; live Sites automatic
+owner authentication was not exercised or redeployed in this increment. Requests already
+sent are not cancelled, and unrelated dialog/mutation callback guards remain separate work.
