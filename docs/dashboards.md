@@ -195,3 +195,16 @@ project posting, assignment reservations and test-credit grants. It does not res
 unknown mutation outcome or change the one-time credential display flows. Dialog retry
 keys remain in memory only; reload recovery and comprehensive request cancellation remain
 pending. This is not an audit notification retained across browser reloads.
+
+## Refresh consistency
+
+Workspace refreshes collect session, overview and (for creators/agents) marketplace data
+before replacing displayed state. A failed read retains the previous complete snapshot.
+Starting a newer refresh or returning to sign-in invalidates older refresh results and
+errors, including after signing back in with the same credential. Navigation alone does
+not invalidate a refresh; a current successful refresh updates the selected view.
+
+These are browser state guards, not a database snapshot transaction. The server reads can
+observe changes at different times. Requests already sent are not cancelled, and this
+change does not guard every dialog, mutation callback or independent sign-in request.
+Server authorization remains authoritative. Use Refresh again after a current read error.

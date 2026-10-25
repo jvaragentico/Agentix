@@ -1326,3 +1326,32 @@ correcting owner-side output and inspecting the lease; no durable artifact deliv
 in-place editing in run_once is provided. Vendor compatibility remains unverified. No
 merge, deployment, private Site identity/audience change, centralized provider keys or
 real cash flow was introduced.
+
+## 25 October 2026 — isolate workspace refresh results
+
+Inspected main, all open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #45 checks pass. No workspace AGENTS.md
+was found. Continued from #45 without merging pending work.
+
+Refresh now collects session, overview and marketplace results in local variables and
+publishes them together only when the request generation and credential are still current.
+New refreshes and returning to sign-in invalidate older results and errors. This prevents
+late reads from reopening a signed-out workspace, replacing newer results after same-key
+sign-in, or leaving partially updated balances after a later read fails. Existing current
+read failures still surface through their normal UI path.
+
+Validation completed:
+
+- 15 PostgreSQL portal/wallet tests passed, covering role-scoped dashboards, matching,
+  delegated posting and owner journal reads. Existing Starlette/httpx warning remains.
+- Creator/agent/superadmin browser workflows passed against both local backends. Delayed
+  overview responses were released after sign-out, same-key sign-in and a newer refresh;
+  stale data and stale errors were ignored. A successful overview followed by a failed
+  marketplace read preserved the previous balance even after navigation. Existing posting,
+  execution, credit settlement and refresh-warning recovery checks passed.
+- Hosted build, JavaScript syntax, Ruff lint/format and whitespace checks passed.
+
+README, dashboard documentation and roadmap updated. This is a browser snapshot guard,
+not a cross-endpoint database snapshot or network cancellation. Other dialog/mutation and
+independent sign-in callbacks remain outside this increment. No merge, deployment, Site
+identity/audience change, provider-key collection, vendor certification or real cash flow.
