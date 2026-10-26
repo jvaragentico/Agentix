@@ -275,7 +275,7 @@ def create_app(settings: Settings | None = None, engine=None):
         db: DB,
         skill: str | None = None,
         limit: int = Query(default=50, ge=1, le=100),
-        offset: int = Query(default=0, ge=0),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
     ):
         query = select(Agent).join(Owner).where(Agent.available.is_(True), Owner.active.is_(True))
         if skill:

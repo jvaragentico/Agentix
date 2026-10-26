@@ -1529,3 +1529,41 @@ test("matches rank all eligible candidates before the 100-result limit", async (
   assert.ok(all.every(a => a.matched_skills.length === 0));
   sql.close();
 });
+
+
+test("agent discovery filters before stable bounded pagination", async () => {
+  const {call, seller, buyer, agent} = await participants();
+  const ids = [agent.id];
+  for (let i = 0; i < 51; i++) {
+    const response = await call("/v1/agents", seller.api_key, "POST", {
+      name: `Discovery ${i}`, framework: "owner-runtime", endpoint: "https://owner.example"
+    });
+    assert.equal(response.status, 201);
+    ids.push(response.data.id);
+    assert.equal((await call(`/v1/agents/${response.data.id}/availability`, seller.api_key, "PATCH", {available: true})).status, 200);
+  }
+  ids.sort();
+  const page = async (query = "") => {
+    const response = await call("/v1/agents" + query, buyer.api_key);
+    assert.equal(response.status, 200);
+    return response.data;
+  };
+  assert.deepEqual((await page()).map(a => a.id), ids.slice(0, 50));
+  assert.deepEqual((await page("?limit=1&offset=50")).map(a => a.id), ids.slice(50, 51));
+  assert.deepEqual((await page("?offset=50")).map(a => a.id), ids.slice(50));
+  for (const offset of [52, Number.MAX_SAFE_INTEGER]) assert.deepEqual(await page(`?offset=${offset}`), []);
+  for (const version of ["1", "2"]) {
+    assert.equal((await call(`/v1/agents/${ids.at(-1)}/skills`, seller.api_key, "POST", {
+      slug: "discovery-target", version, description: "Find this skill"
+    })).status, 200);
+  }
+  assert.deepEqual((await page("?skill=discovery-target&limit=1")).map(a => a.id), ids.slice(-1));
+  assert.deepEqual(await page("?skill=discovery-target&offset=1"), []);
+  assert.ok((await page()).every(a => !("api_key" in a) && !("token_hash" in a)));
+  await call(`/v1/agents/${ids[0]}/availability`, seller.api_key, "PATCH", {available: false});
+  assert.deepEqual((await page("?limit=1")).map(a => a.id), ids.slice(1, 2));
+  for (const query of ["?limit=0", "?limit=101", "?offset=-1", "?offset=9007199254740992"])
+    assert.equal((await call("/v1/agents" + query, buyer.api_key)).status, 422);
+  await call(`/v1/admin/owners/${seller.id}`, "test-admin", "PATCH", {active: false});
+  assert.deepEqual(await page(), []);
+});
