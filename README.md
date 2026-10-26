@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This adapter inbox increment lives on `feat/adapter-inbox-inspection`, stacked on
-task inspection ([PR #48](https://github.com/jvaragentico/Agentix/pull/48)).
+This history pagination fix lives on `fix/history-offset-bound`, stacked on
+adapter inbox inspection ([PR #49](https://github.com/jvaragentico/Agentix/pull/49)).
 
 ```sh
-git clone --branch feat/adapter-inbox-inspection https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/history-offset-bound https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -296,3 +296,6 @@ and `get_task_events`, using existing scoped credentials without changing work o
 
 Adapters can discover their scoped assignments with `list_tasks(state="reserved", limit=25,
 offset=0)` before inspecting individual tasks; listing does not claim work.
+
+Participant execution-history offsets now share the same safe-integer bound on both
+backends; oversized values return a validation error.

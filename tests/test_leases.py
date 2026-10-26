@@ -129,11 +129,20 @@ def test_history_pagination_is_scoped_and_recovers_in_attempt_order(client, app,
     assert history[-1]["attempt"] == 2
     page = client.get(f"/v1/tasks/{task_id}/events?limit=2&offset=2", headers=p["agent_auth"])
     assert page.json() == history[2:4]
-    for suffix in ("?limit=101", "?offset=-1"):
+    edge = client.get(f"/v1/tasks/{task_id}/events?offset=9007199254740991", headers=p["buyer"])
+    assert edge.status_code == 200 and edge.json() == []
+    for suffix in (
+        "?limit=101",
+        "?offset=-1",
+        "?offset=9007199254740992",
+        "?offset=9223372036854775808",
+        "?offset=999999999999999999999999999999999999",
+    ):
         assert (
             client.get(f"/v1/tasks/{task_id}/events{suffix}", headers=p["buyer"]).status_code == 422
         )
     assert client.get(f"/v1/tasks/{task_id}/events", headers=p["outsider"]).status_code == 404
+    assert client.get(f"/v1/tasks/{task_id}/events", headers=p["buyer"]).json() == history
     assert FIRST not in str(history) and SECOND not in str(history)
 
 

@@ -1446,3 +1446,31 @@ reads, not snapshots, automatic traversal or claims. Listing a task does not gua
 can still be claimed. Automatic reconciliation, durable delivery and verified vendor
 integrations remain pending. No merge, deployment, Site identity/audience change, provider
 key centralization or real cash flow was introduced.
+
+## 26 October 2026 — align participant history offset bounds
+
+Inspected main, open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #49 checks pass. No workspace AGENTS.md
+was found. Continued on #49 without merging pending work.
+
+Participant execution-history reads in FastAPI lacked the maximum offset already enforced
+by the hosted backend, admin history and adapter. Added the same inclusive JavaScript
+safe-integer maximum (9,007,199,254,740,991), so larger offsets return HTTP 422 rather than
+reaching event pagination with integers outside the common contract. Authorization,
+ordering, lease handling and credit settlement remain unchanged.
+
+Validation completed:
+
+- The new PostgreSQL regression failed before the fix: offset 9,007,199,254,740,992 returned
+  200 instead of 422. After the fix, 95 lease/adapter tests passed with PostgreSQL enabled.
+- All 24 hosted tests passed. Both backend suites check the maximum valid offset returns
+  an empty page, reject larger values including integers beyond signed 64-bit range, and
+  confirm the event history is unchanged after rejected reads.
+- Creator/agent/superadmin browser workflows passed against both local backends.
+- Hosted build, Ruff lint/format and whitespace checks passed. Existing Starlette/httpx
+  warning and the expected hosted readiness-test database error log remain.
+
+README, execution-history documentation and roadmap updated. The bound is validation,
+not an efficiency guarantee for large offsets, rate limiting or snapshot pagination.
+No merge, deployment, Site identity/audience change, provider-key collection, vendor
+compatibility claim or real cash flow was introduced.

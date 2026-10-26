@@ -662,6 +662,13 @@ test("expired execution tokens cannot recover a lease and history matches the RE
     (await call(`/v1/tasks/${task.id}/events?offset=-1`, buyer.api_key)).status,
     422,
   );
+  const edge = await call(`/v1/tasks/${task.id}/events?offset=9007199254740991`, buyer.api_key);
+  assert.equal(edge.status, 200);
+  assert.deepEqual(edge.data, []);
+  for (const offset of ["9007199254740992", "9223372036854775808", "999999999999999999999999999999999999"]) {
+    assert.equal((await call(`/v1/tasks/${task.id}/events?offset=${offset}`, buyer.api_key)).status, 422);
+  }
+  assert.deepEqual((await call(`/v1/tasks/${task.id}/events`, buyer.api_key)).data, history);
   const other = (
     await call("/v1/admin/owners", "test-admin", "POST", { name: "Outsider" })
   ).data;
