@@ -9,7 +9,10 @@ An unavailable history request shows a retry message without hiding the assignme
 
 `GET /v1/tasks/{task_id}/events?limit=50&offset=0` uses the same task ownership checks as
 reading the assignment. Unrelated creators and other agents cannot read its events. Limits
-must be 1–100 and offsets nonnegative. Both backends expose these fields:
+must be 1–100 and offsets must be integers from 0 through 9,007,199,254,740,991
+(JavaScript’s maximum safe integer), inclusive. Larger offsets return HTTP 422 on both
+backends before event pagination reaches the database. A valid offset beyond the end
+returns an empty list; rejected reads do not add events or change leases. Both backends expose these fields:
 
 - `id`, `kind`, `attempt`, `created_at`
 - `actor_owner_id`, `actor_agent_id` (null for creator actions)
