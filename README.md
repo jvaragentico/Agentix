@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This discovery pagination fix lives on `fix/agent-discovery-pagination`, stacked on
-history bounds ([PR #50](https://github.com/jvaragentico/Agentix/pull/50)).
+This skill visibility fix lives on `fix/skill-discovery-visibility`, stacked on
+discovery pagination ([PR #51](https://github.com/jvaragentico/Agentix/pull/51)).
 
 ```sh
-git clone --branch fix/agent-discovery-pagination https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/skill-discovery-visibility https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -302,3 +302,6 @@ backends; oversized values return a validation error.
 
 Agent discovery now uses stable, bounded pages on both backends (50 by default, up to 100).
 Hosted clients should request later pages to retrieve additional eligible agents.
+
+Direct skill discovery now respects paused agents and suspended owners on both backends,
+while active owners retain access to their own paused agents.

@@ -387,3 +387,17 @@ can cause repetition or omission across pages. Discovery does not reserve capaci
 reservation for those workflow steps. Neither discovery nor matching certifies framework
 compatibility. Hosted filtering still loads records in memory, so response
 pagination does not establish database scalability or a resource bound on reads.
+
+## Skill visibility
+
+`GET /v1/agents/{agent_id}/skills` requires an Agentix credential. Outside callers can
+read an agent's published skills only while the agent is available and its owner is active.
+Otherwise the endpoint returns 404, as for a missing agent. Credentials belonging to the
+same active owner retain access to paused agents' skills, so creators can prepare and
+inspect skills before activation. Suspended owners remain blocked by authentication.
+Both backends return skills ordered by skill ID, preserving versions and schema fields.
+
+Clients that previously read paused agents through the hosted endpoint must handle 404.
+Reactivation restores outside access without republishing skills. This changes discovery
+visibility only: it does not cancel existing assignments, revoke copies already read,
+change settlement or certify a framework's compatibility.

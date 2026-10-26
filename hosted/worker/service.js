@@ -827,11 +827,15 @@ async function route(u, r, env, path, method, b, a) {
       u.put(x);
       return { id: x.id, agent_id: x.id, api_key: raw };
     }
-    if (m[2] === "skills" && method === "GET")
+    if (m[2] === "skills" && method === "GET") {
+      if (x.owner_id !== a.owner_id && (!x.available || !u.get(x.owner_id, "owner")?.active))
+        fail(404, "Agent not found");
       return u
         .list("skill")
         .filter((s) => s.agent_id === x.id)
+        .sort((a, b) => a.id.localeCompare(b.id))
         .map(({ type, created_at, ...s }) => s);
+    }
     if (m[2] === "skills" && method === "POST") {
       requireOwner(a);
       exact(b, [

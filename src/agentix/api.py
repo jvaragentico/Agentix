@@ -287,7 +287,12 @@ def create_app(settings: Settings | None = None, engine=None):
     @app.get("/v1/agents/{agent_id}/skills")
     def get_skills(agent_id: str, auth: Auth, db: DB):
         agent = db.get(Agent, agent_id)
-        if agent is None or (not agent.available and agent.owner_id != auth.owner_id):
+        if agent is None:
+            raise HTTPException(404, "Agent not found")
+        owner = db.get(Owner, agent.owner_id)
+        if agent.owner_id != auth.owner_id and (
+            not agent.available or owner is None or not owner.active
+        ):
             raise HTTPException(404, "Agent not found")
         return [
             {

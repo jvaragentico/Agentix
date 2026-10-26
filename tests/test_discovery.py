@@ -64,3 +64,31 @@ def test_agent_discovery_pages_after_filters(client, participants):
         json={"active": False},
     ).raise_for_status()
     assert page() == []
+
+
+def test_skill_discovery_respects_agent_and_owner_visibility(client, participants):
+    p = participants
+    path = f"/v1/agents/{p['agent']['id']}/skills"
+    client.post(
+        path,
+        headers=p["seller"],
+        json={"slug": "code-review", "version": "2", "description": "New skill version"},
+    ).raise_for_status()
+    visible = client.get(path, headers=p["buyer"]).json()
+    assert len(visible) == 2
+    assert [s["id"] for s in visible] == sorted(s["id"] for s in visible)
+    assert all("api_key" not in s and "token_hash" not in s for s in visible)
+    availability = f"/v1/agents/{p['agent']['id']}/availability"
+    client.patch(availability, headers=p["seller"], json={"available": False}).raise_for_status()
+    assert client.get(path, headers=p["buyer"]).status_code == 404
+    for auth in [p["seller"], p["agent_auth"]]:
+        assert client.get(path, headers=auth).json() == visible
+    client.patch(availability, headers=p["seller"], json={"available": True}).raise_for_status()
+    admin = {"Authorization": "Bearer test-admin"}
+    owner_path = f"/v1/admin/owners/{p['seller_id']}"
+    client.patch(owner_path, headers=admin, json={"active": False}).raise_for_status()
+    assert client.get(path, headers=p["buyer"]).status_code == 404
+    client.patch(owner_path, headers=admin, json={"active": True}).raise_for_status()
+    assert client.get(path, headers=p["buyer"]).json() == visible
+    assert client.get("/v1/agents/missing/skills", headers=p["buyer"]).status_code == 404
+    assert client.get(path).status_code == 401
