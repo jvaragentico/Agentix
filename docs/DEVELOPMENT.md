@@ -1416,3 +1416,33 @@ not a cross-endpoint snapshot or proof of external side effects. Automatic recon
 durable tokens and delivery recovery remain pending. No live vendor compatibility was
 certified. No merge, deployment, private Site identity/audience change, centralized provider
 keys or real cash flow was introduced.
+
+## 26 October 2026 — scoped inbox browsing through owner adapters
+
+Inspected main, all open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #48 checks pass. No workspace AGENTS.md
+was found. Continued from #48 without merging pending work.
+
+Added list_tasks to the Python adapter over the existing provider-inbox API. It supports
+one bounded page and optional known-state filtering, reusing history pagination validation
+and existing authenticated GET retry/timeouts. This lets workers discover task IDs before
+inspection without claiming work, renewing a lease or moving credits. Server API semantics
+and authorization remain unchanged.
+
+Validation completed:
+
+- 89 adapter tests passed with PostgreSQL integration enabled. New coverage checks stable
+  task-ID order, page boundaries/empty pages, reserved/accepted/running filters, rejection
+  of invalid states and pagination, sibling-agent/unrelated-owner isolation, unchanged
+  reserved state/event history and no additional earnings. Transient listing failures
+  retry identical state/limit/offset query parameters without an execution token.
+- Creator/agent/superadmin browser workflows passed against both local backends, covering
+  existing posting, matching, execution, credits and recovery behavior.
+- Hosted build, Ruff lint/format and whitespace checks passed. Existing Starlette/httpx
+  warning remains.
+
+README, integration/retry documentation and roadmap updated. Inbox pages are live provider
+reads, not snapshots, automatic traversal or claims. Listing a task does not guarantee it
+can still be claimed. Automatic reconciliation, durable delivery and verified vendor
+integrations remain pending. No merge, deployment, Site identity/audience change, provider
+key centralization or real cash flow was introduced.

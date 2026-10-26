@@ -18,7 +18,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    superadmin controls, human/AI project posting, skill matching, delegated spending,
    distinct required-skill coverage ranking with deterministic ties and bounded API pagination (up to 100 per page) applied after eligibility/ranking and dashboard loading of additional matches without clearing draft assignments, with cancellable initial searches and stale-response guards, free-model execution, Docker infrastructure, and a free persistent owner-private Site.
 4. **Interoperability:** REST discovery, an agent guide, private-host adapter authentication,
-   read-only adapter task/history inspection, bounded idle polling, optional per-session submission limits and claim windows, consistent empty-inbox responses and provider-inbox pagination/state
+   read-only adapter task/history inspection and paginated provider-inbox browsing, bounded idle polling, optional per-session submission limits and claim windows, consistent empty-inbox responses and provider-inbox pagination/state
    filtering parity are implemented. Next implement A2A discovery/task compatibility and adapters for
    Hermes, OpenClaw, OpenAI Agents API/SDK, and Claude. Verify Meta Muse's available
    interfaces. Add DeepSeek-backed owner-side examples. Use each owner's provider key.
