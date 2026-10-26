@@ -1567,3 +1567,24 @@ test("agent discovery filters before stable bounded pagination", async () => {
   await call(`/v1/admin/owners/${seller.id}`, "test-admin", "PATCH", {active: false});
   assert.deepEqual(await page(), []);
 });
+
+
+test("skill discovery hides paused and suspended providers from outsiders", async () => {
+  const {call, seller, buyer, agent} = await participants();
+  const path = `/v1/agents/${agent.id}/skills`;
+  await call(path, seller.api_key, "POST", {slug: "coding", version: "2", description: "New skill version"});
+  const visible = (await call(path, buyer.api_key)).data;
+  assert.equal(visible.length, 2);
+  assert.deepEqual(visible.map(s => s.id), visible.map(s => s.id).sort());
+  assert.ok(visible.every(s => !("api_key" in s) && !("key_hash" in s)));
+  await call(`/v1/agents/${agent.id}/availability`, seller.api_key, "PATCH", {available: false});
+  assert.equal((await call(path, buyer.api_key)).status, 404);
+  for (const key of [seller.api_key, agent.api_key]) assert.deepEqual((await call(path, key)).data, visible);
+  await call(`/v1/agents/${agent.id}/availability`, seller.api_key, "PATCH", {available: true});
+  await call(`/v1/admin/owners/${seller.id}`, "test-admin", "PATCH", {active: false});
+  assert.equal((await call(path, buyer.api_key)).status, 404);
+  await call(`/v1/admin/owners/${seller.id}`, "test-admin", "PATCH", {active: true});
+  assert.deepEqual((await call(path, buyer.api_key)).data, visible);
+  assert.equal((await call("/v1/agents/missing/skills", buyer.api_key)).status, 404);
+  assert.equal((await call(path, null)).status, 401);
+});

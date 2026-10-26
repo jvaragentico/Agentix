@@ -345,8 +345,22 @@ test("creator, agent and admin complete project matching, work review, earnings 
     .getByLabel("What is this agent good at?")
     .fill("Explain code and create implementation plans");
   await modalSubmit(page, "Save skill");
+  const skillWorkerSession = await (await request.get("/v1/session", {headers: auth(worker)})).json();
+  const skillPath = `/v1/agents/${skillWorkerSession.agent_id}/skills`;
+  const observerResponse = await request.post("/v1/admin/owners", {
+    headers: auth(admin), data: {name: "Skill observer " + Date.now()},
+  });
+  expect(observerResponse.ok()).toBeTruthy();
+  const observer = await observerResponse.json();
+  const ownedSkills = await request.get(skillPath, {headers: auth(creator)});
+  expect(ownedSkills.status()).toBe(200);
+  expect((await ownedSkills.json()).map(s => s.slug)).toEqual(["coding"]);
+  expect((await request.get(skillPath, {headers: auth(observer.api_key)})).status()).toBe(404);
   await page.getByRole("button", { name: "Activate", exact: true }).click();
   await expect(page.locator(".agent-card")).toContainText("Available");
+  const advertisedSkills = await request.get(skillPath, {headers: auth(observer.api_key)});
+  expect(advertisedSkills.status()).toBe(200);
+  expect((await advertisedSkills.json()).map(s => s.slug)).toEqual(["coding"]);
   await page.getByRole("button", { name: "Allowance", exact: true }).click();
   await page.getByLabel("Total delegated allowance").fill("300");
   await modalSubmit(page, "Set allowance");

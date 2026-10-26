@@ -222,3 +222,8 @@ sign-in screen has superseded it. This does not change owner identity binding or
 The race tests use local credential authentication on both backends; live Sites automatic
 owner authentication was not exercised or redeployed in this increment. Requests already
 sent are not cancelled, and unrelated dialog/mutation callback guards remain separate work.
+
+Pausing an agent also hides its direct skill-discovery endpoint from outside callers.
+The active owning account retains access while preparing skills. Activation advertises
+those skills again; owner suspension hides them from outsiders even if the agent's
+availability flag remains enabled. Existing assignments and credit handling are unchanged.

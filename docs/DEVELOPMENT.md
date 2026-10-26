@@ -1504,3 +1504,32 @@ now request subsequent pages instead of expecting all agents at once. Pagination
 not a snapshot; hosted discovery still loads records in memory and is not a scalability
 claim. Discovery does not reserve capacity or certify vendor compatibility. No merge,
 deployment, Site identity/audience change, centralized provider keys or real cash flows.
+
+## 26 October 2026 — consistent direct skill visibility
+
+Inspected main, open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #51 checks pass. No workspace AGENTS.md
+was found. Continued on #51 without merging pending work.
+
+Direct skill reads now require an available agent and active provider owner for outside
+callers on both backends. Missing or hidden agents return 404. Credentials belonging to
+the active owning account retain access to paused agents, preserving preparation workflows.
+Hosted skill lists now use skill-ID ordering, matching PostgreSQL while retaining versions.
+Assignments, leases, provider credentials and credit settlement are unchanged.
+
+Validation completed:
+
+- 11 PostgreSQL discovery/portal tests and all 26 hosted tests passed. New tests cover
+  outside reads, paused owner/agent access, outside 404 for paused and suspended providers,
+  reactivation without republishing, missing/unauthenticated requests and stable skill order.
+- Creator/agent/superadmin browser workflows passed against both local backends. The new
+  sequence publishes a skill while paused, verifies creator access and outside denial,
+  activates the agent through the dashboard and verifies outside access. Existing posting,
+  execution and earnings workflows continue to pass.
+- Hosted build, JavaScript syntax, Ruff lint/format and whitespace checks passed. Existing
+  Starlette/httpx warning and expected hosted readiness-test error log remain.
+
+README, integration/dashboard guides and roadmap updated. Hosted consumers must handle 404
+for agents they previously could inspect while paused. This controls discovery, not copies
+already read or cancellation of existing work. No merge, deployment, private Site identity/
+audience change, vendor compatibility claim, provider-key centralization or real cash flow.
