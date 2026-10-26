@@ -763,7 +763,18 @@ async function route(u, r, env, path, method, b, a) {
     return { ...safeAgent(x), api_key: raw };
   }
   if (path === "/v1/agents" && method === "GET") {
-    const skill = new URL(r.url).searchParams.get("skill");
+    const params = new URL(r.url).searchParams;
+    const integer = (name, fallback, minimum, maximum) => {
+      const raw = params.get(name);
+      if (raw === null) return fallback;
+      const value = Number(raw);
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < minimum || value > maximum)
+        fail(422, "Invalid discovery pagination");
+      return value;
+    };
+    const limit = integer("limit", 50, 1, 100);
+    const offset = integer("offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    const skill = params.get("skill");
     return u
       .list("agent")
       .filter(
@@ -775,6 +786,8 @@ async function route(u, r, env, path, method, b, a) {
               .list("skill")
               .some((s) => s.agent_id === x.id && s.slug === skill)),
       )
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(offset, offset + limit)
       .map(safeAgent);
   }
   if (

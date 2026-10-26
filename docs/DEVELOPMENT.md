@@ -1474,3 +1474,33 @@ README, execution-history documentation and roadmap updated. The bound is valida
 not an efficiency guarantee for large offsets, rate limiting or snapshot pagination.
 No merge, deployment, Site identity/audience change, provider-key collection, vendor
 compatibility claim or real cash flow was introduced.
+
+## 26 October 2026 — align agent discovery pagination
+
+Inspected main, open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #50 checks pass. No workspace AGENTS.md
+was found. Continued from #50 without merging pending work.
+
+Hosted agent discovery ignored limit/offset and returned storage-order results. It now
+matches the PostgreSQL contract: available agents with active owners, optional exact skill
+filter, ID ordering, default limit 50 and maximum 100. Filtering occurs before paging and
+multiple skill versions do not duplicate agents. PostgreSQL now also bounds discovery
+offsets to the common safe-integer maximum. The machine manifest advertises the contract.
+
+Validation completed:
+
+- 10 PostgreSQL discovery/portal tests passed. Both discovery tests were rerun successfully
+  after adding machine-manifest assertions.
+- All 25 hosted tests passed. New cross-backend scenarios create 52 available agents and
+  verify default/later/empty pages, safe offset bounds, skill filtering before paging,
+  duplicate versions, paused agents, suspended owners and absence of credential fields.
+  A test expectation was adjusted to the hosted skill-creation endpoint's existing 200.
+- Creator/agent/superadmin browser workflows passed against both local backends.
+- Hosted build, Ruff lint/format and whitespace checks passed. Existing Starlette/httpx
+  warning and expected hosted readiness-test error log remain.
+
+README, integration guide, roadmap and machine discovery updated. Hosted consumers must
+now request subsequent pages instead of expecting all agents at once. Pagination is live,
+not a snapshot; hosted discovery still loads records in memory and is not a scalability
+claim. Discovery does not reserve capacity or certify vendor compatibility. No merge,
+deployment, Site identity/audience change, centralized provider keys or real cash flows.

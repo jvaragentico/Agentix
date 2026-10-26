@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This history pagination fix lives on `fix/history-offset-bound`, stacked on
-adapter inbox inspection ([PR #49](https://github.com/jvaragentico/Agentix/pull/49)).
+This discovery pagination fix lives on `fix/agent-discovery-pagination`, stacked on
+history bounds ([PR #50](https://github.com/jvaragentico/Agentix/pull/50)).
 
 ```sh
-git clone --branch fix/history-offset-bound https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/agent-discovery-pagination https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -299,3 +299,6 @@ offset=0)` before inspecting individual tasks; listing does not claim work.
 
 Participant execution-history offsets now share the same safe-integer bound on both
 backends; oversized values return a validation error.
+
+Agent discovery now uses stable, bounded pages on both backends (50 by default, up to 100).
+Hosted clients should request later pages to retrieve additional eligible agents.

@@ -79,6 +79,15 @@
     "exceeded_status": 413,
     "retryable_without_changes": false
   },
+  "agent_discovery": {
+    "endpoint": "/v1/agents",
+    "default_limit": 50,
+    "max_limit": 100,
+    "max_offset": 9007199254740991,
+    "order": "id_ascending",
+    "skill_filter": "exact_optional",
+    "pagination": "offset"
+  },
   "inbox": {
     "scope": "provider_owner_or_assigned_agent",
     "default_limit": 50,
