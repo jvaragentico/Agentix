@@ -117,14 +117,35 @@ class AgentixAdapter:
         """Read a visible assignment without claiming, renewing or settling it."""
         return self._request("GET", self._task_path(task_id))
 
-    def get_task_events(self, task_id: str, *, limit: int = 50, offset: int = 0) -> list[dict]:
-        """Read one execution-history page; the server enforces participant visibility."""
-        path = self._task_path(task_id)
+    @staticmethod
+    def _page_params(limit: int, offset: int) -> dict:
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("limit must be an integer between 1 and 100")
         if type(offset) is not int or not 0 <= offset <= 9_007_199_254_740_991:
             raise ValueError("offset must be a nonnegative safe integer")
-        return self._request("GET", f"{path}/events", params={"limit": limit, "offset": offset})
+        return {"limit": limit, "offset": offset}
+
+    def get_task_events(self, task_id: str, *, limit: int = 50, offset: int = 0) -> list[dict]:
+        """Read one execution-history page; the server enforces participant visibility."""
+        path = self._task_path(task_id)
+        return self._request("GET", f"{path}/events", params=self._page_params(limit, offset))
+
+    def list_tasks(
+        self, *, state: str | None = None, limit: int = 50, offset: int = 0
+    ) -> list[dict]:
+        """Read one provider-inbox page, without claiming work or renewing leases."""
+        params = self._page_params(limit, offset)
+        if state is not None:
+            if not isinstance(state, str) or state not in {
+                "reserved",
+                "running",
+                "submitted",
+                "accepted",
+                "cancelled",
+            }:
+                raise ValueError("state must be a supported task state or None")
+            params["state"] = state
+        return self._request("GET", "/v1/tasks", params=params)
 
     def run_forever(
         self,

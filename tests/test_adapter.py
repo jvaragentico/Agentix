@@ -795,9 +795,11 @@ def test_adapter_history_rejects_invalid_pagination(pagination):
     ) as adapter:
         with pytest.raises(ValueError):
             adapter.get_task_events("task-id", **pagination)
+        with pytest.raises(ValueError):
+            adapter.list_tasks(**pagination)
 
 
-@pytest.mark.parametrize("method", ["get_task", "get_task_events"])
+@pytest.mark.parametrize("method", ["get_task", "get_task_events", "list_tasks"])
 def test_adapter_inspection_retries_reads_without_execution_tokens(method, monkeypatch):
     requests = []
     monkeypatch.setattr("agentix.adapter.time.sleep", lambda _: None)
@@ -812,7 +814,79 @@ def test_adapter_inspection_retries_reads_without_execution_tokens(method, monke
     with AgentixAdapter(
         "https://agentix.example", "key", transport=httpx.MockTransport(transport)
     ) as adapter:
-        assert getattr(adapter, method)("task-id") == expected
+        result = (
+            adapter.list_tasks(state="running", limit=3, offset=2)
+            if method == "list_tasks"
+            else getattr(adapter, method)("task-id")
+        )
+        assert result == expected
     assert len(requests) == 2
     assert requests[0].url == requests[1].url
+    if method == "list_tasks":
+        assert dict(requests[0].url.params) == {"state": "running", "limit": "3", "offset": "2"}
     assert all(r.method == "GET" and "X-Execution-Token" not in r.headers for r in requests)
+
+
+def test_adapter_lists_scoped_inbox_without_claiming(client, participants):
+    p = participants
+    first = reserve(client, p).json()["id"]
+    requests = []
+
+    def transport(request):
+        requests.append(request.method)
+        response = client.request(
+            request.method, str(request.url), headers=dict(request.headers), content=request.content
+        )
+        return httpx.Response(response.status_code, content=response.content)
+
+    with AgentixAdapter(
+        "http://testserver", p["agent"]["api_key"], transport=httpx.MockTransport(transport)
+    ) as adapter:
+        assert adapter.run_once(lambda _: {"review": "Complete"}) == first
+        client.post(f"/v1/tasks/{first}/accept", headers=p["buyer"]).raise_for_status()
+        second_response = reserve(client, p, key="second")
+        second_response.raise_for_status()
+        second = second_response.json()["id"]
+        requests.clear()
+        tasks = adapter.list_tasks()
+        assert [t["id"] for t in tasks] == sorted([first, second])
+        assert adapter.list_tasks(limit=1) == tasks[:1]
+        assert adapter.list_tasks(limit=1, offset=1) == tasks[1:]
+        assert adapter.list_tasks(offset=2) == []
+        assert [t["id"] for t in adapter.list_tasks(state="reserved")] == [second]
+        assert [t["id"] for t in adapter.list_tasks(state="accepted")] == [first]
+        assert adapter.list_tasks(state="running") == []
+        assert adapter.get_task(second)["state"] == "reserved"
+        assert [e["kind"] for e in adapter.get_task_events(second)] == ["reserved"]
+        assert all(method == "GET" for method in requests)
+        assert client.get("/v1/wallet", headers=p["seller"]).json()["earnings"] == 200
+
+    other = client.post(
+        "/v1/agents",
+        headers=p["seller"],
+        json={
+            "name": "Other agent",
+            "framework": "owner-managed",
+            "endpoint": "https://owner.example/other",
+        },
+    )
+    other.raise_for_status()
+    for credential in [
+        other.json()["api_key"],
+        p["outsider"]["Authorization"].removeprefix("Bearer "),
+    ]:
+        with AgentixAdapter(
+            "http://testserver", credential, transport=httpx.MockTransport(transport)
+        ) as adapter:
+            assert adapter.list_tasks() == []
+
+
+@pytest.mark.parametrize("state", ["", "unknown", True, 1, ["reserved"]])
+def test_adapter_inbox_rejects_invalid_state_before_transport(state):
+    with AgentixAdapter(
+        "https://agentix.example",
+        "key",
+        transport=httpx.MockTransport(lambda _: pytest.fail("Invalid state reached transport")),
+    ) as adapter:
+        with pytest.raises(ValueError, match="state"):
+            adapter.list_tasks(state=state)

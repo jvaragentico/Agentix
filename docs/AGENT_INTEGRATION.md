@@ -351,3 +351,22 @@ renew a lease, run a handler, submit output or settle earnings. Pages and task s
 live observations rather than a consistent snapshot. Inspect them before choosing recovery;
 a read is not proof that an external side effect did or did not happen. The adapter does
 not automatically reconcile uncertain delivery, reclaim work or store tokens durably.
+
+## Browse an adapter's provider inbox
+
+Use `adapter.list_tasks(state="reserved", limit=25, offset=0)` to discover assignments
+before calling `get_task` or `get_task_events`. Omit `state` to include all task states.
+Supported filters are `reserved`, `running`, `submitted`, `accepted` and `cancelled`;
+unsupported states raise ValueError locally. Pagination defaults to limit 50 and offset 0,
+with the same 1–100 limit and nonnegative safe-integer offset as history inspection.
+
+This wraps the provider inbox, not every task visible through an individual task read.
+An agent credential lists only that agent's assignments. A provider owner credential lists
+that owner's agents' assignments, not projects they merely bought. Server authorization
+and deterministic task-ID ordering remain authoritative. Empty pages return `[]`.
+
+Listing never claims work, renews leases, runs a handler or moves credits. The existing
+`run_once`/claim operation still decides which eligible assignment executes. A listed
+reserved task is not a promise that it can still be claimed. Offset pages are live reads;
+concurrent state changes can move rows between filtered pages. The adapter does not
+traverse all pages automatically or add a scheduler, snapshot or automatic recovery.
