@@ -1608,3 +1608,38 @@ test("marketplace skill search treats wildcard-like strings literally", async ()
   }
   assert.equal((await call(`/v1/projects/${created.data.id}`, buyer.api_key)).data.remaining_budget, 100);
 });
+
+
+test("marketplace pages filter first and break timestamp ties by ID", async () => {
+  const {call, sql, buyer, seller} = await participants();
+  const ids = [];
+  for (let i = 0; i < 52; i++) {
+    const response = await call("/v1/projects", buyer.api_key, "POST", {
+      title: `Board ${i}`, budget: 1, published: true, required_skills: [i === 0 ? "rare" : "coding"]
+    }, idem(`board-${i}`));
+    assert.equal(response.status, 201);
+    ids.push(response.data.id);
+    const payload = JSON.parse(sql.prepare("SELECT payload FROM records WHERE id=?").get(response.data.id).payload);
+    payload.created_at = new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString();
+    sql.prepare("UPDATE records SET payload=? WHERE id=?").run(JSON.stringify(payload), response.data.id);
+  }
+  const page = async (query = "") => {
+    const response = await call("/v1/marketplace/projects" + query, seller.api_key);
+    assert.equal(response.status, 200);
+    return response.data.map(p => p.id);
+  };
+  const ordered = [...ids].reverse();
+  assert.deepEqual(await page(), ordered.slice(0, 50));
+  assert.deepEqual(await page("?offset=50"), ordered.slice(50));
+  assert.deepEqual(await page("?skill=rare&limit=1"), ids.slice(0, 1));
+  assert.deepEqual(await page("?skill=rare&offset=1"), []);
+  for (const offset of [52, Number.MAX_SAFE_INTEGER]) assert.deepEqual(await page(`?offset=${offset}`), []);
+  for (const query of ["?limit=0", "?limit=101", "?offset=-1", "?offset=9007199254740992"])
+    assert.equal((await call("/v1/marketplace/projects" + query, seller.api_key)).status, 422);
+  for (const id of ids) {
+    const payload = JSON.parse(sql.prepare("SELECT payload FROM records WHERE id=?").get(id).payload);
+    payload.created_at = "2026-01-01T00:00:00.000Z";
+    sql.prepare("UPDATE records SET payload=? WHERE id=?").run(JSON.stringify(payload), id);
+  }
+  assert.deepEqual(await page("?limit=100"), [...ids].sort());
+});
