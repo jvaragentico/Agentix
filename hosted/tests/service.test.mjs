@@ -1588,3 +1588,23 @@ test("skill discovery hides paused and suspended providers from outsiders", asyn
   assert.equal((await call("/v1/agents/missing/skills", buyer.api_key)).status, 404);
   assert.equal((await call(path, null)).status, 401);
 });
+
+
+test("marketplace skill search treats wildcard-like strings literally", async () => {
+  const {call, buyer, seller} = await participants();
+  const created = await call("/v1/projects", buyer.api_key, "POST", {
+    title: "Literal skill search", budget: 100, published: true, required_skills: ["code-review", "marketing"]
+  }, idem("literal-filter"));
+  assert.equal(created.status, 201);
+  for (const skill of ["code-review", "marketing"]) {
+    const response = await call(`/v1/marketplace/projects?skill=${encodeURIComponent(skill)}`, seller.api_key);
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.data.map(p => p.id), [created.data.id]);
+  }
+  for (const skill of ["%", "code%", "code-revie_", "code", 'code-review", "marketing', '"', "\\", "不存在"]) {
+    const response = await call(`/v1/marketplace/projects?skill=${encodeURIComponent(skill)}`, seller.api_key);
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.data, []);
+  }
+  assert.equal((await call(`/v1/projects/${created.data.id}`, buyer.api_key)).data.remaining_budget, 100);
+});

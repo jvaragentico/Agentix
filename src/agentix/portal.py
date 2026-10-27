@@ -1,5 +1,6 @@
 """Dashboard APIs enforce roles independently of the browser interface."""
 
+import json
 import secrets
 from pathlib import Path
 from typing import Annotated
@@ -305,8 +306,10 @@ def mount_portal(app):
             .where(Project.published.is_(True), Project.closed.is_(False), Owner.active.is_(True))
         )
         if skill:
-            # Quoted tags match complete JSON values on both supported databases.
-            query = query.where(cast(Project.required_skills, String).contains(f'"{skill}"'))
+            # Match a complete JSON string, not SQL LIKE wildcards or adjacent tags.
+            query = query.where(
+                cast(Project.required_skills, String).contains(json.dumps(skill), autoescape=True)
+            )
         return [
             project_view(db, p)
             for p in db.scalars(query.order_by(Project.created_at.desc()).limit(limit))
