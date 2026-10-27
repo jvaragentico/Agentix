@@ -1533,3 +1533,33 @@ README, integration/dashboard guides and roadmap updated. Hosted consumers must 
 for agents they previously could inspect while paused. This controls discovery, not copies
 already read or cancellation of existing work. No merge, deployment, private Site identity/
 audience change, vendor compatibility claim, provider-key centralization or real cash flow.
+
+## 27 October 2026 — literal marketplace skill filters
+
+Inspected main, open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #52 checks pass. No workspace AGENTS.md
+was found. Continued on #52 without merging pending work.
+
+PostgreSQL marketplace filtering treated percent and underscore in requested skill tags
+as SQL LIKE wildcards. Encode the requested tag as one complete JSON string and escape
+LIKE metacharacters, matching the hosted backend's existing literal array-membership
+behavior. Published/open-project and active-owner rules, ordering, budgets and execution
+remain unchanged.
+
+Validation completed:
+
+- New PostgreSQL regression failed before the fix because a wildcard-like query returned
+  a project. After the fix, all 12 portal/discovery tests passed.
+- All 27 hosted tests passed. Cross-backend cases cover exact tags, partial strings,
+  percent/underscore patterns, quotes, adjacent-tag text, backslashes and unmatched Unicode;
+  project budget remains unchanged after searches.
+- Creator/agent/superadmin browser workflows passed against both local backends. New UI
+  searches for %, cod% and codin_ return no matches, then coding finds the posted project.
+  Existing matching, execution, settlement and role-isolation checks still pass.
+- Hosted build, Ruff lint/format and whitespace checks passed. Existing Starlette/httpx
+  warning and expected hosted readiness-test error log remain.
+
+README, integration/dashboard guides and roadmap updated. Filters remain exact, not fuzzy;
+PostgreSQL still scans serialized JSON text rather than using a specialized skill index.
+No merge, deployment, Site identity/audience change, centralized provider keys, vendor
+compatibility claim or real cash flow was introduced.

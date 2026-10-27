@@ -468,3 +468,44 @@ def test_matches_rank_all_eligible_agents_before_result_limit(client, app, parti
     ).json()
     assert [a["id"] for a in all_matches] == sorted([p["agent"]["id"], *ids[1:]])[:100]
     assert all(a["matched_skills"] == [] for a in all_matches)
+
+
+def test_marketplace_skill_filter_is_literal(client, participants):
+    p = participants
+    response = client.post(
+        "/v1/projects",
+        headers={**p["buyer"], "Idempotency-Key": "literal-filter"},
+        json={
+            "title": "Literal skill search",
+            "budget": 100,
+            "published": True,
+            "required_skills": ["code-review", "marketing"],
+        },
+    )
+    response.raise_for_status()
+    project_id = response.json()["id"]
+    for skill in ["code-review", "marketing"]:
+        result = client.get(
+            "/v1/marketplace/projects", headers=p["outsider"], params={"skill": skill}
+        )
+        assert result.status_code == 200
+        assert [p["id"] for p in result.json()] == [project_id]
+    for skill in [
+        "%",
+        "code%",
+        "code-revie_",
+        "code",
+        'code-review", "marketing',
+        '"',
+        "\\",
+        "不存在",
+    ]:
+        result = client.get(
+            "/v1/marketplace/projects", headers=p["outsider"], params={"skill": skill}
+        )
+        assert result.status_code == 200
+        assert result.json() == []
+    assert (
+        client.get("/v1/projects/" + project_id, headers=p["buyer"]).json()["remaining_budget"]
+        == 100
+    )

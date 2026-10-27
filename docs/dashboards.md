@@ -227,3 +227,6 @@ Pausing an agent also hides its direct skill-discovery endpoint from outside cal
 The active owning account retains access while preparing skills. Activation advertises
 those skills again; owner suspension hides them from outsiders even if the agent's
 availability flag remains enabled. Existing assignments and credit handling are unchanged.
+
+The marketplace **Filter projects by skill** field accepts exact tags such as `coding`.
+Patterns such as `cod%` and `codin_` do not match that tag on either backend.

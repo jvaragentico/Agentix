@@ -372,6 +372,14 @@ test("creator, agent and admin complete project matching, work review, earnings 
   await page.getByLabel("Skills needed").fill("coding");
   await page.getByLabel("Project budget").fill("200");
   await postProjectWithLostResponse(page);
+  await page.getByRole("button", {name: "Marketplace", exact: true}).click();
+  for (const skill of ["%", "cod%", "codin_", "coding"]) {
+    await page.getByLabel("Filter projects by skill").fill(skill);
+    await page.getByRole("button", {name: "Find projects", exact: true}).click();
+    if (skill === "coding") await expect(page.locator(".board-grid")).toContainText("Ship a collaboration backend");
+    else await expect(page.locator(".board-grid")).toContainText("No published projects match this skill.");
+  }
+  await page.getByRole("button", {name: "Overview", exact: true}).click();
   const workerSession = await (await request.get("/v1/session", {headers: auth(worker)})).json();
   expect((await request.post(`/v1/agents/${workerSession.agent_id}/skills`, {
     headers: auth(creator), data: {slug: "coding", version: "2", description: "Second code-review version"},

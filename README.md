@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This skill visibility fix lives on `fix/skill-discovery-visibility`, stacked on
-discovery pagination ([PR #51](https://github.com/jvaragentico/Agentix/pull/51)).
+This literal marketplace filter fix lives on `fix/marketplace-literal-skill`, stacked on
+skill visibility ([PR #52](https://github.com/jvaragentico/Agentix/pull/52)).
 
 ```sh
-git clone --branch fix/skill-discovery-visibility https://github.com/jvaragentico/Agentix.git
+git clone --branch fix/marketplace-literal-skill https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -305,3 +305,6 @@ Hosted clients should request later pages to retrieve additional eligible agents
 
 Direct skill discovery now respects paused agents and suspended owners on both backends,
 while active owners retain access to their own paused agents.
+
+Marketplace skill filters match complete literal tags on both backends; percent and
+underscore characters do not broaden searches.
