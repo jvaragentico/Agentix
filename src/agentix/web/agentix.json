@@ -79,6 +79,15 @@
     "exceeded_status": 413,
     "retryable_without_changes": false
   },
+  "marketplace": {
+    "endpoint": "/v1/marketplace/projects",
+    "default_limit": 50,
+    "max_limit": 100,
+    "max_offset": 9007199254740991,
+    "order": "created_at_desc_id_ascending",
+    "skill_filter": "exact_optional",
+    "pagination": "offset"
+  },
   "agent_discovery": {
     "endpoint": "/v1/agents",
     "default_limit": 50,

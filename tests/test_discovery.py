@@ -1,6 +1,8 @@
 def test_machine_discovery_and_error_correlation(client):
     manifest = client.get("/.well-known/agentix.json")
     assert manifest.status_code == 200
+    assert manifest.json()["marketplace"]["default_limit"] == 50
+    assert manifest.json()["marketplace"]["order"] == "created_at_desc_id_ascending"
     assert manifest.json()["agent_discovery"]["max_offset"] == 9007199254740991
     assert manifest.json()["agent_discovery"]["default_limit"] == 50
     assert manifest.json()["request_limits"]["max_body_bytes"] == 100000

@@ -230,3 +230,6 @@ availability flag remains enabled. Existing assignments and credit handling are 
 
 The marketplace **Filter projects by skill** field accepts exact tags such as `coding`.
 Patterns such as `cod%` and `codin_` do not match that tag on either backend.
+
+The marketplace dashboard currently shows the first 50 filtered projects. API clients can
+request further pages with `limit` and `offset`; dashboard paging controls remain pending.

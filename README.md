@@ -23,11 +23,11 @@ The demo also covers AI-posted projects and skill matching.
 ## Run locally
 
 Requirement: Docker with Docker Compose. Python 3 is used only to generate local secrets.
-This literal marketplace filter fix lives on `fix/marketplace-literal-skill`, stacked on
-skill visibility ([PR #52](https://github.com/jvaragentico/Agentix/pull/52)).
+This marketplace pagination increment lives on `feat/marketplace-pagination`, stacked on
+literal skill filtering ([PR #53](https://github.com/jvaragentico/Agentix/pull/53)).
 
 ```sh
-git clone --branch fix/marketplace-literal-skill https://github.com/jvaragentico/Agentix.git
+git clone --branch feat/marketplace-pagination https://github.com/jvaragentico/Agentix.git
 cd Agentix
 python3 scripts/init-local.py
 docker compose --env-file .runtime/development.env up --build -d
@@ -308,3 +308,6 @@ while active owners retain access to their own paused agents.
 
 Marketplace skill filters match complete literal tags on both backends; percent and
 underscore characters do not broaden searches.
+
+Marketplace API clients can request bounded `limit`/`offset` pages, newest first with
+project-ID tie ordering. Dashboard paging controls remain pending.

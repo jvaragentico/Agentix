@@ -1563,3 +1563,32 @@ README, integration/dashboard guides and roadmap updated. Filters remain exact, 
 PostgreSQL still scans serialized JSON text rather than using a specialized skill index.
 No merge, deployment, Site identity/audience change, centralized provider keys, vendor
 compatibility claim or real cash flow was introduced.
+
+## 27 October 2026 — bounded marketplace API pages
+
+Inspected main, open PRs, development/roadmap, dashboard documentation and private Site
+configuration. Main remains the initial backend; PR #53 checks pass. No workspace AGENTS.md
+was found. Continued on #53 without merging pending work.
+
+Added offset pagination to PostgreSQL marketplace reads and aligned hosted limit/offset
+handling. Both filter visibility and exact skill first, then order newest creation time
+first with ascending project-ID ties. Limits default to 50, max 100, and offsets use the
+common safe-integer bound. Hosted default changes from 100 to 50. Machine discovery now
+advertises this API contract; dashboard paging controls remain explicitly pending.
+
+Validation completed:
+
+- 10 PostgreSQL portal tests and 3 discovery tests passed. The latter includes new manifest
+  assertions. New marketplace scenarios create 52 projects and cover later/empty pages,
+  exact filtering before limits, invalid ranges and deterministic equal-timestamp ordering.
+- All 28 hosted tests passed, including the equivalent marketplace pagination scenarios.
+- Creator/agent/superadmin browser workflows passed against both local backends, preserving
+  marketplace filtering, posting, matching, execution, credits and access isolation.
+- Hosted build, Ruff lint/format and whitespace checks passed after correcting test import
+  ordering. Existing Starlette/httpx warning and expected hosted readiness-test log remain.
+
+README, integration/dashboard guides, roadmap and machine manifest updated. Hosted clients
+must request limit=100 or later pages when needed; dashboard still shows the first 50.
+Live offset pages can shift during concurrent changes and hosted reads remain in memory.
+No merge, deployment, private Site identity/audience change, provider-key centralization,
+vendor compatibility claim or real cash flow was introduced.

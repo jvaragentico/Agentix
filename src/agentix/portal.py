@@ -298,7 +298,11 @@ def mount_portal(app):
 
     @app.get("/v1/marketplace/projects")
     def project_board(
-        auth: Auth, db: DB, skill: str | None = None, limit: int = Query(default=50, ge=1, le=100)
+        auth: Auth,
+        db: DB,
+        skill: str | None = None,
+        limit: int = Query(default=50, ge=1, le=100),
+        offset: int = Query(default=0, ge=0, le=9_007_199_254_740_991),
     ):
         query = (
             select(Project)
@@ -312,7 +316,9 @@ def mount_portal(app):
             )
         return [
             project_view(db, p)
-            for p in db.scalars(query.order_by(Project.created_at.desc()).limit(limit))
+            for p in db.scalars(
+                query.order_by(Project.created_at.desc(), Project.id).limit(limit).offset(offset)
+            )
         ]
 
     @app.get("/v1/projects/{project_id}/matches")

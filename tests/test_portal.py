@@ -509,3 +509,50 @@ def test_marketplace_skill_filter_is_literal(client, participants):
         client.get("/v1/projects/" + project_id, headers=p["buyer"]).json()["remaining_budget"]
         == 100
     )
+
+
+def test_marketplace_pagination_and_timestamp_ties(client, app, participants):
+    from datetime import UTC, datetime
+
+    from sqlalchemy import update
+
+    from agentix.models import Project
+
+    p = participants
+    ids = []
+    for i in range(52):
+        response = client.post(
+            "/v1/projects",
+            headers={**p["buyer"], "Idempotency-Key": f"board-{i}"},
+            json={
+                "title": f"Board {i}",
+                "budget": 1,
+                "published": True,
+                "required_skills": ["rare" if i == 0 else "coding"],
+            },
+        )
+        response.raise_for_status()
+        ids.append(response.json()["id"])
+
+    def page(**params):
+        response = client.get("/v1/marketplace/projects", headers=p["outsider"], params=params)
+        response.raise_for_status()
+        return [x["id"] for x in response.json()]
+
+    assert page() == list(reversed(ids))[:50]
+    assert page(offset=50) == list(reversed(ids))[-2:]
+    assert page(skill="rare", limit=1) == ids[:1]
+    assert page(skill="rare", offset=1) == []
+    assert page(offset=52) == page(offset=9007199254740991) == []
+    for params in [{"limit": 0}, {"limit": 101}, {"offset": -1}, {"offset": 9007199254740992}]:
+        assert (
+            client.get("/v1/marketplace/projects", headers=p["outsider"], params=params).status_code
+            == 422
+        )
+    with app.state.engine.begin() as connection:
+        connection.execute(
+            update(Project)
+            .where(Project.id.in_(ids))
+            .values(created_at=datetime(2026, 1, 1, tzinfo=UTC))
+        )
+    assert page(limit=100) == sorted(ids)

@@ -411,6 +411,20 @@ wildcards or JSON structure. An unmatched nonempty filter returns an empty list 
 omitting the filter (or passing an empty value) retains the unfiltered board behavior.
 
 Published/open-project and active-owner visibility rules remain unchanged. This correction
-does not add fuzzy search, project pagination or a scalable JSON index. PostgreSQL still
+does not add fuzzy search or a scalable JSON index. PostgreSQL still
 filters serialized JSON text, using encoded complete strings and escaped LIKE patterns;
 the hosted backend keeps its exact array-membership check.
+
+## Page through the marketplace API
+
+`GET /v1/marketplace/projects?skill=coding&limit=50&offset=0` applies published/open-project,
+active-owner and optional exact skill filters before pagination. Both backends return
+newest creation time first, breaking ties by ascending project ID. Limit defaults to 50
+and accepts 1–100; offset accepts 0–9,007,199,254,740,991. Beyond-end pages return `[]` and
+invalid ranges return HTTP 422. The discovery manifest publishes these page limits.
+
+Hosted clients that expected up to 100 results by default must request `limit=100` or
+subsequent pages. Advance offset by the number returned. These are live pages, not a
+snapshot; new/closed projects can shift rows between requests. Hosted reads still load
+records in memory. Dashboard navigation currently loads the first 50; load-more controls
+are separate work. Paging does not reserve agents, alter budgets or change posting rights.

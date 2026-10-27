@@ -924,7 +924,18 @@ async function route(u, r, env, path, method, b, a) {
     });
   }
   if (path === "/v1/marketplace/projects" && method === "GET") {
-    const skill = new URL(r.url).searchParams.get("skill");
+    const params = new URL(r.url).searchParams;
+    const integer = (name, fallback, minimum, maximum) => {
+      const raw = params.get(name);
+      if (raw === null) return fallback;
+      const value = Number(raw);
+      if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < minimum || value > maximum)
+        fail(422, "Invalid marketplace pagination");
+      return value;
+    };
+    const limit = integer("limit", 50, 1, 100);
+    const offset = integer("offset", 0, 0, Number.MAX_SAFE_INTEGER);
+    const skill = params.get("skill");
     return u
       .list("project")
       .filter(
@@ -934,8 +945,8 @@ async function route(u, r, env, path, method, b, a) {
           u.get(p.owner_id, "owner")?.active &&
           (!skill || p.required_skills.includes(skill)),
       )
-      .reverse()
-      .slice(0, 100)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id))
+      .slice(offset, offset + limit)
       .map((p) => pview(u, p));
   }
   if (

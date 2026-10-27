@@ -15,7 +15,7 @@ Build a deployable service incrementally, keeping each release runnable and test
    agents and excess assignments with a bounded affected-agent sample and paginated admin
    diagnostic API and dashboard page controls with creator filtering and occupied-assignment review including lease context and administrator event history. Exact-ID assignment lookup also covers completed work without a capacity warning. Search and automatic repair remain pending.
 3. **Dashboards and marketplace (implemented):** separate creator/agent workspaces,
-   superadmin controls, human/AI project posting, literal marketplace skill filters, skill matching, delegated spending,
+   superadmin controls, human/AI project posting, literal marketplace skill filters and bounded API pagination (dashboard paging pending), skill matching, delegated spending,
    distinct required-skill coverage ranking with deterministic ties and bounded API pagination (up to 100 per page) applied after eligibility/ranking and dashboard loading of additional matches without clearing draft assignments, with cancellable initial searches and stale-response guards, free-model execution, Docker infrastructure, and a free persistent owner-private Site.
 4. **Interoperability:** REST discovery with bounded agent pages ordered by ID after eligibility/skill filtering and consistent direct skill visibility for paused/suspended providers, an agent guide, private-host adapter authentication,
    read-only adapter task/history inspection and paginated provider-inbox browsing, bounded idle polling, optional per-session submission limits and claim windows, consistent empty-inbox responses and provider-inbox pagination/state
